@@ -4,27 +4,29 @@ Instructions for any coding agent (Claude Code, Codex, Cursor, Hermes itself) wo
 
 ## What this project is
 
-**Hermes Screen** is a plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) (Nous Research) that gives Hermes a TV. A user asks Hermes what to watch from any surface (CLI, Telegram, Discord, Desktop). Hermes picks something they will actually like from the services they pay for, then turns on the TV and plays it. Hermes can also put anything else on the TV: a YouTube tutorial at a timestamp, a web page, a briefing.
+**Hermes Screen** is a plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent) (Nous Research) that lets Hermes run your home theater. You ask Hermes what to watch from any surface (CLI, Telegram, Discord, Desktop). It picks from your own **Jellyfin** library using real watch history, then plays it on your **Roku** TV through the Jellyfin Roku app's deep link support. It also handles playback control, next episode, resume, a scheduled movie night vote, and YouTube to TV.
 
-It is our entry for the **Hermes Agent Plugin Hackathon**. Hard deadline: **Nov 11, 2026, 5PM EST**. Judges score usefulness, reliability, polish, creativity, and favor plugins that do more than a prompt or a skill could.
+It is our entry for the **Hermes Agent Plugin Hackathon**. Hard deadline: **Wed Nov 11, 2026, 5PM EST**. Judges score usefulness, reliability, polish, creativity, and favor plugins that do more than a prompt or a skill could.
 
 Read these before starting a task:
 
 1. `SOUL.md` for what we care about and how the plugin should feel.
-2. `docs/PRD.md` for what we are building.
-3. `docs/ARCHITECTURE.md` for how it fits together.
-4. `docs/PLAN.md` for what is next and what is done.
-5. `docs/RESEARCH.md` for verified facts vs things still unverified.
+2. `docs/BRIEF.md` for the one page version.
+3. `docs/PRD.md` for what we are building.
+4. `docs/ARCHITECTURE.md` for how it fits together.
+5. `docs/PLAN.md` for what is next and what is done.
+6. `docs/RESEARCH.md` for verified facts vs things still unverified.
 
 ## Golden rules
 
-1. **Verify, don't assume.** The Hermes plugin API, Roku channel IDs, TMDB provider IDs, and deep link behavior are listed in `docs/RESEARCH.md` with a status. If something is marked `UNVERIFIED`, check the real docs or real device before relying on it, then update the status.
-2. **Scope is sacred.** The deadline is fixed. Only work on items in `docs/PLAN.md`. If you think something new is needed, add it under "Proposed" in the plan and keep going on the current task.
-3. **Reliability over features.** Every network call has a timeout. Every failure returns a clear, human message. Never tell the user something is playing without checking the device afterward.
-4. **No hardware in tests.** Unit tests mock Roku, Chromecast, and TMDB. Catalog CI will not have a TV.
-5. **No secrets in git.** API keys come from config or environment. See `.env.example`.
-6. **Small, reviewable changes.** One concern per commit. Keep the tree runnable at every commit.
-7. **Write it down.** Non obvious choices go in `docs/DECISIONS.md`. Finished tasks get checked off in `docs/PLAN.md`. New facts go in `docs/RESEARCH.md`.
+1. **Verify, don't assume.** Facts in `docs/RESEARCH.md` have a status. If something is `UNVERIFIED`, check the real docs, real server or real Roku before relying on it, then update the status.
+2. **Scope is sacred.** The deadline is fixed. Only work on items in `docs/PLAN.md`. New ideas go under "Proposed" in the plan.
+3. **Reliability over features.** Every network call has a timeout. Every failure returns a clear, human message. Never tell the user something is playing without checking the Roku afterward.
+4. **No hardware in tests.** Unit tests mock Jellyfin and Roku with `respx`. Catalog CI has no TV and no Jellyfin server.
+5. **Follow the catalog rules.** We must pass `hermes plugins validate`. In particular: declared tools/hooks must match what `register()` registers, secrets come only through Hermes (`requires_env` / `config_schema` secrets read via the secret scope, never `.env` files or raw `os.environ`), no patching Hermes core, no self updating code, no `eval` in Desktop code. See `docs/RESEARCH.md` > Catalog rules.
+6. **No secrets in git.** See `.env.example` for local dev only.
+7. **Small, reviewable changes.** One concern per commit. Keep the tree runnable at every commit.
+8. **Write it down.** Choices go in `docs/DECISIONS.md`. Finished tasks get checked off in `docs/PLAN.md`. New facts go in `docs/RESEARCH.md`.
 
 ## Repo layout (target)
 
@@ -33,73 +35,74 @@ hermes-screen/
 ├── AGENTS.md              # you are here
 ├── CLAUDE.md              # points Claude Code to this file
 ├── SOUL.md                # project values, voice, product taste
-├── README.md              # user facing: install, configure, use
+├── README.md              # user facing: install, configure, use (renders on the catalog page)
+├── plugin.yaml            # Hermes manifest (created when building starts)
+├── __init__.py            # register(ctx): tools, commands, hooks, blueprint
+├── schemas.py             # tool schemas the model reads
+├── tools.py               # thin handlers: validate, call core, shape results
+├── hermes_screen/
+│   ├── jellyfin.py        # Jellyfin API client
+│   ├── roku.py            # Roku ECP client + SSDP discovery
+│   ├── picker.py          # filtering + ranking + one line reasons
+│   ├── config.py          # read settings and secrets through ctx
+│   └── errors.py          # error model
+├── desktop/               # optional: Desktop plugin (poster card directive)
 ├── docs/
-│   ├── BRIEF.md           # original one page brief
-│   ├── PRD.md             # product requirements
-│   ├── ARCHITECTURE.md    # modules, tools, data flow
-│   ├── PLAN.md            # milestones + task checklist (living)
-│   ├── DECISIONS.md       # decision log (living)
-│   ├── RESEARCH.md        # verified facts + open questions (living)
-│   ├── DEMO.md            # 90 second demo script
-│   └── SUBMISSION.md      # hackathon submission checklist
-├── hermes_screen/         # plugin package (created when building starts)
-│   ├── devices/           # roku.py, chromecast.py, discovery
-│   ├── catalog/           # tmdb.py, provider mapping
-│   ├── taste/             # history + taste profile store
-│   ├── watcher.py         # background "what's playing" poller
-│   └── tools.py           # tools registered with Hermes
+│   ├── BRIEF.md  PRD.md  ARCHITECTURE.md  PLAN.md
+│   ├── DECISIONS.md  RESEARCH.md  DEMO.md  SUBMISSION.md
 └── tests/
 ```
 
-The exact plugin manifest and entry point depend on the Hermes plugin API. Confirm them from the official developer guide before creating `hermes_screen/`, and record what you find in `docs/RESEARCH.md`.
+The Hermes loader expects `plugin.yaml` and `__init__.py` at the plugin root (verified in the dev guide). Keep that.
 
 ## Stack and conventions
 
-- **Language:** Python 3.11+ (Hermes is Python).
-- **HTTP:** `httpx` with explicit timeouts (default 5s for LAN, 10s for TMDB).
-- **Chromecast:** `pychromecast`.
-- **Discovery:** SSDP for Roku (raw UDP socket), zeroconf for Chromecast (via pychromecast).
-- **Tests:** `pytest`, with `respx` for mocking httpx.
-- **Lint/format:** `ruff` (lint + format). Type hints on public functions.
-- **Data:** plain JSON or SQLite in the plugin's data directory. No external database.
-- Keep dependencies minimal. Every new dependency needs a one line reason in `docs/DECISIONS.md`.
+- **Language:** Python 3.11+.
+- **HTTP:** `httpx` with explicit timeouts (3s for Roku on the LAN, 8s for Jellyfin).
+- **Discovery:** SSDP for Roku (raw UDP socket, 3s window), with a manual IP setting as fallback.
+- **Tests:** `pytest`, `respx` for mocking httpx.
+- **Lint/format:** `ruff`. Type hints on public functions.
+- **State:** `ctx.state` for small plugin state (10 MiB cap); `plugin_db("hermes-screen")` SQLite only if we outgrow it. Never write inside the plugin directory.
+- Keep dependencies minimal. Every new dependency needs a one line reason in `docs/DECISIONS.md`, and must resolve under Hermes core constraints.
 
-## Tool design rules (for Hermes tools)
+## Tool design rules
 
-- Tool names are `snake_case` and start with a clear domain: `tv_`, `find_`, `taste_`.
-- Descriptions are written for the model: say when to use the tool and what it returns.
-- Return structured, small results (dicts with short fields), not raw API dumps.
-- Errors come back as data the model can explain (`{"ok": false, "reason": "...", "hint": "..."}`), not stack traces.
-- Tools must be safe to call twice. Launching the same title twice should not break anything.
+- Tool names are `snake_case` with a domain prefix: `tv_`, `library_`.
+- Descriptions are written for the model: when to use it and what it returns.
+- Return small structured results, not raw API dumps.
+- Errors are data: `{"ok": false, "reason": "...", "hint": "..."}`, never stack traces.
+- Tools are safe to call twice.
+- `provides_tools` in `plugin.yaml` must list exactly the tools `register()` registers.
 
 ## Commands
 
-These will be filled in once the package exists. Keep this section accurate.
+Keep this section accurate as the package grows.
 
 ```bash
 # setup
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev]"          # once pyproject exists
 
-# test
+# test + lint
 pytest -q
-
-# lint
 ruff check . && ruff format --check .
 
-# try against a real Roku (manual)
-python -m hermes_screen.devices.roku discover
+# Hermes checks (run from a machine with Hermes installed)
+hermes plugins doctor . --ci
+hermes plugins validate . --install-deps
+
+# manual device checks
+curl http://ROKU_IP:8060/query/apps
+curl -d '' "http://ROKU_IP:8060/launch/JELLYFIN_CHANNEL_ID?contentId=ITEM_ID&mediaType=movie"
 ```
 
 ## Definition of done (for any task)
 
-- Code works against mocks in tests, and against the real device if it touches hardware.
-- `pytest` and `ruff` pass.
-- `docs/PLAN.md` updated (task checked, notes added).
-- Any new fact in `docs/RESEARCH.md`, any choice in `docs/DECISIONS.md`.
+- Works against mocks in tests, and against the real Roku + Jellyfin if it touches them.
+- `pytest`, `ruff`, and `hermes plugins doctor . --ci` pass.
+- `docs/PLAN.md` updated; new facts in `RESEARCH.md`; choices in `DECISIONS.md`.
 - README updated if user facing behavior changed.
 
 ## When you are stuck
 
-Write the blocker at the top of `docs/PLAN.md` under "Blockers" with what you tried, then move to the next unblocked task. Do not silently work around a hardware or API limitation; surface it.
+Write the blocker at the top of `docs/PLAN.md` under "Blockers" with what you tried, then move to the next unblocked task. Never silently work around a device or API limitation; surface it.

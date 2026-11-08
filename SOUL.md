@@ -2,51 +2,52 @@
 
 The why, the taste, and the voice of Hermes Screen. When a decision isn't covered by the PRD, decide the way this file would.
 
-> Note: Hermes Agent also uses a `SOUL.md` file for the agent's own persona. This one is about the **project**. It also defines how the plugin's tools should sound when Hermes relays their results.
+> Note: Hermes Agent also uses a `SOUL.md` file for the agent's own persona. This one is about the **project**. It also defines how the plugin's results should read when Hermes relays them.
 
 ## Why this exists
 
-Picking something to watch is a small, daily, annoying problem. You scroll five apps, argue, give up, rewatch The Office. Streaming apps recommend from inside their own walls and don't know what you abandoned on another service last night.
+People who run Jellyfin have built a library they love, and then still spend 20 minutes scrolling it, or forget what they were halfway through. Getting from "let's watch something" to it actually playing takes a remote, a menu and patience.
 
-Hermes already lives where people talk (their terminal, their group chats) and already remembers them. What it lacks is a body in the living room. This plugin gives Hermes a screen.
+Hermes already lives where people talk and already knows them. What it lacks is a way to reach the living room. This plugin gives Hermes the TV.
 
 ## What we believe
 
-1. **The magic moment is the TV turning on by itself.** Everything we build should make that moment faster and more reliable. If a feature doesn't serve it, it waits.
-2. **Grounded beats clever.** Only recommend things that are actually on the user's services, in their region, right now. A great pick you can't watch is a bad pick.
-3. **Learn from behavior, not ratings.** Nobody fills out ratings. What you finish, abandon, and binge says more than any thumbs up.
-4. **Explain every pick in one line.** "You bailed on the last two dramas, this is a 90 minute comedy on Netflix." Short reasons build trust.
-5. **Fail honestly.** If the TV is off the network, or Netflix won't deep link, say so plainly and offer the next best thing. Never pretend.
-6. **Do what a prompt can't.** Real device control, real availability data, real memory. That is our reason to be a plugin.
-7. **Small and solid over big and flaky.** Five tools that always work beat fifteen that sometimes do.
+1. **The magic moment is the TV starting by itself.** Everything we build should make that moment faster and more reliable.
+2. **Grounded beats clever.** Only suggest things that are actually in the library and actually playable. Never invent a title.
+3. **Use what Jellyfin already knows.** Watched, half watched, never started, Next Up. Real history beats guessed taste.
+4. **Explain every pick in one line.** "You're 40 minutes into Sintel, want to finish it?" Short reasons build trust.
+5. **Fail honestly.** If the Roku is off the network or the Jellyfin app isn't installed, say so plainly and say how to fix it.
+6. **Do what a prompt can't.** Real device control, a real library, real watch state, real Hermes surfaces. That is why this is a plugin.
+7. **Small and solid over big and flaky.** Six tools that always work beat fifteen that sometimes do.
+8. **Your library stays yours.** Nothing leaves the local network except what the user's own model provider sees in the conversation.
 
-## Voice (how results should read when Hermes relays them)
+## Voice (how results should read)
 
-- Casual and quick, like a friend who knows your taste. Not a streaming service ad.
+- Casual and quick, like a friend who knows your shelf. Not a streaming service ad.
 - Short. Two or three picks, one line each. No synopses unless asked.
-- Concrete: title, service, runtime, the reason.
+- Concrete: title, year, runtime, the reason.
 - Errors are friendly and actionable: "I can't reach the living room Roku. Is it on the same WiFi?"
-- No hype words. No "Great choice!" No emoji spam.
+- No hype words, no "Great choice!", no emoji spam.
 
 Good:
-> Three for tonight, all under 2 hours:
-> 1. Palm Springs (Hulu, 1h30) since you finished every comedy you started this month
-> 2. The Nice Guys (Netflix, 1h56) because buddy comedy, and you liked Game Night
-> 3. Paddington 2 (Max, 1h43) if you want something gentle
+> Three under 45 minutes:
+> 1. Sintel (2010, 15m) since you started it Tuesday and stopped at 9 minutes
+> 2. Spring (2019, 8m) because you finished every Blender short so far
+> 3. The General (1926, 1h18m, too long, but it's your top unwatched comedy)
 
 Bad:
-> Absolutely! Here are some amazing recommendations I think you'll love! 🍿🎬 First up, Palm Springs, a hilarious time loop romantic comedy starring Andy Samberg and Cristin Milioti that...
+> Absolutely! Here are some AMAZING picks I think you'll love! 🍿🎬 First up, Sintel, a breathtaking fantasy short about a young girl searching for her dragon that...
 
 ## Product taste
 
-- Zero config to first magic moment, as far as possible: auto discover the TV, ask for services once.
-- The user should never need to know a channel ID, a content ID, or an IP address.
-- The demo should work in a real living room on real WiFi, not just on a dev laptop.
-- README reads like a product page: what it does, a GIF, three install steps.
+- First magic moment in under 5 minutes: auto discover the Roku, paste the Jellyfin URL and API key, done.
+- The user never needs to know a channel ID, an item ID or an IP address.
+- One tap where possible: button pickers in Telegram/Discord beat typing.
+- README reads like a product page: what it does, a GIF, three install steps, troubleshooting.
 
 ## What we will not do
 
-- Scrape streaming services or bypass DRM.
-- Store anything about users beyond what's needed for picks (watch history, services, stated likes).
-- Send viewing history anywhere except the user's own Hermes and the APIs required to look up titles.
-- Pretend Chromecast can play Netflix. It can't for third parties; we say so.
+- Pull content from pirate sources, debrid services or Stremio style addons. Not in code, not in docs, not in the demo.
+- Patch Hermes core or Desktop markup. Public plugin surfaces only.
+- Store anything beyond settings and small runtime state. Jellyfin is the source of truth for history.
+- Pretend something is playing without checking.

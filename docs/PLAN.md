@@ -8,61 +8,65 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 _None yet. Format: date, blocker, what was tried, who can unblock._
 
-## Milestone 0: Setup (Sat Nov 7)
+## Milestone 0: Setup + proof (Sun Nov 8, morning)
 
-- [x] Repo scaffold with agent docs (AGENTS.md, SOUL.md, docs/)
+- [x] Repo scaffold with agent docs
+- [x] Pivot docs to Jellyfin on Roku
 - [ ] Create GitHub repo and push
-- [ ] Install Hermes Agent locally, confirm `hermes plugins list` works
-- [ ] Read plugin developer guide + catalog submission page; fill the Hermes section of RESEARCH.md
-- [ ] Get TMDB API key; put in local `.env`
-- [ ] Confirm hardware: Roku (and/or Chromecast) on home WiFi, set Network access to Permissive
+- [ ] Get hardware: Roku on home WiFi; set Network access to Permissive
+- [ ] Jellyfin server in Docker on laptop; create API key
+- [ ] Add legal demo library (Blender open movies + a few public domain films); scan; posters show up
+- [ ] Install Jellyfin app on Roku; sign in to the server
+- [ ] `curl http://ROKU_IP:8060/query/apps` → record Jellyfin channel ID in RESEARCH.md
+- [ ] **Proof:** curl `/launch/{id}?contentId=ITEM&mediaType=movie` plays the movie. Also test `/input` while app is open, and `episode`. Record in RESEARCH.md
+- [ ] Install Hermes; `hermes plugins list` works; note version for `requires_hermes`
 
-## Milestone 1: Roku core (Sat Nov 7 to Sun Nov 8)
+## Milestone 1: Skeleton that validates (Sun Nov 8)
 
-- [ ] Hello world plugin with one tool, loaded by Hermes
-- [ ] SSDP discovery + manual IP fallback
-- [ ] ECP client: device-info, apps, active-app, media-player, keypress, launch, search
-- [ ] **Deep link test matrix** on real Roku: Netflix, YouTube, Hulu/Max/Prime. Record in RESEARCH.md
-- [ ] `tv_discover`, `tv_status`, `tv_control`, `tv_apps` tools
-- [ ] Tests with mocked ECP responses
+- [ ] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes
+- [ ] `hermes plugins doctor . --ci` green
+- [ ] `hermes plugins validate . --install-deps` green
+- [ ] Settings via `config_schema`, secret API key read the sanctioned way
+- [ ] Test harness with respx
 
-## Milestone 2: Catalog + play (Sun Nov 8)
+## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
-- [ ] TMDB client: search, discover (provider filter), watch providers, videos
-- [ ] Provider ↔ Roku channel mapping
-- [ ] `find_titles`, `where_to_watch` tools
-- [ ] `tv_play` with fallback chain + post launch verification
-- [ ] End to end: "play Dune" from Hermes CLI starts it on TV
+- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up
+- [ ] Roku client: SSDP, apps, active app, media player, keypress, launch, input
+- [ ] Tools: `tv_discover`, `tv_status`, `tv_control`, `tv_play`, `library_find`, `library_continue`
+- [ ] `tv_play` verification loop
+- [ ] End to end from Hermes CLI: "play Sintel" starts it on the TV
 
-## Milestone 3: Taste + surfaces (Mon Nov 9)
+## Milestone 3: Smart + surfaces (Mon Nov 9)
 
-- [ ] Taste store (history, profile)
-- [ ] Watcher writes outcomes
-- [ ] Picks include one line reasons from history
-- [ ] Works from Telegram or Discord through Hermes
-- [ ] Chromecast: discover, YouTube cast, DashCast URL (P1)
-- [ ] `tv_cast_youtube` with timestamp (P1)
+- [ ] `library_pick` with deterministic ranking + reasons
+- [ ] `/watch` slash command with `ctx.ask_choice`
+- [ ] Works from Telegram (or Discord) through the Hermes gateway
+- [ ] `tv_youtube` (P1)
+- [ ] Movie night blueprint (P1)
 
 ## Milestone 4: Polish + reliability (Tue Nov 10)
 
-- [ ] Timeouts, retries, error messages per ARCHITECTURE error model
-- [ ] Run demo flow 5 times in a row on real hardware
-- [ ] README: GIF, install, config, troubleshooting, attribution (TMDB, JustWatch)
-- [ ] Packaging matches catalog requirements
-- [ ] Stretch: group vote (P2.1), Desktop card (P2.3)
+- [ ] Error model everywhere; timeouts; friendly hints
+- [ ] Demo flow 5 times in a row on real hardware
+- [ ] README: GIF, install, config, Roku setting, troubleshooting, disclosures
+- [ ] Tag a release commit; record full SHA
+- [ ] Stretch: Desktop poster directive (P2.1)
 
 ## Milestone 5: Ship (Wed Nov 11)
 
 - [ ] Record demo per DEMO.md
 - [ ] Post on X tagging @NousResearch
-- [ ] Open catalog PR
+- [ ] Open catalog PR (one YAML file, full SHA pin)
 - [ ] Submit typeform with both links
-- [ ] See SUBMISSION.md checklist
+- [ ] Walk SUBMISSION.md checklist
 
 ## Proposed (not scheduled)
 
-_Ideas that came up while building. Don't work on these without moving them into a milestone._
+- Chromecast / Google TV via Jellyfin's own cast sessions
+- Multi room support
+- Kodi as a second output
 
 ## Notes
 
-_Dated notes on progress, surprises, changes of plan._
+- 2026-11-08: Pivoted from streaming services (Netflix etc.) to Jellyfin. Reason: Jellyfin Roku app supports deep links with Jellyfin item IDs (verified in source), and Jellyfin gives us watch history. See D-005.

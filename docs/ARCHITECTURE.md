@@ -4,95 +4,95 @@
 
 ```
 User (CLI / Telegram / Discord / Desktop)
-        │
+        │  message, /watch, or scheduled blueprint
         ▼
-   Hermes Agent ───────────── Hermes memory (if exposed to plugins)
-        │  calls tools
+   Hermes Agent
+        │  tool calls / slash command handler
         ▼
-┌──────────────── hermes_screen plugin ─────────────────┐
-│ tools.py      thin layer: validate input, call core,  │
-│               shape small results for the model       │
-│                                                       │
-│ devices/      roku.py        ECP over HTTP :8060      │
-│               chromecast.py  pychromecast             │
-│               discovery.py   SSDP + zeroconf, cache   │
-│               base.py        Device interface         │
-│                                                       │
-│ catalog/      tmdb.py        search, discover,        │
-│                              watch providers          │
-│               providers.py   TMDB provider ↔ Roku     │
-│                              channel mapping          │
-│                                                       │
-│ taste/        store.py       history + profile        │
-│                              (JSON or SQLite)         │
-│               profile.py     summarize into reasons   │
-│                                                       │
-│ watcher.py    polls tv_status, writes outcomes        │
-│ config.py     services, region, default device, keys  │
-└───────────────────────────────────────────────────────┘
-        │                       │
-        ▼                       ▼
-   Roku / Chromecast       TMDB API (JustWatch data)
-   on the local network
+┌──────────────── hermes-screen plugin ────────────────┐
+│ __init__.py   register(ctx): tools, /watch command,  │
+│               movie night blueprint                  │
+│ tools.py      thin handlers, small results, errors   │
+│                                                      │
+│ hermes_screen/                                       │
+│   jellyfin.py  items, search, resume, next up,       │
+│                user data, server info                │
+│   roku.py      SSDP discovery, apps, active app,     │
+│                media player, keypress, launch, input │
+│   picker.py    filter + rank + one line reasons      │
+│   config.py    settings + secrets via ctx            │
+│   errors.py    {ok:false, reason, hint}              │
+└──────────────────────────────────────────────────────┘
+        │                           │
+        ▼                           ▼
+  Jellyfin server (LAN)      Roku (LAN, ECP :8060)
+        ▲                           │
+        └──── playback progress ────┘  (Jellyfin Roku app reports it)
 ```
 
-## Device interface
+Key idea: **Jellyfin is the source of truth** for the library and watch history. The Roku is the output. We never track history ourselves.
 
-Every device implements the same small interface so tools don't care what the TV is.
+## Play path
 
-```python
-class Device(Protocol):
-    name: str
-    kind: Literal["roku", "chromecast"]
+1. Resolve the item in Jellyfin → `ItemId` + `Type` (Movie, Episode, Series, Season, Video).
+2. Map type to the Roku app's `mediaType` (lowercase: `movie`, `episode`, `series`, `season`, `video`). Seasons also need `seriesID`.
+3. If the Jellyfin app is not the active app:
+   `POST /launch/{jellyfinChannelId}?contentId={ItemId}&mediaType={type}`
+   If it is already active:
+   `POST /input?contentId={ItemId}&mediaType={type}`
+   (Both handled by the app's `onDeepLinkingEvent`, verified in source.)
+4. Wait ~3s, then confirm with `/query/active-app` and `/query/media-player`. If not playing after ~10s, return `ok:false` with what we saw.
+5. Optionally, cross check with Jellyfin `/Sessions` that the Roku session reports the item.
 
-    def status(self) -> DeviceStatus: ...            # app, title if known, state, position
-    def control(self, action: str) -> DeviceStatus: ...
-    def launch(self, target: PlayTarget) -> PlayResult: ...
-    def capabilities(self) -> set[str]: ...          # e.g. {"deeplink", "youtube", "url_cast"}
-```
-
-`PlayTarget` holds what we know about a title: TMDB id, title, type, service, season/episode, and any service specific content id. Each device decides the best way to play it and reports which method it used.
-
-## Play strategy (Roku)
-
-1. If we have a service content id: `POST /launch/{channel}?contentId=..&mediaType=..`
-2. Else: `POST /search/browse?keyword=..&type=..&launch=true&provider-id=..`
-3. Else: launch the channel and tell the user it's open at the app home.
-4. Always confirm with `/query/active-app` and `/query/media-player` after a short wait. Report what actually happened.
-
-Which step works per service is recorded in `docs/RESEARCH.md` after testing.
+`jellyfinChannelId` is discovered from `/query/apps` by name ("Jellyfin") and cached in `ctx.state`.
 
 ## Tools (model facing)
 
 | Tool | Input | Output |
 |---|---|---|
-| `tv_discover` | none | list of `{name, kind, ip}` |
-| `tv_status` | `device?` | `{app, state, title?, position?, duration?}` |
-| `tv_control` | `action`, `device?` | confirmed status |
-| `tv_apps` | `device?` | installed apps |
-| `find_titles` | `query?`, `genres?`, `max_runtime?`, `mood?`, `type?` | 3 to 5 `{tmdb_id, title, year, runtime, service, why}` |
-| `where_to_watch` | `title` or `tmdb_id` | services in region, flag for user's own |
-| `tv_play` | `tmdb_id` or `title`, `season?`, `episode?`, `device?` | `{ok, method, playing}` |
-| `tv_cast_youtube` | `video_id` or `query`, `start_seconds?` | `{ok}` |
-| `tv_cast_url` | `url` | `{ok}` (Chromecast only) |
-| `taste_get` | none | short profile + recent history |
-| `taste_update` | `likes?`, `dislikes?`, `services?` | updated profile |
+| `tv_discover` | none | `[{name, ip, jellyfin_installed}]` |
+| `tv_status` | `room?` | `{app, state, position_s?, duration_s?}` |
+| `tv_control` | `action`, `room?` | confirmed status |
+| `tv_play` | `item_id` or `title`, `room?` | `{ok, title, method, playing}` |
+| `tv_youtube` | `video_id` | `{ok}` (P1) |
+| `library_status` | none | server name, version, counts |
+| `library_find` | `query?`, `genres?`, `max_minutes?`, `type?`, `unwatched?` | 3 to 5 `{item_id, title, year, minutes, type}` |
+| `library_pick` | `mood?`, `max_minutes?`, `type?` | 3 `{item_id, title, year, minutes, why}` |
+| `library_continue` | none | resume items + Next Up |
 
-## Watcher
+## Slash command
 
-- Runs only while a device is reachable and on.
-- Polls every 30 to 60 seconds.
-- Ties a play session to the last `tv_play` call (we know the title for sure); ignores unknown content rather than guessing.
-- On session end, writes outcome: abandoned (<15% watched), finished (>85%), binged (2+ episodes in one sitting), partial otherwise.
-- How it runs depends on the Hermes plugin API (background task, hook, or cron). See RESEARCH.md.
+`/watch [mood or minutes]` → `library_pick` → `ctx.ask_choice` (buttons on Telegram/Discord) → `tv_play`. No model turn. Falls back to a text list when nothing can ask.
 
-## Data
+## Automation blueprint (P1)
 
-- `config`: services, region, default device, manual IPs, TMDB key (env).
-- `history`: list of sessions `{tmdb_id, title, type, started, watched_min, runtime_min, outcome}`.
-- `profile`: stated likes/dislikes plus derived summary used for the one line reasons.
-- Stored in the plugin data dir. Nothing leaves the machine except TMDB lookups.
+`ctx.register_automation_blueprint("movie-night", ...)` with slots `time`, `weekdays`, `deliver`, `max_minutes`. The prompt asks Hermes to post 3 picks via `library_pick` and play the winner. Users enable it with `/blueprint movie-night`.
+
+## Picker logic (deterministic first)
+
+Rank candidates from Jellyfin with simple, explainable rules:
+1. In progress items (resume) score highest when they fit the time.
+2. Next Up episodes next.
+3. Unwatched items in genres the user finished most often.
+4. Respect `max_minutes` strictly (runtime from `RunTimeTicks`; 1 tick = 100ns).
+5. Each pick carries the rule that selected it → that becomes the one line reason.
+
+No LLM call needed for ranking; Hermes's own model does the conversation.
+
+## Config and secrets
+
+`plugin.yaml` `config_schema`: `jellyfin_url` (str), `jellyfin_api_key` (secret), `jellyfin_user` (str), `roku_ip` (str), `default_room` (str). Read through `ctx.get_config`; secrets through Hermes's secret scope. Never read `.env`.
+
+## State
+
+`ctx.state`: cached Roku IP, Jellyfin channel ID, Jellyfin user ID, last played item. Small and rebuildable.
 
 ## Error model
 
-All tools return `{"ok": true, ...}` or `{"ok": false, "reason": str, "hint": str}`. Common reasons: `device_unreachable`, `device_permission` (Roku network access not Permissive), `not_on_your_services`, `deeplink_unsupported`, `tmdb_unavailable`, `not_found`.
+`{"ok": false, "reason": str, "hint": str}`. Reasons: `roku_unreachable`, `roku_permission` (Network access not Permissive), `jellyfin_app_missing`, `jellyfin_unreachable`, `jellyfin_auth`, `not_found`, `too_long`, `not_playing_after_launch`.
+
+## Disclosures (for README + PR, catalog rule 13)
+
+- Network calls only to the user's Jellyfin server and Roku on the LAN.
+- SSDP multicast on the LAN for discovery.
+- No shell commands, no background processes, no third party services.

@@ -187,9 +187,7 @@ def test_token_in_header_is_percent_encoded():
 def test_every_request_has_explicit_8s_timeouts(api, jf):
     route = api.get("/Items").respond(json=page([item(1)]))
     sessions = api.get("/Sessions").respond(json=[])
-    public = api.get("/System/Info/Public").respond(
-        json={"ServerName": "Home", "Version": "10"}
-    )
+    public = api.get("/System/Info/Public").respond(json={"ServerName": "Home", "Version": "10"})
     jf.find_items()
     jf.verify_playback(ITEM, device_id="d")
     jf.server_info()
@@ -246,9 +244,7 @@ def test_network_failures_are_unreachable(api, jf, boom):
     assert KEY not in str(exc.value)
 
 
-@pytest.mark.parametrize(
-    "body", [b"<html>nginx</html>", b"", b"\xff\xfe", b'{"Items": ']
-)
+@pytest.mark.parametrize("body", [b"<html>nginx</html>", b"", b"\xff\xfe", b'{"Items": '])
 def test_non_json_is_bad_response(api, jf, body):
     api.get("/Items").respond(200, content=body)
     with pytest.raises(JellyfinError) as exc:
@@ -283,9 +279,7 @@ def test_context_manager_closes(api):
 
 
 def test_status_ok(api, jf):
-    api.get("/System/Info/Public").respond(
-        json={"ServerName": "Home", "Version": "10.10.7"}
-    )
+    api.get("/System/Info/Public").respond(json={"ServerName": "Home", "Version": "10.10.7"})
     api.get("/Items/Counts").respond(
         json={"MovieCount": 12, "SeriesCount": 3, "EpisodeCount": 40, "SongCount": 9}
     )
@@ -357,7 +351,8 @@ def test_status_user_ambiguity_is_reported(api):
     with JellyfinClient(BASE, KEY) as client:
         result = client.status()
     assert result["reason"] == "jellyfin_user_ambiguous"
-    assert "Ann" in result["hint"] and "Bob" in result["hint"]
+    assert "Set the Jellyfin user" in result["hint"]
+    assert "Ann" not in result["hint"] and "Bob" not in result["hint"]
 
 
 # --- user resolution --------------------------------------------------------------------
@@ -388,9 +383,7 @@ def test_no_users(api):
     assert exc.value.reason == "jellyfin_user_not_found"
 
 
-@pytest.mark.parametrize(
-    "payload", [{"Items": []}, ["x", 1], [{"Id": "nope", "Name": "A"}]]
-)
+@pytest.mark.parametrize("payload", [{"Items": []}, ["x", 1], [{"Id": "nope", "Name": "A"}]])
 def test_malformed_user_list(api, payload):
     api.get("/Users").respond(json=payload)
     with JellyfinClient(BASE, KEY) as client, pytest.raises(JellyfinError) as exc:
@@ -426,20 +419,20 @@ def test_unknown_user_id_is_not_found(api):
     assert exc.value.reason == "not_found"
 
 
-def test_user_by_name_matches_exactly_ignoring_case_and_accents(api):
+def test_user_by_name_matches_exactly(api):
     api.get("/Users").respond(
         json=[
             {"Id": USER_ID, "Name": "José"},
             {"Id": OTHER_USER_ID, "Name": "Jose Two"},
         ]
     )
-    with JellyfinClient(BASE, KEY, "jose") as client:
+    with JellyfinClient(BASE, KEY, "José") as client:
         assert client.resolve_user() == {"id": USER_ID, "name": "José"}
 
 
 def test_user_name_not_found_and_duplicate_names(api):
     api.get("/Users").respond(
-        json=[{"Id": USER_ID, "Name": "Ann"}, {"Id": OTHER_USER_ID, "Name": "ann"}]
+        json=[{"Id": USER_ID, "Name": "Ann"}, {"Id": OTHER_USER_ID, "Name": "Ann"}]
     )
     with (
         JellyfinClient(BASE, KEY, "zed") as client,
@@ -538,9 +531,7 @@ def test_unknown_runtime_is_kept_when_no_runtime_filter(api, jf):
 
 def test_server_returning_wrong_types_is_filtered(api, jf):
     api.get("/Items").respond(
-        json=page(
-            [item(1, Type="Episode"), item(2, Type="Movie"), item(3, Type="Audio")]
-        )
+        json=page([item(1, Type="Episode"), item(2, Type="Movie"), item(3, Type="Audio")])
     )
     assert [i["item_id"] for i in jf.find_items()["items"]] == [iid(2)]
     api.get("/Items").respond(json=page([item(1, Type="Episode"), item(2)]))
@@ -560,9 +551,7 @@ def test_unwatched_requires_explicit_unplayed(api, jf):
             ]
         )
     )
-    assert [i["item_id"] for i in jf.find_items(unwatched_only=True)["items"]] == [
-        iid(5)
-    ]
+    assert [i["item_id"] for i in jf.find_items(unwatched_only=True)["items"]] == [iid(5)]
 
 
 def test_genres_are_rechecked_case_insensitively(api, jf):
@@ -579,12 +568,8 @@ def test_genres_are_rechecked_case_insensitively(api, jf):
 
 
 def test_runtime_gap_across_pages_is_paged_through(api, jf):
-    long_page = page(
-        [item(n, RunTimeTicks=200 * MIN) for n in range(1, PAGE_SIZE + 1)], total=80
-    )
-    short_page = page(
-        [item(n) for n in range(PAGE_SIZE + 1, 81)], total=80, start=PAGE_SIZE
-    )
+    long_page = page([item(n, RunTimeTicks=200 * MIN) for n in range(1, PAGE_SIZE + 1)], total=80)
+    short_page = page([item(n) for n in range(PAGE_SIZE + 1, 81)], total=80, start=PAGE_SIZE)
     route = api.get("/Items").mock(
         side_effect=lambda request: httpx.Response(
             200, json=long_page if q(request)["startIndex"] == "0" else short_page
@@ -746,7 +731,7 @@ def test_string_arguments_are_accepted_as_single_values(api, jf):
     assert q(calls(route)[0])["genres"] == "Comedy"
 
 
-# --- get_item ------------------------------------------------------------------------------------
+# --- get_item -----------------------------------------------------------------------------------
 
 
 def test_get_item(api, jf):
@@ -788,7 +773,7 @@ def test_get_item_wrong_id_in_response_is_bad_response(api, jf):
         jf.get_item(ITEM)
 
 
-# --- resume and next up ----------------------------------------------------------------------------
+# --- resume and next up -------------------------------------------------------------------------
 
 
 def test_resume_items_are_rechecked(api, jf):
@@ -802,14 +787,10 @@ def test_resume_items_are_rechecked(api, jf):
                         "PlaybackPositionTicks": 9 * 60 * 10_000_000,
                     },
                 ),
-                item(
-                    2, UserData={"Played": True, "PlaybackPositionTicks": 5_000_000_000}
-                ),
+                item(2, UserData={"Played": True, "PlaybackPositionTicks": 5_000_000_000}),
                 item(3, UserData={"Played": False, "PlaybackPositionTicks": 0}),
                 item(4, UserData=None),
-                item(
-                    5, Type="Audio", UserData={"PlaybackPositionTicks": 5_000_000_000}
-                ),
+                item(5, Type="Audio", UserData={"PlaybackPositionTicks": 5_000_000_000}),
             ]
         )
     )
@@ -826,12 +807,8 @@ def test_resume_runtime_limit_applies_to_remaining_time(api, jf):
     api.get("/UserItems/Resume").respond(
         json=page(
             [
-                item(
-                    1, RunTimeTicks=90 * MIN, UserData={"PlaybackPositionTicks": pos}
-                ),  # 50m left
-                item(
-                    2, RunTimeTicks=60 * MIN, UserData={"PlaybackPositionTicks": pos}
-                ),  # 20m left
+                item(1, RunTimeTicks=90 * MIN, UserData={"PlaybackPositionTicks": pos}),  # 50m left
+                item(2, RunTimeTicks=60 * MIN, UserData={"PlaybackPositionTicks": pos}),  # 20m left
                 item(3, RunTimeTicks=None, UserData={"PlaybackPositionTicks": pos}),
             ]
         )
@@ -890,7 +867,7 @@ def test_resume_and_next_up_surface_auth_errors(api, jf):
     assert exc.value.reason == "jellyfin_server_error"
 
 
-# --- verify_playback: the evidence rules ---------------------------------------------------------------
+# --- verify_playback: the evidence rules --------------------------------------------------------
 
 
 def verify(subject: JellyfinClient, api, sessions: Any, **kw: Any) -> dict[str, Any]:
@@ -902,9 +879,7 @@ def verify(subject: JellyfinClient, api, sessions: Any, **kw: Any) -> dict[str, 
 
 def test_verified_when_item_device_user_and_freshness_all_match(api, jf):
     result = verify(jf, api, [session()])
-    assert (
-        result["ok"] is True and result["verified"] is True and result["reason"] is None
-    )
+    assert result["ok"] is True and result["verified"] is True and result["reason"] is None
     assert result["playing"] is True and result["paused"] is False
     assert result["position_s"] == 90
     assert result["now_playing"] == {"item_id": ITEM, "title": "Sintel"}
@@ -920,14 +895,8 @@ def test_query_asks_server_for_the_device_only(api, jf):
 
 
 def test_paused_on_the_right_item_is_verified_but_not_playing(api, jf):
-    result = verify(
-        jf, api, [session(PlayState={"IsPaused": True, "PositionTicks": 0})]
-    )
-    assert (
-        result["verified"] is True
-        and result["playing"] is False
-        and result["paused"] is True
-    )
+    result = verify(jf, api, [session(PlayState={"IsPaused": True, "PositionTicks": 0})])
+    assert result["verified"] is True and result["playing"] is False and result["paused"] is True
 
 
 def test_missing_play_state_is_verified_but_playing_unknown(api, jf):
@@ -937,9 +906,7 @@ def test_missing_play_state_is_verified_but_playing_unknown(api, jf):
 
 
 def test_same_title_different_item_id_is_not_verified(api, jf):
-    result = verify(
-        jf, api, [session(NowPlayingItem={"Id": OTHER_ITEM, "Name": "Sintel"})]
-    )
+    result = verify(jf, api, [session(NowPlayingItem={"Id": OTHER_ITEM, "Name": "Sintel"})])
     assert result["verified"] is False and result["reason"] == "wrong_item"
     assert result["now_playing"] == {"item_id": OTHER_ITEM, "title": "Sintel"}
     assert result["playing"] is None
@@ -981,9 +948,7 @@ def test_device_id_disambiguates_when_names_collide(api):
 def test_device_name_accepts_full_or_bare_roku_name_only(api):
     with JellyfinClient(BASE, KEY) as client:
         for name in ("Living Room (Roku Ultra)", "living room", "LIVING ROOM"):
-            assert verify(client, api, [session()], device_id=None, device_name=name)[
-                "verified"
-            ]
+            assert verify(client, api, [session()], device_id=None, device_name=name)["verified"]
         for name in ("Living", "Living Room (Roku Express)", "Room", "Roku Ultra"):
             result = verify(client, api, [session()], device_id=None, device_name=name)
             assert result["reason"] == "no_session", name
@@ -998,10 +963,7 @@ def test_other_client_on_same_device_does_not_count(api, jf):
     result = verify(jf, api, [session(Client="Jellyfin Web")])
     assert result["reason"] == "no_session"
     # explicitly opting out of the client check is allowed
-    assert (
-        verify(jf, api, [session(Client="Jellyfin Web")], client=None)["verified"]
-        is True
-    )
+    assert verify(jf, api, [session(Client="Jellyfin Web")], client=None)["verified"] is True
 
 
 def test_identity_is_required(api, jf):
@@ -1072,15 +1034,11 @@ def test_missing_timestamp_key_is_stale(api, jf):
 
 
 def test_freshness_window_edges(api, jf):
-    assert (
-        verify(jf, api, [session(LastPlaybackCheckIn=stamp(-60))])["verified"] is True
-    )
-    assert (
-        verify(jf, api, [session(LastPlaybackCheckIn=stamp(-61))])["verified"] is False
-    )
-    assert verify(
-        jf, api, [session(LastPlaybackCheckIn=stamp(-90))], max_age_seconds=120
-    )["verified"]
+    assert verify(jf, api, [session(LastPlaybackCheckIn=stamp(-60))])["verified"] is True
+    assert verify(jf, api, [session(LastPlaybackCheckIn=stamp(-61))])["verified"] is False
+    assert verify(jf, api, [session(LastPlaybackCheckIn=stamp(-90))], max_age_seconds=120)[
+        "verified"
+    ]
     assert verify(jf, api, [session(LastPlaybackCheckIn=stamp(+3))])["verified"] is True
 
 
@@ -1112,9 +1070,7 @@ def test_without_date_header_falls_back_to_local_clock(api, jf):
     real_now = datetime.now(UTC)
 
     def at(delta_s: float) -> str:
-        return (real_now + timedelta(seconds=delta_s)).strftime(
-            "%Y-%m-%dT%H:%M:%S.%f"
-        ) + "0Z"
+        return (real_now + timedelta(seconds=delta_s)).strftime("%Y-%m-%dT%H:%M:%S.%f") + "0Z"
 
     fresh = session(LastPlaybackCheckIn=at(-5))
     api.get("/Sessions").respond(json=[fresh])
@@ -1125,9 +1081,7 @@ def test_without_date_header_falls_back_to_local_clock(api, jf):
 
 
 def test_nothing_playing_is_unverified(api, jf):
-    result = verify(
-        jf, api, [session(NowPlayingItem=None, PlayState={"IsPaused": False})]
-    )
+    result = verify(jf, api, [session(NowPlayingItem=None, PlayState={"IsPaused": False})])
     assert result["verified"] is False and result["reason"] == "nothing_playing"
     result = verify(jf, api, [session(NowPlayingItem=None)])
     assert result["session"]["device_name"] == "Living Room (Roku Ultra)"
@@ -1208,9 +1162,7 @@ def test_scan_of_sessions_is_bounded(api, jf):
 
 
 def test_position_defaults_are_sane(api, jf):
-    result = verify(
-        jf, api, [session(PlayState={"IsPaused": False, "PositionTicks": -5})]
-    )
+    result = verify(jf, api, [session(PlayState={"IsPaused": False, "PositionTicks": -5})])
     assert result["verified"] is True and result["position_s"] is None
     result = verify(jf, api, [session(PlayState={"IsPaused": "no"})])
     assert result["verified"] is True and result["playing"] is None
@@ -1218,7 +1170,31 @@ def test_position_defaults_are_sane(api, jf):
 
 def test_item_id_comparison_ignores_case_and_dashes(api, jf):
     dashed = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-    result = verify(
-        jf, api, [session(NowPlayingItem={"Id": dashed.upper(), "Name": "S"})]
-    )
+    result = verify(jf, api, [session(NowPlayingItem={"Id": dashed.upper(), "Name": "S"})])
     assert result["verified"] is True
+
+
+def test_scan_cap_cannot_hide_ambiguous_target(api, jf):
+    evidence = [session()] + [session(DeviceId=f"other-{n}") for n in range(199)]
+    evidence.append(session())
+    result = verify(jf, api, evidence)
+    assert result["verified"] is False
+    assert result["reason"] == "session_scan_limit"
+    assert result["playing"] is None
+
+
+@pytest.mark.parametrize(
+    "state,playing", [({}, None), ({"IsPaused": True}, False), ({"IsPaused": False}, True)]
+)
+def test_item_identity_is_separate_from_play_state(api, jf, state, playing):
+    result = verify(jf, api, [session(PlayState=state)])
+    assert result["verified"] is True
+    assert result["playing"] is playing
+
+
+@pytest.mark.parametrize("name", ["jose", "JOSE", "Jose"])
+def test_user_names_are_not_accent_or_case_folded(api, name):
+    api.get("/Users").respond(json=[{"Id": USER_ID, "Name": "José"}])
+    with JellyfinClient(BASE, KEY, name) as client, pytest.raises(JellyfinError) as exc:
+        client.resolve_user()
+    assert exc.value.reason == "jellyfin_user_not_found"

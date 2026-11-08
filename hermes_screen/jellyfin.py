@@ -56,7 +56,6 @@ MAX_LIMIT = 25  # most items one call will ever return
 DEFAULT_LIMIT = 5
 MAX_GENRES = 10
 MAX_QUERY_LEN = 200
-MAX_USERS_IN_HINT = 5
 MAX_SESSIONS_SCANNED = 200
 TICKS_PER_SECOND = 10_000_000  # Jellyfin ticks are 100 ns
 TICKS_PER_MINUTE = 60 * TICKS_PER_SECOND
@@ -77,9 +76,7 @@ _DEFAULT_FIND_TYPES = ("Movie", "Series")
 _RESUME_TYPES = ("Movie", "Episode", "Video")
 
 _GUID_RE = re.compile(r"^[0-9a-f]{32}$")
-_DASHED_GUID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-)
+_DASHED_GUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _CONTROL_RE = re.compile(r"[\x00-\x20\x7f]")
 
 
@@ -156,9 +153,7 @@ def _minutes(ticks: int) -> int:
 
 def _check_limit(limit: Any) -> int:
     if not _is_int(limit) or limit < 1:
-        raise JellyfinError(
-            "invalid_argument", f"limit must be an integer from 1 to {MAX_LIMIT}."
-        )
+        raise JellyfinError("invalid_argument", f"limit must be an integer from 1 to {MAX_LIMIT}.")
     return min(limit, MAX_LIMIT)
 
 
@@ -208,16 +203,12 @@ def _validate_base_url(base_url: Any) -> str:
         raise JellyfinError("jellyfin_config", "Jellyfin URL is empty. " + hint)
     text = base_url.strip()
     if _CONTROL_RE.search(text):
-        raise JellyfinError(
-            "jellyfin_config", "Jellyfin URL has bad characters. " + hint
-        )
+        raise JellyfinError("jellyfin_config", "Jellyfin URL has bad characters. " + hint)
     try:
         parts = urlsplit(text)
         _ = parts.port  # raises ValueError for a bad port
     except ValueError:
-        raise JellyfinError(
-            "jellyfin_config", "Jellyfin URL is malformed. " + hint
-        ) from None
+        raise JellyfinError("jellyfin_config", "Jellyfin URL is malformed. " + hint) from None
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise JellyfinError(
             "jellyfin_config",
@@ -268,12 +259,8 @@ class JellyfinClient:
     def __init__(self, base_url: str, api_key: str, user_id: str | None = None) -> None:
         self._base_url = _validate_base_url(base_url)
         self._api_key = _validate_api_key(api_key)
-        if user_id is not None and (
-            not isinstance(user_id, str) or not user_id.strip()
-        ):
-            raise JellyfinError(
-                "jellyfin_config", "user_id must be a non-empty string or None."
-            )
+        if user_id is not None and (not isinstance(user_id, str) or not user_id.strip()):
+            raise JellyfinError("jellyfin_config", "user_id must be a non-empty string or None.")
         self._user_setting = user_id.strip() if user_id is not None else None
         self._user: dict[str, str] | None = None
         self._closed = False
@@ -312,9 +299,7 @@ class JellyfinClient:
     ) -> tuple[Any, httpx.Headers]:
         """GET ``path`` (always a fixed, server-relative path) and parse JSON."""
         if self._closed:
-            raise JellyfinError(
-                "client_closed", "The Jellyfin client was already closed."
-            )
+            raise JellyfinError("client_closed", "The Jellyfin client was already closed.")
         headers = {"Accept": "application/json", "Cache-Control": "no-cache"}
         if authenticated:
             headers["Authorization"] = self._auth_header()
@@ -322,9 +307,7 @@ class JellyfinClient:
         for key, value in (params or {}).items():
             if value is None:
                 continue
-            query[key] = (
-                "true" if value is True else "false" if value is False else str(value)
-            )
+            query[key] = "true" if value is True else "false" if value is False else str(value)
         url = self._base_url + path
         try:
             with self._http.stream(
@@ -346,9 +329,7 @@ class JellyfinClient:
                 "Jellyfin did not answer within 8 seconds. Is the server up and the URL right?",
             ) from None
         except httpx.InvalidURL:
-            raise JellyfinError(
-                "jellyfin_config", "The Jellyfin URL is not valid."
-            ) from None
+            raise JellyfinError("jellyfin_config", "The Jellyfin URL is not valid.") from None
         except httpx.HTTPError as exc:
             raise JellyfinError(
                 "jellyfin_unreachable",
@@ -416,12 +397,7 @@ class JellyfinClient:
         if not isinstance(data, dict):
             raise _bad_shape("server info")
         name, version = data.get("ServerName"), data.get("Version")
-        if (
-            not isinstance(name, str)
-            or not name
-            or not isinstance(version, str)
-            or not version
-        ):
+        if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
             raise _bad_shape("server info")
         server_id = data.get("Id")
         return {
@@ -478,7 +454,7 @@ class JellyfinClient:
         """Resolve (and cache) the Jellyfin user: ``{"id", "name"}``.
 
         Configured id: verified to exist. Configured name: exact
-        (case-insensitive) match, error if zero or several match. Nothing
+        (case-sensitive) match, error if zero or several match. Nothing
         configured: the single enabled user, otherwise
         ``jellyfin_user_ambiguous`` (never "the first user").
         """
@@ -501,7 +477,7 @@ class JellyfinClient:
         if data and not users:
             raise _bad_shape("user list")
         if setting:
-            matches = [u for u in users if _fold(u["name"]) == _fold(setting)]
+            matches = [u for u in users if u["name"] == setting]
             if not matches:
                 raise JellyfinError(
                     "jellyfin_user_not_found",
@@ -515,10 +491,9 @@ class JellyfinClient:
                     "Jellyfin has no enabled users. Create one, or enable an existing one.",
                 )
         if len(matches) > 1:
-            names = ", ".join(sorted(u["name"] for u in matches)[:MAX_USERS_IN_HINT])
             raise JellyfinError(
                 "jellyfin_user_ambiguous",
-                f"More than one Jellyfin user matches ({names}). "
+                "More than one Jellyfin user matches. "
                 "Set the Jellyfin user (name or id) in the plugin settings.",
             )
         self._user = matches[0]
@@ -530,9 +505,7 @@ class JellyfinClient:
         """Look up one item by id. ``not_found`` if the id is unknown."""
         norm = _norm_id(item_id)
         if norm is None:
-            raise JellyfinError(
-                "invalid_argument", "item_id must be a Jellyfin item id."
-            )
+            raise JellyfinError("invalid_argument", "item_id must be a Jellyfin item id.")
         user = self.resolve_user()
         try:
             data, _ = self._get(f"/Items/{norm}", {"userId": user["id"]})
@@ -603,9 +576,7 @@ class JellyfinClient:
                     return False
             return True
 
-        return self._collect(
-            "/Items", params, keep, limit, max_minutes, remaining=False
-        )
+        return self._collect("/Items", params, keep, limit, max_minutes, remaining=False)
 
     def get_resume_items(
         self, *, max_minutes: float | None = None, limit: int = 10
@@ -637,9 +608,7 @@ class JellyfinClient:
                 and item["resume_seconds"] > 0
             )
 
-        return self._collect(
-            "/UserItems/Resume", params, keep, limit, max_minutes, remaining=True
-        )
+        return self._collect("/UserItems/Resume", params, keep, limit, max_minutes, remaining=True)
 
     def get_next_up(
         self,
@@ -656,9 +625,7 @@ class JellyfinClient:
         if series_id is not None:
             series_norm = _norm_id(series_id)
             if series_norm is None:
-                raise JellyfinError(
-                    "invalid_argument", "series_id must be a Jellyfin item id."
-                )
+                raise JellyfinError("invalid_argument", "series_id must be a Jellyfin item id.")
         user = self.resolve_user()
         params = {
             "userId": user["id"],
@@ -674,9 +641,7 @@ class JellyfinClient:
                 return False
             return series_norm is None or item["series_id"] == series_norm
 
-        return self._collect(
-            "/Shows/NextUp", params, keep, limit, max_minutes, remaining=True
-        )
+        return self._collect("/Shows/NextUp", params, keep, limit, max_minutes, remaining=True)
 
     def _collect(
         self,
@@ -697,9 +662,7 @@ class JellyfinClient:
         start = 0
         for page in range(MAX_PAGES):
             params = dict(base_params)
-            params.update(
-                startIndex=start, limit=PAGE_SIZE, enableTotalRecordCount=True
-            )
+            params.update(startIndex=start, limit=PAGE_SIZE, enableTotalRecordCount=True)
             data, _ = self._get(path, params)
             if not isinstance(data, dict) or not isinstance(data.get("Items"), list):
                 raise _bad_shape("item list")
@@ -769,7 +732,7 @@ class JellyfinClient:
         max_age_seconds: float = DEFAULT_SESSION_MAX_AGE_S,
         now: datetime | None = None,
     ) -> dict[str, Any]:
-        """Check whether Jellyfin shows ``item_id`` playing on the target device.
+        """Check item identity and report play/pause evidence separately.
 
         Evidence is read from ``GET /Sessions``. The result is
         ``"verified": True`` only when exactly one fresh session matches the
@@ -784,14 +747,16 @@ class JellyfinClient:
         verifies. Jellyfin/network failures also return ``verified: False``
         (with ``ok: False``); this method does not raise them.
 
+        ``verified`` establishes item identity only, including when paused.
+        Only ``playing is True`` establishes active playback; ``None`` cannot
+        establish play or pause. This is server evidence, not Roku verification.
+
         Freshness uses ``LastPlaybackCheckIn`` against the server clock (the
         HTTP ``Date`` header) unless ``now`` is given.
         """
         wanted = _norm_id(item_id)
         if wanted is None:
-            raise JellyfinError(
-                "invalid_argument", "item_id must be a Jellyfin item id."
-            )
+            raise JellyfinError("invalid_argument", "item_id must be a Jellyfin item id.")
         wanted_device_id = device_id.strip() if isinstance(device_id, str) else None
         wanted_name = device_name.strip() if isinstance(device_name, str) else None
         if not wanted_device_id and not wanted_name:
@@ -806,9 +771,7 @@ class JellyfinClient:
             or not math.isfinite(max_age_seconds)
             or max_age_seconds <= 0
         ):
-            raise JellyfinError(
-                "invalid_argument", "max_age_seconds must be a positive number."
-            )
+            raise JellyfinError("invalid_argument", "max_age_seconds must be a positive number.")
 
         unverified = _Unverified(wanted)
         try:
@@ -824,14 +787,14 @@ class JellyfinClient:
             }
         if not isinstance(data, list):
             return unverified("malformed_evidence")
-        sessions = [s for s in data[:MAX_SESSIONS_SCANNED] if isinstance(s, dict)]
-        if len(sessions) != min(len(data), MAX_SESSIONS_SCANNED):
+        if len(data) > MAX_SESSIONS_SCANNED:
+            return unverified("session_scan_limit")
+        sessions = [s for s in data if isinstance(s, dict)]
+        if len(sessions) != len(data):
             return unverified("malformed_evidence")
 
         matches = [
-            s
-            for s in sessions
-            if _session_matches_device(s, wanted_device_id, wanted_name, client)
+            s for s in sessions if _session_matches_device(s, wanted_device_id, wanted_name, client)
         ]
         if not matches:
             return unverified("no_session")
@@ -850,9 +813,7 @@ class JellyfinClient:
         session = fresh[0]
         playing = session.get("NowPlayingItem")
         if playing is None:
-            return unverified(
-                "nothing_playing", session=_session_summary(session, server_now)
-            )
+            return unverified("nothing_playing", session=_session_summary(session, server_now))
         if not isinstance(playing, dict):
             return unverified("malformed_evidence")
         playing_id = _norm_id(playing.get("Id"))
@@ -869,9 +830,7 @@ class JellyfinClient:
 
         state = session.get("PlayState")
         state = state if isinstance(state, dict) else {}
-        paused = (
-            state.get("IsPaused") if isinstance(state.get("IsPaused"), bool) else None
-        )
+        paused = state.get("IsPaused") if isinstance(state.get("IsPaused"), bool) else None
         position = state.get("PositionTicks")
         return {
             "ok": True,
@@ -922,9 +881,7 @@ def _check_query(query: str | None) -> str | None:
         raise JellyfinError("invalid_argument", "query must be text.")
     text = " ".join(query.split())
     if len(text) > MAX_QUERY_LEN or any(ord(c) < 32 for c in text):
-        raise JellyfinError(
-            "invalid_argument", "query is too long or has bad characters."
-        )
+        raise JellyfinError("invalid_argument", "query is too long or has bad characters.")
     return text or None
 
 
@@ -935,12 +892,7 @@ def _check_genres(genres: Iterable[str] | None) -> tuple[str, ...]:
         genres = [genres]
     chosen: list[str] = []
     for genre in genres:
-        if (
-            not isinstance(genre, str)
-            or not genre.strip()
-            or "|" in genre
-            or len(genre) > 60
-        ):
+        if not isinstance(genre, str) or not genre.strip() or "|" in genre or len(genre) > 60:
             raise JellyfinError("invalid_argument", "genres must be short plain names.")
         chosen.append(genre.strip())
     if len(chosen) > MAX_GENRES:
@@ -957,12 +909,7 @@ def _shape_item(raw: Any) -> dict[str, Any] | None:
     if not isinstance(raw, dict):
         return None
     item_id, name, kind = _norm_id(raw.get("Id")), raw.get("Name"), raw.get("Type")
-    if (
-        item_id is None
-        or not isinstance(name, str)
-        or not name
-        or not isinstance(kind, str)
-    ):
+    if item_id is None or not isinstance(name, str) or not name or not isinstance(kind, str):
         return None
     ticks = _positive_ticks(raw.get("RunTimeTicks"))
     year = raw.get("ProductionYear")
@@ -979,9 +926,7 @@ def _shape_item(raw: Any) -> dict[str, Any] | None:
         "type": kind,
         "year": year if _is_int(year) and 1800 <= year <= 2200 else None,
         "minutes": _minutes(ticks) if ticks else None,
-        "genres": [g for g in genres if isinstance(g, str)][:5]
-        if isinstance(genres, list)
-        else [],
+        "genres": [g for g in genres if isinstance(g, str)][:5] if isinstance(genres, list) else [],
         "played": played if isinstance(played, bool) else None,
         "resume_seconds": position // TICKS_PER_SECOND,
         "series_id": _norm_id(raw.get("SeriesId")),
@@ -1026,11 +971,7 @@ def _session_matches_device(
         wanted = _fold(device_name)
         full = _fold(name)
         # The Roku app reports "<Roku name> (<model>)"; accept the bare name too.
-        bare = (
-            _fold(name.rsplit(" (", 1)[0])
-            if name.endswith(")") and " (" in name
-            else full
-        )
+        bare = _fold(name.rsplit(" (", 1)[0]) if name.endswith(")") and " (" in name else full
         if wanted not in (full, bare):
             return False
     return True
@@ -1057,9 +998,7 @@ def _is_fresh(session: Mapping[str, Any], now: datetime, max_age: float) -> bool
         return False
     # Jellyfin's "never" value is year 1 and so is far outside any window.
     age = now - stamp
-    return (
-        timedelta(seconds=-_CLOCK_SKEW_ALLOWANCE_S) <= age <= timedelta(seconds=max_age)
-    )
+    return timedelta(seconds=-_CLOCK_SKEW_ALLOWANCE_S) <= age <= timedelta(seconds=max_age)
 
 
 def _session_summary(session: Mapping[str, Any], now: datetime) -> dict[str, Any]:

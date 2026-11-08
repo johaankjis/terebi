@@ -1,40 +1,75 @@
 # Hermes Screen
 
-**Hermes runs your home theater.** Ask [Hermes Agent](https://github.com/NousResearch/hermes-agent) what to watch from your terminal, Telegram or Discord. It picks from your own Jellyfin library, knows what you finished and what you're halfway through, and starts it on your Roku TV.
+A Jellyfin-first plugin for [Hermes Agent](https://github.com/NousResearch/hermes-agent).
+Work in progress for the November 2026 Hermes Agent Plugin Hackathon.
 
-> 🚧 Work in progress for the Nous Research Hermes Agent Plugin Hackathon (Nov 2026).
+## Implemented today
 
-## What it does
+The only registered tool is **`library_status`**. It checks your configured Jellyfin
+server, resolves a user, and returns the server name/version and available library
+counts. Failures return a short reason and a hint.
 
-- **Picks from your library.** Filters by mood, runtime and genre, with a one line reason for each pick based on your real watch history.
-- **Plays it on the TV.** Starts the exact movie or episode in the Jellyfin Roku app. No remote needed.
-- **Picks up where you left off.** Resume, next episode, "finish what I was watching."
-- **Controls playback.** Pause, play, volume, back, home, from any chat.
-- **Movie night.** A scheduled group vote in your chat that plays the winner.
-- **YouTube to TV.** Send a video to the Roku YouTube app.
+The underlying client also has mocked coverage for library filtering, resume,
+Next Up and session evidence. Those methods are not yet exposed as tools.
+Picking titles, Roku playback/control, Telegram pick/play/pause, `/watch`, YouTube
+and Friday voting are planned, not available. Roku ECP shipping restrictions remain
+unresolved; this build contains no TV control or discovery.
 
-## Requirements
+## Install and configure
 
-- A Jellyfin server and an API key (Dashboard > API Keys)
-- A Roku with the Jellyfin app installed and signed in
-- Hermes and the Roku on the same network
-- On the Roku: Settings > System > Advanced system settings > Control by mobile apps > Network access = **Permissive**
+This branch is not published in the catalog. For local development, use Python
+3.11+ and install from the checkout:
 
-## Install
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+pytest -q
+ruff check .
+ruff format --check .
+```
 
-_Coming soon._ (`hermes plugins install hermes-screen`)
+Hermes loads the repository as a native directory plugin with `plugin.yaml` and
+`__init__.py` at its root. Install/enable that directory using your Hermes plugin
+workflow. A Python wheel contains the same layout under `hermes_screen_plugin`;
+installing the wheel alone does not enable it in Hermes.
 
-## Configure
+In Hermes plugin settings, set `jellyfin_url` (including any server base path),
+optional `jellyfin_user` (exact, case-sensitive username or GUID), and the
+`JELLYFIN_API_KEY` secret (Jellyfin Dashboard > API Keys). If user is omitted, the
+server must have exactly one enabled user. Settings and secrets are read through
+Hermes on every tool call; the plugin does not read `.env` files.
 
-_Coming soon._
+The compatible source floor was checked against released Hermes **v0.22.0**:
+official doctor and isolated validate passed. The installed ZimaOS Hermes version
+is still unknown. Jellyfin requests follow the upstream **12.4.0 OpenAPI**; the
+laptop server version is unknown and no live-server compatibility is claimed.
+See [integration evidence](docs/INTEGRATION.md) for exact commands and revisions.
+
+## Troubleshooting
+
+- Missing settings: set the URL and API-key secret in Hermes, then retry.
+- Ambiguous user: set the exact username or GUID; the plugin never picks the first user.
+- Authentication failure: check the API key and user permissions.
+- Connection failure: check the URL, base path and server reachability from Hermes.
+- Secret-scope/configuration failure: check the active Hermes profile and plugin settings.
 
 ## Privacy and network use
 
-The plugin talks only to your own Jellyfin server and your Roku on your local network. It makes no third party calls. Titles from your library appear in the conversation, so your model provider sees them like any other chat content.
+The implemented tool makes HTTP requests only to the configured Jellyfin server,
+with explicit 8-second request timeouts. Redirects are not followed. API keys are
+sent in authentication headers, never query strings. There are no shell commands,
+background processes, SSDP, Roku requests or third-party service calls at runtime.
+Server/user names and library data returned in chat may be seen by your model provider.
 
-## For contributors and coding agents
+Session `verified` means matching item identity on a fresh target session, including
+paused sessions. `playing: true` separately reports active-play evidence;
+`playing: null` establishes neither play nor pause. This is not Roku verification.
 
-Start with [AGENTS.md](./AGENTS.md) and [SOUL.md](./SOUL.md). Project docs live in [`docs/`](./docs).
+## Contributing
+
+Read [AGENTS.md](AGENTS.md), [SOUL.md](SOUL.md) and [the plan](docs/PLAN.md).
+All automated HTTP tests use mocks; hardware verification remains open.
 
 ## License
 

@@ -1,6 +1,6 @@
 name: hermes-screen
 version: "0.1.0"
-description: Hermes runs your home theater: picks from your Jellyfin library and plays on your Roku TV.
+description: "Check your Jellyfin server, user and library counts from Hermes."
 provides_tools:
   - library_status
 provides_hooks: []
@@ -29,13 +29,3 @@ config_schema:
     default: ""
     label: "Jellyfin user"
     description: "Jellyfin username or user id (optional)"
-  roku_ip:
-    type: str
-    default: ""
-    label: "Roku IP"
-    description: "Roku IP address (optional; auto-discovered if unset)"
-  default_room:
-    type: str
-    default: "living room"
-    label: "Default room"
-    description: "Default room name for the Roku"

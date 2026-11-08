@@ -25,8 +25,8 @@ Source: `NousResearch/hermes-agent` repo, `website/docs/developer-guide/plugins/
 | Hooks available: `pre_tool_call`, `post_tool_call`, `pre_llm_call`, `post_llm_call`, session hooks, `gateway_platform_event`, etc. | VERIFIED | Hook reference |
 | Desktop plugins: `desktop/plugin.js` with `@hermes/plugin-sdk`; transcript directives `::name{key="value"}`; tool media renderers | VERIFIED | `desktop-plugin-sdk.md` |
 | `hermes plugins doctor . --ci` and `hermes plugins validate . --install-deps` | VERIFIED | Dev guide + catalog page |
-| Exact `requires_hermes` floor to use | UNVERIFIED | Use installed `hermes --version`; recent catalog entries use `">=0.22.0"` |
-| Exact secret read API name (`agent.secret_scope.get_secret`) and import path | UNVERIFIED | Named in catalog rule 11; confirm in code |
+| Compatible `requires_hermes` source floor | VERIFIED (release + tooling) | v0.22.0 at e06df9c2eae6901f4c88f464e0ae6e753c0428b8 passes doctor/validate; installed ZimaOS version unknown |
+| Secret read API `agent.secret_scope.get_secret` | VERIFIED (source + smoke) | v0.22.0; actual scoped secret rotation tested, see INTEGRATION.md |
 
 ## Catalog rules that affect us
 
@@ -95,3 +95,35 @@ Source: `jellyfin/jellyfin-roku` main branch, cloned 2026-11-08.
 2. Does Roku `/query/media-player` show position for the Jellyfin app?
 3. Exact secret read API for plugins.
 4. Can `ctx.ask_choice` be used from the blueprint flow, or does movie night need the model to collect votes?
+
+
+## Integration source verification — 2026-11-08
+
+Fetched https://api.jellyfin.org/openapi/jellyfin-openapi-stable.json:
+`info.version=12.4.0`, SHA256
+`02a6064916b7e08f1f1d8d7ffc1fb1c7623df0e378729fcd7fd353766868036e`.
+Verified GET paths and query parameters for `/System/Info/Public`, `/Users`,
+`/Users/{userId}`, `/Items`, `/Items/{itemId}`, `/Items/Counts`,
+`/UserItems/Resume`, `/Shows/NextUp`, and `/Sessions`. Earlier server-API rows
+remain unverified **on the actual server**; source checks do not establish that
+server's version or compatibility.
+
+Fetched Jellyfin `AuthorizationContext.cs` at
+`83d0d0e7f76e23e2e085c8ff67d28b772d35967d`: Authorization/MediaBrowser Token
+parsing confirmed. Fetched Roku `source/api/baserequest.bs` at
+`a7b786d0595f741849aab7eb5c558f674274abc7`: client `Jellyfin Roku`, device
+`<name> (<model>)` and token header confirmed. No device checks performed.
+
+Official Hermes v0.22.0 `hermes_cli/plugins_loader.py` loads directory plugins as
+`hermes_plugins.<slug>` packages with explicit submodule search locations.
+Relative imports passed that actual loader from outside the repository, for both
+source and installed wheel. `get_config` reads plugin settings in the active
+profile; secrets use `agent.secret_scope.get_secret`. Full evidence and commands
+are in [INTEGRATION.md](INTEGRATION.md).
+
+Session `verified` establishes matching item identity, including paused sessions;
+only `playing is True` reports active playback evidence. Missing IsPaused yields
+unknown state. Responses exceeding the session scan cap never verify, because
+unseen sessions could make target selection ambiguous. No Roku confirmation is
+implied. Laptop server and installed ZimaOS Hermes versions remain unknown;
+Roku ECP shipping restriction is unresolved.

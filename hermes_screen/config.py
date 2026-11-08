@@ -25,8 +25,10 @@ class Config:
 
     # -- Jellyfin -----------------------------------------------------------
     def _clean(self, value: Any) -> str | None:
+        if value is None:
+            return None
         if not isinstance(value, str):
-            return value if value else None
+            raise ValueError("Settings must be text.")
         value = value.strip()
         return value if value else None
 

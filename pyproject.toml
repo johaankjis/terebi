@@ -12,6 +12,7 @@ dev = [
     "pytest>=8,<10",
     "respx>=0.21,<1",
     "ruff>=0.9,<1",
+    "PyYAML>=6,<7",
 ]
 
 [tool.pytest.ini_options]
@@ -26,5 +27,12 @@ line-length = 100
 select = ["E", "F", "I", "B", "UP"]
 
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77,<83"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["hermes_screen_plugin", "hermes_screen_plugin.hermes_screen"]
+package-dir = {hermes_screen_plugin = ".", "hermes_screen_plugin.hermes_screen" = "hermes_screen"}
+
+[tool.setuptools.package-data]
+hermes_screen_plugin = ["plugin.yaml"]

@@ -6,7 +6,7 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
-_None yet. Format: date, blocker, what was tried, who can unblock._
+2026-11-08 integration: live Jellyfin URL/version and installed ZimaOS Hermes version remain unknown. No hardware contact authorized for integrator; manager owns Roku checks. ECP shipping restriction remains unresolved. See [integration evidence](INTEGRATION.md).
 
 ## Milestone 0: Setup + proof (Sun Nov 8, morning)
 
@@ -23,15 +23,15 @@ _None yet. Format: date, blocker, what was tried, who can unblock._
 
 ## Milestone 1: Skeleton that validates (Sun Nov 8)
 
-- [ ] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes
-- [ ] `hermes plugins doctor . --ci` green
-- [ ] `hermes plugins validate . --install-deps` green
-- [ ] Settings via `config_schema`, secret API key read the sanctioned way
-- [ ] Test harness with respx
+- [x] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes
+- [x] `hermes plugins doctor . --ci` green
+- [x] `hermes plugins validate . --install-deps` green
+- [x] Settings via `config_schema`, secret API key read the sanctioned way
+- [x] Test harness with respx
 
 ## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
-- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up
+- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up — implementation and mock tests complete; real-server acceptance pending
 - [ ] Roku client: SSDP, apps, active app, media player, keypress, launch, input
 - [ ] Tools: `tv_discover`, `tv_status`, `tv_control`, `tv_play`, `library_find`, `library_continue`
 - [ ] `tv_play` verification loop
@@ -70,3 +70,5 @@ _None yet. Format: date, blocker, what was tried, who can unblock._
 ## Notes
 
 - 2026-11-08: Pivoted from streaming services (Netflix etc.) to Jellyfin. Reason: Jellyfin Roku app supports deep links with Jellyfin item IDs (verified in source), and Jellyfin gives us watch history. See D-005.
+
+- 2026-11-08 integration: native skeleton and Jellyfin client integrated; official Hermes v0.22.0 doctor/validate and 220 mock tests pass. See INTEGRATION.md. Hardware acceptance stays open. Telegram pick/play/pause comes before `/watch`; YouTube/Friday vote follow repeatable core.

@@ -61,3 +61,20 @@ Date: 2026-11-08 · Status: accepted
 Context: Need a library to demo with.
 Decision: Blender open movies and public domain films. No `.strm` links to pirate, debrid or Stremio sources.
 Why: Public catalog PR and video under our names; it also keeps the project clean for the marketplace.
+
+
+## Integration notes — 2026-11-08 (separate from manager D-009)
+
+- Use released Hermes v0.22.0 as the verified source floor, checked at
+  e06df9c2eae6901f4c88f464e0ae6e753c0428b8. Installed ZimaOS version remains unknown.
+- Bind handlers by closure and read settings/secrets each call; avoid global
+  context/client caches across profiles. Relative imports match the official loader.
+- Keep only library_status in the manifest; remove premature Roku settings and
+  document all other product flows as planned.
+- PyYAML >=6,<7 is a dev dependency to test actual manifest parsing. httpx remains
+  the only production dependency; bounded pytest/respx/ruff support tests and lint.
+- Explicit setuptools package mapping preserves native plugin files in wheels.
+  Installing a wheel does not automatically register or enable a Hermes plugin.
+- Exact usernames do not fold accents/case; this avoids resolving a different user.
+  Oversized session lists fail verification instead of hiding possible ambiguity.
+  Identity verification and actual playing/paused evidence are separate contracts.

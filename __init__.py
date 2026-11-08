@@ -1,24 +1,20 @@
-"""Hermes Screen plugin — registration."""
+"""Hermes Screen native plugin entry point."""
 
-import logging
-
-try:
-    from . import schemas, tools
-except ImportError:  # pragma: no cover - fallback when loaded as a top-level module
-    import schemas  # type: ignore
-    import tools  # type: ignore
-
-logger = logging.getLogger(__name__)
+from typing import Any
 
 PROVIDES_TOOLS = ["library_status"]
 
 
-def register(ctx):
-    """Register the plugin's tools with Hermes."""
-    tools.bind_context(ctx)
+def register(ctx: Any) -> None:
+    """Register a handler bound only to this plugin context."""
+    from . import schemas, tools
+
+    def library_status(args: dict, **kwargs: Any) -> str:
+        return tools.library_status(args, ctx=ctx)
+
     ctx.register_tool(
         name="library_status",
         toolset="hermes_screen",
         schema=schemas.LIBRARY_STATUS,
-        handler=lambda args, **kw: tools.library_status(args, ctx=ctx, **kw),
+        handler=library_status,
     )

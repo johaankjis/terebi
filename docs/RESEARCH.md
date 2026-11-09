@@ -25,7 +25,7 @@ Source: `NousResearch/hermes-agent` repo, `website/docs/developer-guide/plugins/
 | Hooks available: `pre_tool_call`, `post_tool_call`, `pre_llm_call`, `post_llm_call`, session hooks, `gateway_platform_event`, etc. | VERIFIED | Hook reference |
 | Desktop plugins: `desktop/plugin.js` with `@hermes/plugin-sdk`; transcript directives `::name{key="value"}`; tool media renderers | VERIFIED | `desktop-plugin-sdk.md` |
 | `hermes plugins doctor . --ci` and `hermes plugins validate . --install-deps` | VERIFIED | Dev guide + catalog page |
-| Compatible `requires_hermes` source floor | VERIFIED (release + tooling) | `>=0.22.0` verified against upstream `v0.22.0` (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`); installed ZimaOS version still unknown |
+| Compatible `requires_hermes` source floor | VERIFIED (release + tooling) | `>=0.22.0` verified against upstream `v0.22.0` (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`); installed ZimaOS v0.16.0 reported 2026-11-09; below required floor |
 | Exact secret read API name (`agent.secret_scope.get_secret`) and import path | VERIFIED (source + smoke) | Confirmed in `v0.22.0` and tested with scoped secret rotation |
 
 ## Catalog rules that affect us
@@ -86,7 +86,7 @@ Source: `jellyfin/jellyfin-roku` main branch, cloned 2026-11-08.
 | Resume items and `/Shows/NextUp` | UNVERIFIED | |
 | `RunTimeTicks` in 100ns ticks | UNVERIFIED (high confidence) | |
 | `/Sessions` lists active clients and now playing | UNVERIFIED | |
-| `/System/Info/Public` for server name/version | VERIFIED (from T3 container; `hermes` container pending) | `http://192.168.0.126:8097/System/Info/Public` returned HTTP 200: `{"LocalAddress":"http://[::1]:8096","ServerName":"terebi","Version":"12.2.0","ProductName":"Jellyfin Server","OperatingSystem":"","Id":"fb875353973d4c3fac1bc17ebfb7a3b1","StartupWizardCompleted":true}` |
+| `/System/Info/Public` for server name/version | VERIFIED (T3 response; user-confirmed HTTP 200 inside `hermes`, 2026-11-09) | `http://192.168.0.126:8097/System/Info/Public` returned HTTP 200: `{"LocalAddress":"http://[::1]:8096","ServerName":"terebi","Version":"12.2.0","ProductName":"Jellyfin Server","OperatingSystem":"","Id":"fb875353973d4c3fac1bc17ebfb7a3b1","StartupWizardCompleted":true}` |
 | `.strm` files let library items point to URLs | VERIFIED (secondhand) | Works but playback may proxy through server; not used for demo |
 
 ## Open questions
@@ -149,3 +149,28 @@ Relative imports passed that actual loader from outside the repository, for both
 source and installed wheel. `get_config` reads plugin settings in the active
 profile; secrets use `agent.secret_scope.get_secret`. Full evidence and commands
 are in [INTEGRATION.md](INTEGRATION.md).
+
+## Separate-runtime confirmation — 2026-11-09
+
+User confirmed public Jellyfin reachability from the actual `hermes` container and
+installed Hermes v0.16.0. Reused a separate official v0.22.0 checkout/venv with a
+fresh isolated HERMES_HOME; doctor, validate and mocked loader invocation pass for
+plugin `9320c3638d9f7d8579326e1a622a205523b395d1`. Validation includes one
+non-blocking `context_exfil` caution on documentation (`HARDWARE.md:4`). No product
+code changed and the existing ZimaOS installation was not modified. See INTEGRATION.md.
+
+## Picker integration evidence — 2026-11-09
+
+VERIFIED (source + mocked real client): `pick_titles(client, max_minutes, limit=3)`
+uses the existing JellyfinClient; resume precedes Next Up, then explicitly
+unwatched Movies/Videos, with deterministic ties and at most three results.
+The runtime float reaches raw-tick filtering unchanged. Next Up uses remaining
+runtime, not full runtime; one tick beyond the limit is rejected. Unknown runtime
+cannot fit; missing Played does not imply unwatched. Reasons cite returned fields,
+not genre affinity or invented history. Errors and scan truncation stay visible.
+All new API checks use respx, not live hardware. See D-011 and INTEGRATION.md.
+
+The historical documentation caution came from the upstream `skills_guard.py`
+`context_exfil` pattern. The snapshot's one-word provenance clarification retains
+evidence and uses “thread”; no scanner configuration was changed or suppressed.
+The integrated-tree validation result is recorded separately in INTEGRATION.md.

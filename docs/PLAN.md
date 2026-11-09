@@ -7,14 +7,16 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 ## Blockers
 
 - Actual runtime is ZimaOS `192.168.0.126`, Docker container `hermes` on
-  `hermes_default`; installed Hermes version and remote execution access from this
-  T3 container (`172.23.0.2`, no Docker socket or SSH key) remain unconfirmed.
+  `hermes_default`; installed Hermes is **v0.16.0** (user-confirmed 2026-11-09),
+  below the plugin floor v0.22.0. A separate v0.22.0 runtime passed smoke checks;
+  the installed container was not upgraded. Remote execution access from this
+  T3 container (`172.23.0.2`, no Docker socket or SSH key) remains unavailable.
   Earlier probes inside `hermes` were executed by the user in the ZimaOS terminal.
 - Authorized Roku is Roku 3 / 4200X at `192.168.0.104`, advertising OS 15.3.4.
   Direct reachability from `hermes` to Roku port 8060 is proven. Jellyfin runs on
   ZimaOS at `http://192.168.0.126:8097` (`ServerName: "terebi"`, `Version: "12.2.0"`
-  verified from the T3 container; reachability from inside `hermes` still awaits
-  confirmation). The Roku Jellyfin app currently reports `"Server not found"`
+  verified from the T3 container; user confirmed HTTP 200 for
+  `/System/Info/Public` from inside `hermes` on 2026-11-09). The Roku Jellyfin app currently reports `"Server not found"`
   (user is completing a Roku packet capture separately; manual playback is the
   next Roku milestone).
 - Reconcile the current ECP third-party restriction with the proposed shipping
@@ -32,7 +34,7 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [x] Existing repo synced: main and origin/main at `4fd89d1b0cad82284f960be146bab444cfc9ff13` (further pushes remain user-owned)
 - [x] Identify authorized Roku and actual Hermes runtime; preserve probe evidence
 - [ ] Confirm applicable network-control setting and resolve ECP shipping restriction (kept separate from Roku connection diagnosis)
-- [ ] Confirm actual Jellyfin host/URL/version/user (`http://192.168.0.126:8097`, Jellyfin `12.2.0` `"terebi"` verified from T3 container; verify inside `hermes`, confirm user, and configure API key through Hermes secrets)
+- [ ] Confirm actual Jellyfin host/URL/version/user (`http://192.168.0.126:8097`, Jellyfin `12.2.0` `"terebi"` verified from T3 container; HTTP 200 inside `hermes` user-confirmed; confirm user and configure API key through Hermes secrets)
 - [ ] Add legal demo library (Blender open movies + a few public domain films); scan; posters show up
 - [ ] Install Jellyfin app on Roku; sign in to the server (currently blocked by `"Server not found"` on Roku; manual playback is the next Roku milestone)
 - [ ] `curl http://ROKU_IP:8060/query/apps` → record Jellyfin channel ID in RESEARCH.md
@@ -47,7 +49,7 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Milestone 1: Skeleton that validates (Sun Nov 8)
 
-- [x] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes (verified against upstream Hermes `v0.22.0` at `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`; ZimaOS host version still unknown)
+- [x] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes (verified against upstream Hermes `v0.22.0` at `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`; ZimaOS host is v0.16.0; separate v0.22.0 smoke passes)
 - [x] `hermes plugins doctor . --ci` green (verified on integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`)
 - [x] `hermes plugins validate . --install-deps` green (verified on integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`)
 - [x] Settings via `config_schema`, secret API key read the sanctioned way (`agent.secret_scope.get_secret`)
@@ -63,7 +65,8 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Milestone 3: Smart + surfaces (Mon Nov 9)
 
-- [ ] `library_pick` with deterministic ranking + reasons
+- [x] Internal deterministic picker with grounded reasons and exact client runtime filtering
+- [ ] Register `library_pick` and verify it through Hermes/Telegram
 - [ ] `/watch` slash command with `ctx.ask_choice`; handle None/cancellation
 - [ ] Text fallback choices expire and are scoped to trusted conversation/requester
   and profile; never trust a session ID supplied in model arguments
@@ -144,7 +147,7 @@ PR creation, tagging/public release and public posting remain user-owned.
 
 - 2026-11-08: Pivoted from streaming services (Netflix etc.) to Jellyfin. Reason: Jellyfin Roku app supports deep links with Jellyfin item IDs (verified in source), and Jellyfin gives us watch history. See D-005.
 
-## Active execution checkpoint
+## Integration checkpoint (2026-11-08; superseded where noted below)
 
 Base: `4fd89d1b0cad82284f960be146bab444cfc9ff13`; main retains manager documentation
 edits, stash and backup refs. No pushes, merges to main, PRs or publication.
@@ -189,3 +192,71 @@ edits, stash and backup refs. No pushes, merges to main, PRs or publication.
   session evidence is unverified.
 - Demo order: Telegram picks/play/pause first; /watch next; YouTube and Friday vote
   only after the core repeats reliably. No third picker worker launched.
+
+## Published-tree checkpoint — 2026-11-09 (historical)
+
+- User confirmed HTTP 200 from `hermes` to
+  `http://192.168.0.126:8097/System/Info/Public`. Public reachability is proven;
+  authenticated library/session compatibility is still open.
+- Installed Hermes is v0.16.0; leave it unchanged. Separate v0.22.0 runtime at
+  upstream SHA `e06df9c2eae6901f4c88f464e0ae6e753c0428b8` smoke-tested published
+  plugin SHA `9320c3638d9f7d8579326e1a622a205523b395d1` (same product code as
+  reviewed integration `4362ed1ecdb2a3606695925e24a79b3949063414`).
+- Doctor, validate --install-deps and official-loader mocked tool invocation pass;
+  220 pytest tests and Ruff check/format pass. Validate emits non-blocking
+  `context_exfil` caution for `docs/HARDWARE.md:4`; do not describe this as a
+  warning-free security scan. Full commands/log locations in INTEGRATION.md.
+- Roku sign-in and manual playback remain pending per user. No launch, in-app
+  playback, pause, wake or exact target-session item match has been verified.
+- This turn changes documentation only; no upgrade/deployment or push performed.
+
+## Picker/catalog worker checkpoint — 2026-11-09 (before integration)
+
+Both assignments start at `9320c3638d9f7d8579326e1a622a205523b395d1`.
+Manager root remains on main with prior uncommitted documentation preserved.
+Roku sign-in and manual playback remain manager-owned and pending.
+
+- Worker A task suffix `bf98620e-fe9c-4d28-a579-79d476cee253`: picker module and
+  focused mocked tests only; completion pending. No polling of the running delegate.
+- Worker B task suffix `18bc2ec3-df3a-471f-8194-71785a89b838`: completed at
+  `b8fa6108d95033cb6177a3d50416ef565e812e58`, branch
+  `t3/catalog-submission-readiness`, clean worktree
+  `/home/node/.t3/worktrees/terebi/t3-7b4f8168`. Only README.md and
+  docs/SUBMISSION.md changed; ownership and diff reviewed.
+- Scanner cause confirmed in official v0.22.0 tools/skills_guard.py: a transfer-verb
+  pattern accidentally matches the provenance sentence in HARDWARE.md. Manager
+  changed the provenance noun to “thread”, preserving its meaning and all evidence.
+  No scanner suppression or policy bypass. This local fix must be included during
+  integration; final README/SUBMISSION scan text must describe the integrated tree,
+  not the worker's intermediate caution state.
+- Integration review must correct README's blanket statement that all config values
+  use ctx.get_config: the secret uses agent.secret_scope.get_secret. Trim internal
+  worker ownership/proposed-patch prose from the final user-facing README, and update
+  picker availability only as proven. Preserve the existing local version facts.
+- Final combined commit and checks pending Worker A completion.
+
+Manager verification after the provenance clarification: isolated Hermes v0.22.0
+`plugins validate /home/node/projects/terebi --install-deps` exits 0 with
+`security scan — safe`. The fix is uncommitted alongside preserved manager docs;
+repeat validation on the final integration SHA after adopting worker documentation.
+
+## Combined integration checkpoint — 2026-11-09
+
+- Separate tool-created checkout `/home/node/.t3/worktrees/terebi/t3-1ac1002f`,
+  branch `t3/integrate-picker-workers-docs`, clean start at
+  `9320c3638d9f7d8579326e1a622a205523b395d1`.
+- Worker A completed at `934802476d9b8682463c412a7a60c050b9ecf6cf`, adopted as
+  `6edf9ae7ab1be654a02ff4eeda2bab08c0964017`; worker B
+  `b8fa6108d95033cb6177a3d50416ef565e812e58`, adopted second as
+  `fda219045547dd5a76372102cb735c143defeeb1`.
+- Adopted checksum-verified manager snapshots for HARDWARE, INTEGRATION, PLAN and
+  RESEARCH; reconciled snapshot README facts with worker B. Manager root, worker
+  checkouts and snapshot files were not changed.
+- Internal picker integrated; only `library_status` registered. Clarified remaining
+  time and display rounding in reasons; oversized integer limits return errors.
+  Added real-client Next Up boundary/missing-history tests. No genre affinity.
+- Focused picker + Jellyfin tests: 297 passed. Full checks and scan evidence in
+  INTEGRATION.md. Independent exact-SHA review follows; it is not complete yet.
+- Hardware and credentials untouched. ZimaOS v0.16.0 unchanged; authenticated
+  Jellyfin 12.2.0, Roku sign-in/manual playback, exact session match and ECP shipping
+  question remain open. Telegram pick/play/pause precedes /watch, then YouTube/vote.

@@ -1,7 +1,7 @@
 # Hardware evidence carried forward
 
 Reviewed against base `4fd89d1b0cad82284f960be146bab444cfc9ff13` on 2026-11-08.
-Source: user-reported command output in the manager conversation, also retained
+Source: user-reported command output in the manager thread, also retained
 in `stash@{0}^3:docs/HARDWARE.md`. This is evidence, not a claim of working playback.
 
 ## Confirmed target and runtime
@@ -36,7 +36,7 @@ blanket network-failure or playback-success claims.
 - **Jellyfin server on ZimaOS (`http://192.168.0.126:8097`):**
   - From the T3 workspace container (`172.23.0.2`), `GET http://192.168.0.126:8097/System/Info/Public` returned HTTP 200 (`Server: Kestrel`):
     `{"LocalAddress":"http://[::1]:8096","ServerName":"terebi","Version":"12.2.0","ProductName":"Jellyfin Server","OperatingSystem":"","Id":"fb875353973d4c3fac1bc17ebfb7a3b1","StartupWizardCompleted":true}`.
-  - Direct verification from inside the `hermes` container (`hermes_default`) and the installed `hermes` CLI version check against `>=0.22.0` still require execution on ZimaOS (`docker exec -i hermes ...`), as this T3 container has no Docker socket or SSH credentials for `192.168.0.126`.
+  - On 2026-11-09 the user confirmed `/System/Info/Public` returns HTTP 200 from inside `hermes` (`hermes_default`) and reported installed Hermes v0.16.0. This T3 container still has no Docker socket or SSH credentials for ZimaOS. Public reachability does not verify authenticated endpoints.
   - The Roku Jellyfin app currently reports `"Server not found"` when connecting to ZimaOS Jellyfin. The user is finishing a Roku packet capture separately; **manual playback on the Roku is the next Roku milestone**, kept separate from the third-party ECP shipping restriction.
 
 Record signed-in Jellyfin user, installed Roku channel ID and one legal library
@@ -55,3 +55,11 @@ which remains unknown. Test standby separately without assuming Roku TV power
 keys apply. Record exact title, wake and pause separately. No launch, wake, pause,
 or resume has been demonstrated yet. Use 3s Roku and 8s Jellyfin request timeouts
 for new implementation (earlier diagnostics used 5s).
+
+## Latest user confirmation — 2026-11-09
+
+Roku sign-in and manual playback are still pending. Previous “Server not found”
+report is historical; no newer successful connection/playback evidence supplied.
+The separate Hermes v0.22.0 smoke runtime is in the development environment, not
+an upgrade to ZimaOS's v0.16.0 container. Its HTTP tool tests use mocks; they do not
+prove a Roku Jellyfin session or an exact item match.

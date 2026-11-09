@@ -136,7 +136,7 @@ This calls actual `PluginLoaderMixin._load_directory_module` and actual
 collection uses a small test context and all HTTP is respx. Doctor/validate above
 provide the separate actual runtime-registration checks.
 
-## Remaining limits
+## Remaining limits at the first integration (historical)
 
 - Hermes **source** floor v0.22.0 is verified; installed ZimaOS version unknown.
 - Jellyfin 12.4.0 API source checked; laptop URL/version and live compatibility unknown.
@@ -147,3 +147,118 @@ provide the separate actual runtime-registration checks.
   catalog tooling does not claim catalog publication or end-to-end playback.
 - Priorities remain Telegram pick/play/pause, then `/watch`, then YouTube and
   Friday vote after repeatable core. No TMDB, watcher or Chromecast implementation.
+
+## Repeat smoke on published build — 2026-11-09
+
+Plugin tested: `9320c3638d9f7d8579326e1a622a205523b395d1`, clean `main` at test
+start in `/home/node/projects/terebi`. Compared against independently reviewed
+integration `4362ed1ecdb2a3606695925e24a79b3949063414`: only four documentation
+files differ, no product/test changes.
+
+Reused separate official upstream checkout (clean) and Python 3.14.10 venv from
+above, verified exact upstream HEAD `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
+Fresh `HERMES_HOME=/tmp/terebi-v022-smoke-20261109-ryh46ak4`; no existing profile,
+ZimaOS v0.16.0 container or credentials modified. Working directory `/tmp`;
+PATH prepended `/tmp/hermes-screen-hermes-venv/bin` and
+`/tmp/hermes-screen-integrator-bin`.
+
+```sh
+hermes --version
+hermes plugins doctor /home/node/projects/terebi --ci
+hermes plugins validate /home/node/projects/terebi --install-deps
+/tmp/hermes-screen-hermes-venv/bin/python /home/node/projects/terebi/tests/hermes_smoke.py /home/node/projects/terebi
+```
+
+All four commands exit 0. Version v0.22.0; doctor reports one tool, zero hooks.
+Validate passes with one non-blocking warning:
+`security scan caution: context_exfil (HARDWARE.md:4)`.
+Unlike the prior integration-tree scan, this published tree includes the hardware
+notes. The warning is recorded without changing the scanner or suppressing it.
+Logs: `check-0.log` through `check-3.log` in the isolated home above.
+Smoke output: `PASS: official namespaced loader, YAML, real client + respx, scoped secret rotation`.
+This uses actual upstream loading/secrets, a small registration context, and mocked
+HTTP. It is not live authenticated Jellyfin, Telegram or hardware acceptance.
+
+Also reran from the project root with integration worktree `.venv/bin` tools:
+`pytest -q` — 220 passed; `ruff check .` — pass;
+`ruff format --check .` — 25 files already formatted.
+Documentation updates after this test do not change product code.
+
+User separately confirmed HTTP 200 for Jellyfin `/System/Info/Public` from the
+ZimaOS Hermes container. Installed Hermes v0.16.0 remains below the required floor.
+Roku sign-in/manual playback and exact target session evidence remain pending.
+
+## Picker and documentation integration — 2026-11-09
+
+Checkout: `/home/node/.t3/worktrees/terebi/t3-1ac1002f`, branch
+`t3/integrate-picker-workers-docs`. T3 confirmed this attached worktree is separate
+from `/home/node/projects/terebi`; Git status was clean at starting base
+`9320c3638d9f7d8579326e1a622a205523b395d1` before edits.
+
+Ordered cherry-picks (scope inspected before adoption):
+
+- A: `934802476d9b8682463c412a7a60c050b9ecf6cf` →
+  `6edf9ae7ab1be654a02ff4eeda2bab08c0964017` (picker + picker tests only).
+- B: `b8fa6108d95033cb6177a3d50416ef565e812e58` →
+  `fda219045547dd5a76372102cb735c143defeeb1` (README + SUBMISSION only).
+
+Adopted four manager snapshot docs from
+`/tmp/terebi-manager-docs-picker-fkkgfonh`, verified against `checksums.json`, and
+reconciled the fifth (README) with worker B. Preserved historical evidence and
+D-009; added D-011 for the picker refinement. HARDWARE retains the one-word
+provenance clarification. All five manager files and all snapshots still match
+the original checksums. No manager/worker checkout edits, stash/reset, upstream
+changes, push, PR, main merge, hardware calls or credential access.
+
+Product inspection: real client filters remaining ticks for resume and Next Up,
+full ticks for unwatched. Runtime float is not truncated; unknown duration cannot
+fit. Missing Played never becomes an unwatched claim. Tier ordering, deterministic
+ties, deduplication, max-three results, errors and truncation are covered. No
+history query means no genre affinity. Fixed an oversized integer argument raising
+OverflowError, clarified Next Up time left, and labeled display rounding when it
+exceeds the exact window. Added real-client tests for fractional Next Up boundaries,
+one-tick overruns, missing runtime and missing history. Only library_status remains
+registered; this does not expose library_pick or Telegram flows.
+
+Verification commands, executed from the integration checkout:
+
+```sh
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/pytest -q tests/test_picker.py tests/test_jellyfin.py
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/pytest -q
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/ruff check .
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/ruff format --check .
+git diff --check
+```
+
+Results: **297 focused tests; 328 full tests passed**. Ruff check and format pass
+(27 files); diff check passes. Executables in the earlier worker venv were used
+read-only, with imports from this integration checkout. An initial Ruff line-length
+finding in a changed test assertion was fixed before the passing rerun.
+
+Official upstream HEAD reverified as `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
+Fresh isolated home `/tmp/terebi-picker-integration-home-poaiiq__`. From `/tmp`:
+
+```sh
+export HERMES_HOME=/tmp/terebi-picker-integration-home-poaiiq__
+export PATH=/tmp/hermes-screen-hermes-venv/bin:/tmp/hermes-screen-integrator-bin:$PATH
+hermes --version
+hermes plugins doctor /home/node/.t3/worktrees/terebi/t3-1ac1002f --ci
+hermes plugins validate /home/node/.t3/worktrees/terebi/t3-1ac1002f --install-deps
+/tmp/hermes-screen-hermes-venv/bin/python /home/node/.t3/worktrees/terebi/t3-1ac1002f/tests/hermes_smoke.py /home/node/.t3/worktrees/terebi/t3-1ac1002f
+```
+
+All exit 0. Version v0.22.0, Python 3.14.10; version command includes an update
+available notice (no update performed). Doctor: one tool, zero hooks. Validate:
+all checks pass, **security scan — safe**, no caution warning; host isolation
+notice remains. This verdict does not imply zero medium/low scanner findings.
+Smoke: `PASS: official namespaced loader, YAML, real client + respx, scoped secret rotation`.
+Logs `check-0.log` through `check-3.log` in the home above. Final committed-tree
+reruns use `final-doctor.log`, `final-validate.log`, `final-smoke.log` in the same
+home; the handoff supplies the full final SHA. No independent review is claimed.
+
+Limits unchanged: ZimaOS Hermes v0.16.0 was not upgraded. Jellyfin 12.2.0 public
+HTTP 200 is user-confirmed from Hermes, but authenticated endpoints remain
+unverified. Roku 3 sign-in/manual playback, launch/in-app playback/pause/wake and
+exact target-session match remain pending; ECP restriction is a separate unresolved
+question. Hardware belongs to the manager. Priority: Telegram pick/play/pause,
+then /watch, then YouTube and Friday vote. No publication pin or catalog PR.

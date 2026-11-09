@@ -84,3 +84,15 @@ Decision:
 - Use `PyYAML>=6,<7` as a dev dependency to test actual manifest parsing; `httpx` remains the sole production dependency.
 - Enforce exact case-sensitive username matching (or normalized GUID) and fail session verification when responses hit the 200-session scan cap rather than hiding possible device ambiguity. Separate item identity (`verified`) from `playing`/`paused` evidence.
 Why: Prevents cross-profile state leaks, guarantees valid manifest parsing under `hermes plugins validate`, and preserves strict verification semantics.
+
+## D-011: Picker uses returned watch state and exact client runtime filtering
+Date: 2026-11-09 · Status: accepted
+Context: Integrating the deterministic picker against the existing Jellyfin client.
+Decision: Rank resume, then Next Up, then explicitly unwatched Movies/Videos; no
+genre affinity ranking because no history query supplies evidence for it.
+Pass the runtime float unchanged to the client, which filters raw ticks: remaining
+runtime for resume/Next Up, full runtime for new picks. Rounded minutes are display
+only, labeled when rounding exceeds the window; Next Up reasons say time left.
+Why: Avoid fabricated taste/history and preserve fractional limits. The picker
+stays internal; only library_status is registered. D-006's genre-affinity ambition
+is deferred until supported by actual history. No dependency or tool API added.

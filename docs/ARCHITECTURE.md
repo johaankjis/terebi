@@ -73,8 +73,10 @@ Key idea: **Jellyfin is the source of truth** for the library and watch history.
 Rank candidates from Jellyfin with simple, explainable rules:
 1. In progress items (resume) score highest when they fit the time.
 2. Next Up episodes next.
-3. Unwatched items in genres the user finished most often.
-4. Respect `max_minutes` strictly (runtime from `RunTimeTicks`; 1 tick = 100ns).
+3. Explicitly unwatched Movies/Videos, longest fitting first; no genre affinity
+   without a history query (D-011).
+4. Pass `max_minutes` unchanged to client tick filtering (1 tick = 100ns):
+   remaining time for resume/Next Up, full runtime for unwatched.
 5. Each pick carries the rule that selected it → that becomes the one line reason.
 
 No LLM call needed for ranking; Hermes's own model does the conversation.

@@ -122,7 +122,22 @@ def ids(result: dict[str, Any]) -> list[str]:
 
 @pytest.mark.parametrize(
     "bad",
-    [0, -1, -0.5, math.nan, math.inf, -math.inf, True, False, None, "30", [30], 1441, 1e9],
+    [
+        0,
+        -1,
+        -0.5,
+        math.nan,
+        math.inf,
+        -math.inf,
+        True,
+        False,
+        None,
+        "30",
+        [30],
+        1441,
+        1e9,
+        10**1000,
+    ],
 )
 def test_invalid_runtime_limit_is_rejected_before_any_call(bad):
     fake = FakeClient()
@@ -449,7 +464,8 @@ def test_next_up_reason_names_series_and_numbers_from_evidence():
     )
     pick = pick_titles(fake, 30)["picks"][0]
     assert pick["why"] == (
-        "Jellyfin lists Show S2E4: Pilot as your next episode; about 22 min, within your 30 min."
+        "Jellyfin lists Show S2E4: Pilot as your next episode; "
+        "about 22 min left, within your 30 min."
     )
     assert (pick["series"], pick["season"], pick["episode"]) == ("Show", 2, 4)
 
@@ -458,7 +474,7 @@ def test_next_up_without_series_info_falls_back_to_title_only():
     record = episode_rec(1, series_name=None, season_number=None, episode_number=None, title="Solo")
     pick = pick_titles(FakeClient(next_up=answer([record])), 60)["picks"][0]
     assert pick["why"] == (
-        "Jellyfin lists Solo as your next episode; about 25 min, within your 60 min."
+        "Jellyfin lists Solo as your next episode; about 25 min left, within your 60 min."
     )
 
 
@@ -910,3 +926,58 @@ def test_real_client_malformed_page_is_an_error_not_no_picks(api, jf):
     result = pick_titles(jf, 60)
     assert result["ok"] is False
     assert result["reason"] == "jellyfin_bad_response"
+
+
+@pytest.mark.parametrize("maximum", [0.5, 9.7, 30])
+def test_real_client_next_up_remaining_boundary_and_reason(api, jf, maximum):
+    position = 60 * MIN
+    remaining = int(maximum * MIN)
+    api.get("/Shows/NextUp").respond(
+        json=page(
+            [
+                raw(
+                    1,
+                    Type="Episode",
+                    RunTimeTicks=position + remaining,
+                    UserData={"PlaybackPositionTicks": position},
+                ),
+                raw(
+                    2,
+                    Type="Episode",
+                    RunTimeTicks=position + remaining + 1,
+                    UserData={"Played": False, "PlaybackPositionTicks": position},
+                ),
+                raw(
+                    3,
+                    Type="Episode",
+                    RunTimeTicks=None,
+                    UserData={"Played": False, "PlaybackPositionTicks": position},
+                ),
+            ]
+        )
+    )
+    result = pick_titles(jf, maximum)
+    assert ids(result) == [iid(1)]
+    pick = result["picks"][0]
+    assert pick["minutes"] > maximum  # full runtime need not fit
+    assert "left" in pick["why"]
+    assert "60 min in" in pick["why"]
+    assert "Not watched" not in pick["why"]  # missing Played is not unwatched
+    assert ("rounded display" in pick["why"]) == (maximum != 30)
+    assert result["sources"]["next_up"]["skipped_filtered"] == 1
+    assert result["sources"]["next_up"]["skipped_unknown_runtime"] == 1
+
+
+def test_real_client_missing_next_up_history_does_not_invent_progress(api, jf):
+    api.get("/Shows/NextUp").respond(
+        json=page(
+            [
+                raw(1, Type="Episode", RunTimeTicks=10 * MIN, UserData=None),
+                raw(2, Type="Episode", RunTimeTicks=10 * MIN + 1, UserData=None),
+            ]
+        )
+    )
+    result = pick_titles(jf, 10)
+    assert ids(result) == [iid(1)]
+    assert "already" not in result["picks"][0]["why"]
+    assert "Not watched" not in result["picks"][0]["why"]

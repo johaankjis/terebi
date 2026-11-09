@@ -258,9 +258,9 @@ def _check_max_minutes(value: Any) -> float | dict[str, Any]:
     if (
         isinstance(value, bool)
         or not isinstance(value, (int, float))
-        or not math.isfinite(value)
         or value <= 0
         or value > MAX_MINUTES_LIMIT
+        or not math.isfinite(value)
     ):
         return _invalid(
             f"max_minutes must be a number of minutes above 0 and at most {MAX_MINUTES_LIMIT}."
@@ -405,24 +405,30 @@ def _name(c: dict[str, Any]) -> str:
     return c["title"]
 
 
+def _duration(shown: int, maximum: float) -> str:
+    # Display rounding can exceed the exact window already enforced by the client.
+    rounded = " (rounded display)" if shown > maximum else ""
+    return f"about {shown} min{rounded}"
+
+
 def _why(source: str, c: dict[str, Any], maximum: float) -> str:
     name, window = _name(c), f"{_fmt(maximum)} min"
     if source == "resume":
         started = f"{c['position_s'] // 60} min in" if c["position_s"] >= 60 else "just started"
         return (
             f"You're {started} on {name} (Jellyfin has it unfinished), "
-            f"about {c['remaining_minutes']} min left, within your {window}."
+            f"{_duration(c['remaining_minutes'], maximum)} left, within your {window}."
         )
     if source == "next_up":
         extra = f", already {c['position_s'] // 60} min in" if c["position_s"] >= 60 else ""
         return (
             f"Jellyfin lists {name} as your next episode{extra}; "
-            f"about {c['remaining_minutes']} min, within your {window}."
+            f"{_duration(c['remaining_minutes'], maximum)} left, within your {window}."
         )
     genres = ", ".join(c["genres"][:_MAX_GENRES_IN_REASON])
     tagged = f" It's tagged {genres}." if genres else ""
     return (
-        f"Not watched yet in Jellyfin: {name}, about {c['minutes']} min, "
+        f"Not watched yet in Jellyfin: {name}, {_duration(c['minutes'], maximum)}, "
         f"within your {window}.{tagged}"
     )
 

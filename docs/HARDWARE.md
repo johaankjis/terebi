@@ -36,14 +36,29 @@ blanket network-failure or playback-success claims.
 - **Jellyfin server on ZimaOS (`http://192.168.0.126:8097`):**
   - From the T3 workspace container (`172.23.0.2`), `GET http://192.168.0.126:8097/System/Info/Public` returned HTTP 200 (`Server: Kestrel`):
     `{"LocalAddress":"http://[::1]:8096","ServerName":"terebi","Version":"12.2.0","ProductName":"Jellyfin Server","OperatingSystem":"","Id":"fb875353973d4c3fac1bc17ebfb7a3b1","StartupWizardCompleted":true}`.
-  - On 2026-11-09 the user confirmed `/System/Info/Public` returns HTTP 200 from inside `hermes` (`hermes_default`) and reported installed Hermes v0.16.0. This T3 container still has no Docker socket or SSH credentials for ZimaOS. Public reachability does not verify authenticated endpoints.
-  - The Roku Jellyfin app currently reports `"Server not found"` when connecting to ZimaOS Jellyfin. The user is finishing a Roku packet capture separately; **manual playback on the Roku is the next Roku milestone**, kept separate from the third-party ECP shipping restriction.
+  - On 2026-11-09 the user confirmed `/System/Info/Public` returns HTTP 200 from inside `hermes` (`hermes_default`) and reported installed Hermes v0.16.0. This T3 container still has no Docker socket or SSH credentials for ZimaOS.
+  - On 2026-11-09 authenticated `library_status` and `library_pick(max_minutes=20)` were verified against live `http://192.168.0.126:8097` from the isolated Hermes `v0.22.0` runtime using `agent.secret_scope.get_secret("JELLYFIN_API_KEY")` (secret read into memory only, never persisted to disk):
+    - Resolved single enabled user `homelab-hp` (`id: "682764864adc45bbb6b981837f790812"`).
+    - `library_status({})` returned `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"movies": 1, "series": 0, "episodes": 0}}`.
+    - `library_pick({"max_minutes": 20})` returned `BigBuckBunny_320x180` (`item_id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `type: "Movie"`, `year: 2008`, `minutes: 10`, `source: "unwatched"`, `why: "Not watched yet in Jellyfin: BigBuckBunny_320x180, about 10 min, within your 20 min."`, `complete: true`, `truncated: false`, `errors: []`).
+- **Roku 3 (`192.168.0.104`) Quick Connect sign-in, manual playback, and live `/Sessions` verification (2026-11-09):**
+  - User signed in on the Roku 3 (`192.168.0.104`) via Quick Connect and started playing `BigBuckBunny_320x180` with the Roku remote.
+  - Live `GET http://192.168.0.126:8097/Sessions` confirmed two Roku sessions for `RemoteEndPoint: "192.168.0.104"`:
+    1. Active playback session `Id: "452bc61a34030e5b3dd86d07521d91f4"`:
+       - `Client: "Jellyfin Roku"`, `ApplicationVersion: "3.2.4"`, `DeviceName: "Roku 3 (4200X)"`, `DeviceId: "3ed2ceba-4c54-56fe-a896-e40e3d810aachomelab-hp"`, `UserId: "682764864adc45bbb6b981837f790812"`, `UserName: "homelab-hp"`, `IsActive: true`.
+       - `SupportsMediaControl: false`, `SupportsRemoteControl: false`.
+       - `NowPlayingItem`: `{"Id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "Name": "BigBuckBunny_320x180", "Type": "Movie", "RunTimeTicks": 5964583330}`.
+       - `PlayState`: `{"PositionTicks": 840000000, "CanSeek": false, "IsPaused": false, "IsMuted": false, "PlayMethod": "DirectPlay"}`.
+    2. Initial pre-playback session `Id: "a3e03070203e28b7c4b11b2556384362"` (`DeviceId: "3ed2ceba-4c54-56fe-a896-e40e3d810aac"`, `NowPlayingItem: null`, `LastPlaybackCheckIn: "0001-01-01T00:00:00.0000000Z"`).
+  - Live `JellyfinClient.verify_playback("e5d6c471a8a4ea26e00a3694f91bf8d1", ...)` passed for both `device_name="Roku 3 (4200X)"` and `device_id="3ed2ceba-4c54-56fe-a896-e40e3d810aachomelab-hp"`, automatically filtering out the stale epoch-checkin session and returning:
+    `{"ok": true, "verified": true, "reason": null, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "now_playing": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "paused": false, "playing": true, "position_s": 84, "session": {"device_name": "Roku 3 (4200X)", "client": "Jellyfin Roku", "user_name": "homelab-hp", "check_in_age_s": 4}, "matched_sessions": 1}`.
 
-Record signed-in Jellyfin user, installed Roku channel ID and one legal library
-item's ID/type/title once the Roku app connects. Do not reuse the old YouTube
-video ID as a Jellyfin item ID.
+## Remaining Roku control and shipping gates (manager only, sequential)
 
-From the actual Hermes container, test cold app launch, running-app input, episode,
+- Live `/Sessions` confirms `SupportsMediaControl: false` and `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so Jellyfin server-side remote control (`/Sessions/{id}/Playing`) cannot start or pause playback on the Roku. Programmatic launch and pause require Roku ECP on port `8060`, which remains gated on the third-party ECP shipping restriction decision.
+- Installed Roku channel ID (`GET http://192.168.0.104:8060/query/apps`) and programmatic launch/in-app input/pause/resume from Hermes have not been executed yet.
+
+From the actual Hermes container (once the ECP gate is decided), test cold app launch, running-app input, episode,
 resume and pause. Each attempt records bounded request parameters, response,
 Roku active app/media report, matching Jellyfin session item/user/device and
 position when available, plus separate human screen confirmation. A playing state
@@ -52,14 +67,5 @@ Record failures as failures. Launch intent and last-played cache are not evidenc
 
 Roku 3 is an external player: TV wake depends on the actual TV/CEC configuration,
 which remains unknown. Test standby separately without assuming Roku TV power
-keys apply. Record exact title, wake and pause separately. No launch, wake, pause,
-or resume has been demonstrated yet. Use 3s Roku and 8s Jellyfin request timeouts
+keys apply. Record exact title, wake and pause separately. Use 3s Roku and 8s Jellyfin request timeouts
 for new implementation (earlier diagnostics used 5s).
-
-## Latest user confirmation — 2026-11-09
-
-Roku sign-in and manual playback are still pending. Previous “Server not found”
-report is historical; no newer successful connection/playback evidence supplied.
-The separate Hermes v0.22.0 smoke runtime is in the development environment, not
-an upgrade to ZimaOS's v0.16.0 container. Its HTTP tool tests use mocks; they do not
-prove a Roku Jellyfin session or an exact item match.

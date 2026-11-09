@@ -20,12 +20,14 @@ Two tools are registered:
 Failures return a short reason and a hint. A failed Jellyfin lookup is reported as
 an error or a partial result, never as "nothing to watch".
 
-The Jellyfin client also has mocked coverage for library search and session
-evidence; those methods are **not** exposed as tools. `library_pick` is verified
-only against mocked Jellyfin responses, not yet against the live server or from
-Telegram. Roku playback/control (`tv_*`), Telegram pick/play/pause, `/watch`,
-YouTube and Friday voting are planned, not available. Roku ECP shipping
-restrictions remain unresolved; this build contains no TV control or discovery.
+The Jellyfin client also implements library search and session playback verification
+(`verify_playback`); those methods are **not** exposed as tools yet. Both
+`library_status` and `library_pick`, as well as `JellyfinClient.verify_playback`
+against an active Roku 3 (`192.168.0.104`) playback session, have been verified
+against the live Jellyfin `12.2.0` server (`terebi`). Programmatic Roku
+playback/control (`tv_*`), Telegram pick/play/pause, `/watch`, YouTube and Friday
+voting are planned, not available. Roku ECP shipping restrictions remain
+unresolved; this build contains no TV control or discovery.
 
 ## Install and configure
 
@@ -61,13 +63,13 @@ not implemented.
   later, the catalog entry).
 - The compatible source floor was checked against released Hermes **v0.22.0**
   (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`): official doctor, isolated
-  validate and mocked tool smoke passed.
+  validate, mocked tool smoke, and live Jellyfin 12.2.0 tool calls passed.
 - The installed ZimaOS Hermes is **v0.16.0**, below this plugin's declared
   minimum; testing uses a separate v0.22.0 runtime without upgrading that
   installation.
-- Jellyfin requests follow the upstream **12.4.0 OpenAPI**. The actual server
-  reports **12.2.0** and its public endpoint is reachable from the Hermes
-  container; authenticated library and session compatibility remain unverified.
+- Jellyfin requests follow the upstream **12.4.0 OpenAPI** and have been verified
+  live against **Jellyfin 12.2.0** (`terebi`) for `library_status`,
+  `library_pick(max_minutes=20)`, and Roku 3 `/Sessions` + `verify_playback`.
 - Python 3.11+; production dependency is `httpx` only.
 
 See [integration evidence](docs/INTEGRATION.md) for exact commands and revisions.
@@ -89,21 +91,23 @@ build.
 
 ## Validation
 
-Official Hermes v0.22.0 doctor, validate (security verdict **safe**) and mocked
-loader smoke pass on the integrated tree; 385 tests and Ruff pass. Details are in
-[integration evidence](docs/INTEGRATION.md). They do not establish authenticated
-live-server compatibility or working TV playback. Catalog rules distinguish a
+Official Hermes v0.22.0 doctor, validate (security verdict **safe**), mocked
+loader smoke, and live Jellyfin 12.2.0 verification pass on the integrated tree;
+385 automated tests and Ruff pass. Details are in
+[integration evidence](docs/INTEGRATION.md). Catalog rules distinguish a
 validation failure from a caution finding requiring review.
 
 ## Publication gates (not yet met)
 
 - No catalog PR has been opened and no commit is pinned for publication.
-- Hardware gate is open: Roku app sign-in and manual playback are pending; no
-  launch, in-app play, pause, wake or exact item ID has been demonstrated.
-- Roku ECP third-party shipping restriction is unresolved.
-- Authenticated Jellyfin compatibility is unverified.
-- `library_pick` is registered but not yet verified through a live Hermes session,
-  against the live Jellyfin server, or from Telegram; `/watch` is not built.
+- Hardware control gate is open: Roku 3 Quick Connect sign-in, manual playback of
+  `BigBuckBunny_320x180`, and live `/Sessions` + `verify_playback` item identity
+  (`e5d6c471a8a4ea26e00a3694f91bf8d1`) are verified, but programmatic Hermes
+  launch, in-app play, pause, and wake have not been demonstrated.
+- Roku ECP third-party shipping restriction is unresolved (and live `/Sessions`
+  confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
+- `library_pick` is verified against live Jellyfin 12.2.0 in the isolated Hermes
+  v0.22.0 runtime, but not yet from Telegram; `/watch` is not built.
 - No TMDB, Chromecast or watcher implementation exists or is planned for the
   hackathon scope.
 

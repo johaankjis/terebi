@@ -59,8 +59,8 @@ Source: `jellyfin/jellyfin-roku` main branch, cloned 2026-11-08.
 | App handles deep links while running via `roInputEvent` (ECP `/input`) | VERIFIED (source) | `source/Main.bs` ~line 200 |
 | Supported `mediaType` values (lowercased): episode, recording, movie, video, audio, audiobook, musicalbum, musicartist, series, season (season needs `seriesID`) | VERIFIED (source) | `source/MainEventHandlers.bs` `onDeepLinkingEvent` |
 | `contentId` is the Jellyfin item ID | VERIFIED (source) | passed as `id` to quickplay |
-| App reports `SupportsMediaControl: false` to the server | VERIFIED (source) | `source/utils/deviceCapabilities.bs` → server side remote control won't work; use ECP |
-| App reports playback progress to the server | VERIFIED (source) | `PlaystateTask`; confirm on device that resume/played update |
+| App reports `SupportsMediaControl: false` to the server | VERIFIED (source + live `/Sessions`, 2026-11-09) | `source/utils/deviceCapabilities.bs` + live Roku 3 session (`SupportsMediaControl: false`, `SupportsRemoteControl: false`) → server side remote control won't work; use ECP |
+| App reports playback progress to the server | VERIFIED (source + live `/Sessions`, 2026-11-09) | `PlaystateTask` + live Roku 3 session reporting `NowPlayingItem.Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `PositionTicks: 840000000`, `IsPaused: false` |
 | Deep link actually plays on our Roku + app version | UNVERIFIED | Day one curl test |
 | Jellyfin channel ID on Roku | UNVERIFIED | Read from `/query/apps` |
 
@@ -81,11 +81,11 @@ Source: `jellyfin/jellyfin-roku` main branch, cloned 2026-11-08.
 
 | Fact | Status | Notes |
 |---|---|---|
-| Auth via API key (Dashboard > API Keys) in `Authorization: MediaBrowser Token="..."` header (or `X-Emby-Token`) | UNVERIFIED | Check API docs for our server version |
-| Items query with filters (`IncludeItemTypes`, `Genres`, `IsPlayed`, `SearchTerm`, `Recursive`, `Fields`) | UNVERIFIED | Path differs by version (`/Items?userId=` vs `/Users/{id}/Items`) |
-| Resume items and `/Shows/NextUp` | UNVERIFIED | |
-| `RunTimeTicks` in 100ns ticks | UNVERIFIED (high confidence) | |
-| `/Sessions` lists active clients and now playing | UNVERIFIED | |
+| Auth via API key (Dashboard > API Keys) in `Authorization: MediaBrowser Token="..."` header (or `X-Emby-Token`) | VERIFIED (source + live Jellyfin 12.2.0, 2026-11-09) | Verified against `http://192.168.0.126:8097` via `library_status`, `library_pick`, and `/Sessions` |
+| Items query with filters (`IncludeItemTypes`, `Genres`, `IsPlayed`, `SearchTerm`, `Recursive`, `Fields`) | VERIFIED (OpenAPI + live Jellyfin 12.2.0, 2026-11-09) | Verified `/Items` and `/Items/Counts` for user `homelab-hp` (`682764864adc45bbb6b981837f790812`) |
+| Resume items and `/Shows/NextUp` | VERIFIED (OpenAPI + live Jellyfin 12.2.0, 2026-11-09) | Verified `/UserItems/Resume` and `/Shows/NextUp` during live `library_pick(max_minutes=20)` |
+| `RunTimeTicks` in 100ns ticks | VERIFIED (OpenAPI + live Jellyfin 12.2.0, 2026-11-09) | Live `BigBuckBunny_320x180` reports `RunTimeTicks: 5964583330` (~9.94 min, rounded to 10 min) |
+| `/Sessions` lists active clients and now playing | VERIFIED (OpenAPI + live Roku 3 playback, 2026-11-09) | Live Roku 3 (`192.168.0.104`) session reported `Client: "Jellyfin Roku"`, `ApplicationVersion: "3.2.4"`, `DeviceName: "Roku 3 (4200X)"`, `NowPlayingItem.Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `PositionTicks: 840000000` |
 | `/System/Info/Public` for server name/version | VERIFIED (T3 response; user-confirmed HTTP 200 inside `hermes`, 2026-11-09) | `http://192.168.0.126:8097/System/Info/Public` returned HTTP 200: `{"LocalAddress":"http://[::1]:8096","ServerName":"terebi","Version":"12.2.0","ProductName":"Jellyfin Server","OperatingSystem":"","Id":"fb875353973d4c3fac1bc17ebfb7a3b1","StartupWizardCompleted":true}` |
 | `.strm` files let library items point to URLs | VERIFIED (secondhand) | Works but playback may proxy through server; not used for demo |
 
@@ -93,7 +93,7 @@ Source: `jellyfin/jellyfin-roku` main branch, cloned 2026-11-08.
 
 1. Does `/input` deep link work while a video is already playing, or only on app screens?
 2. Does Roku `/query/media-player` show position for the Jellyfin app?
-3. Exact secret read API for plugins.
+3. Exact secret read API for plugins. (Resolved: `agent.secret_scope.get_secret`)
 4. Can `ctx.ask_choice` be used from the blueprint flow, or does movie night need the model to collect votes?
 
 ## Carry-forward verification from pre-pivot work (2026-11-08)
@@ -135,7 +135,7 @@ Verified GET paths and query parameters for `/System/Info/Public`, `/Users`,
 `/Users/{userId}`, `/Items`, `/Items/{itemId}`, `/Items/Counts`,
 `/UserItems/Resume`, `/Shows/NextUp`, and `/Sessions`. Note that the ZimaOS
 server (`http://192.168.0.126:8097`) reports Jellyfin `12.2.0`; authenticated
-endpoints remain to be verified against that live server once configured.
+endpoints were verified against that live server on 2026-11-09 (see below).
 
 Fetched Jellyfin `AuthorizationContext.cs` at
 `83d0d0e7f76e23e2e085c8ff67d28b772d35967d`: Authorization/MediaBrowser Token
@@ -174,3 +174,24 @@ The historical documentation caution came from the upstream `skills_guard.py`
 `context_exfil` pattern. The snapshot's one-word provenance clarification retains
 evidence and uses “thread”; no scanner configuration was changed or suppressed.
 The integrated-tree validation result is recorded separately in INTEGRATION.md.
+
+## Live Jellyfin 12.2.0 and Roku 3 `/Sessions` verification — 2026-11-09
+
+- **VERIFIED (live Jellyfin 12.2.0 + Hermes v0.22.0 loader):** At SHA
+  `22d28304f787c339b20e137975193d91e88d8e89`, `library_status` and
+  `library_pick(max_minutes=20)` were invoked through the official Hermes `v0.22.0`
+  loader against `http://192.168.0.126:8097` using `agent.secret_scope.get_secret`.
+  Resolved user `homelab-hp` (`682764864adc45bbb6b981837f790812`) and returned
+  `BigBuckBunny_320x180` (`e5d6c471a8a4ea26e00a3694f91bf8d1`, 10 min Movie,
+  `source: "unwatched"`).
+- **VERIFIED (live Roku 3 playback + `/Sessions`):** When signed in via Quick Connect
+  and playing `BigBuckBunny_320x180` on Roku 3 (`192.168.0.104`), `Jellyfin Roku`
+  `3.2.4` creates two sessions in `/Sessions`: an initial idle session with
+  `DeviceId: "3ed2ceba-4c54-56fe-a896-e40e3d810aac"` (`LastPlaybackCheckIn: "0001-01-01T00:00:00.0000000Z"`, `NowPlayingItem: null`)
+  and an active playback session with `DeviceId: "3ed2ceba-4c54-56fe-a896-e40e3d810aachomelab-hp"`
+  (appending the username to the UUID), `DeviceName: "Roku 3 (4200X)"`,
+  `SupportsMediaControl: false`, `SupportsRemoteControl: false`, and
+  `NowPlayingItem.Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`.
+  `JellyfinClient.verify_playback` filters out the epoch-checkin session and
+  uniquely verifies the active playing session (`verified: true`, `playing: true`,
+  `paused: false`, `matched_sessions: 1`).

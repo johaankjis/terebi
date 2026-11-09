@@ -14,18 +14,22 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   Earlier probes inside `hermes` were executed by the user in the ZimaOS terminal.
 - Authorized Roku is Roku 3 / 4200X at `192.168.0.104`, advertising OS 15.3.4.
   Direct reachability from `hermes` to Roku port 8060 is proven. Jellyfin runs on
-  ZimaOS at `http://192.168.0.126:8097` (`ServerName: "terebi"`, `Version: "12.2.0"`
-  verified from the T3 container; user confirmed HTTP 200 for
-  `/System/Info/Public` from inside `hermes` on 2026-11-09). The Roku Jellyfin app currently reports `"Server not found"`
-  (user is completing a Roku packet capture separately; manual playback is the
-  next Roku milestone).
+  ZimaOS at `http://192.168.0.126:8097` (`ServerName: "terebi"`, `Version: "12.2.0"`).
+  Authenticated `library_status` and `library_pick(max_minutes=20)` are verified
+  against the live server (`homelab-hp`, `BigBuckBunny_320x180` /
+  `e5d6c471a8a4ea26e00a3694f91bf8d1`). Roku 3 signed in via Quick Connect, played
+  `BigBuckBunny_320x180`, and live `/Sessions` + `JellyfinClient.verify_playback`
+  confirmed exact item identity (`verified: true`, `playing: true`, `paused: false`,
+  `DeviceName: "Roku 3 (4200X)"`, `Client: "Jellyfin Roku"` `3.2.4`).
 - Reconcile the current ECP third-party restriction with the proposed shipping
-  path. Jellyfin source deep-link support establishes receiver behavior, not an
-  exception to Roku's restriction. Keep this question separate from device tests
-  and from the Roku-to-Jellyfin connection diagnosis.
-- No real Jellyfin launch, exact-title playback, resume, pause or TV wake evidence
-  yet. Roku 3 is an external player, not a Roku TV; do not promise TV power control.
-  See HARDWARE.md for carried-forward observations.
+  path. Live `/Sessions` confirms `SupportsMediaControl: false` and
+  `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so programmatic launch
+  and pause require Roku ECP on port `8060`. Jellyfin source deep-link support
+  establishes receiver behavior, not an exception to Roku's restriction.
+- No programmatic Hermes launch, pause, resume or TV wake evidence yet (manual
+  playback and live `/Sessions` item verification succeeded on 2026-11-09). Roku 3
+  is an external player, not a Roku TV; do not promise TV power control. See
+  HARDWARE.md for carried-forward observations.
 
 ## Milestone 0: Setup + proof (Sun Nov 8, morning)
 
@@ -34,9 +38,9 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [x] Existing repo synced: main and origin/main at `4fd89d1b0cad82284f960be146bab444cfc9ff13` (further pushes remain user-owned)
 - [x] Identify authorized Roku and actual Hermes runtime; preserve probe evidence
 - [ ] Confirm applicable network-control setting and resolve ECP shipping restriction (kept separate from Roku connection diagnosis)
-- [ ] Confirm actual Jellyfin host/URL/version/user (`http://192.168.0.126:8097`, Jellyfin `12.2.0` `"terebi"` verified from T3 container; HTTP 200 inside `hermes` user-confirmed; confirm user and configure API key through Hermes secrets)
-- [ ] Add legal demo library (Blender open movies + a few public domain films); scan; posters show up
-- [ ] Install Jellyfin app on Roku; sign in to the server (currently blocked by `"Server not found"` on Roku; manual playback is the next Roku milestone)
+- [x] Confirm actual Jellyfin host/URL/version/user (`http://192.168.0.126:8097`, Jellyfin `12.2.0` `"terebi"`, single enabled user `homelab-hp` / `682764864adc45bbb6b981837f790812` verified live via `library_status` and `library_pick`)
+- [x] Add legal demo library (`BigBuckBunny_320x180`, `e5d6c471a8a4ea26e00a3694f91bf8d1`, 10 min Movie verified live)
+- [x] Install Jellyfin app on Roku; sign in to the server (Roku 3 signed in via Quick Connect and played `BigBuckBunny_320x180`; verified via live `/Sessions` on 2026-11-09)
 - [ ] `curl http://ROKU_IP:8060/query/apps` → record Jellyfin channel ID in RESEARCH.md
 - [ ] **Sequential proof:** one known Jellyfin item on authorized Roku, from actual
   Hermes container. Test launch, then input while open, episode, resume, and pause.
@@ -57,7 +61,7 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
-- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up — implementation and 220 combined mock tests complete at `4362ed1ecdb2a3606695925e24a79b3949063414`; real-server acceptance pending
+- [x] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up, session identity — implementation, mocked tests, live `library_status` + `library_pick(max_minutes=20)`, and live Roku 3 `/Sessions` + `verify_playback` verified against Jellyfin `12.2.0` at `22d28304f787c339b20e137975193d91e88d8e89`
 - [ ] Roku client: SSDP, apps, active app, media player, keypress, launch, input
 - [ ] Tools: `tv_discover`, `tv_status`, `tv_control`, `tv_play`, `library_find`, `library_continue`
 - [ ] `tv_play` verification loop: exact title, unknown-title playback, app-opened, failure; no duplicate toggle on retry
@@ -66,8 +70,8 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 ## Milestone 3: Smart + surfaces (Mon Nov 9)
 
 - [x] Internal deterministic picker with grounded reasons and exact client runtime filtering
-- [x] Register `library_pick` (tool, schema, manifest parity; mocked Jellyfin tests, official loader smoke)
-- [ ] Verify `library_pick` through a live Hermes session, authenticated Jellyfin 12.2.0 and Telegram
+- [x] Register `library_pick` (tool, schema, manifest parity; mocked Jellyfin tests, official loader smoke, and live Jellyfin 12.2.0 verification at `22d28304f787c339b20e137975193d91e88d8e89`)
+- [ ] Verify `library_pick` through Telegram (live Jellyfin 12.2.0 tool call passed in isolated Hermes v0.22.0 runtime; no Telegram gateway configured in isolated runtime)
 - [ ] `/watch` slash command with `ctx.ask_choice`; handle None/cancellation
 - [ ] Text fallback choices expire and are scoped to trusted conversation/requester
   and profile; never trust a session ID supplied in model arguments
@@ -276,3 +280,23 @@ repeat validation on the final integration SHA after adopting worker documentati
   `security scan — safe`) and `tests/hermes_smoke.py` pass. Details in INTEGRATION.md.
 - Still open: live Hermes session, authenticated Jellyfin 12.2.0, Telegram surface,
   `/watch`, every `tv_*` tool and all Roku/hardware work. No hardware was contacted.
+
+## Live Jellyfin and Roku 3 session verification checkpoint — 2026-11-09
+
+- Tested SHA `22d28304f787c339b20e137975193d91e88d8e89` in the isolated Hermes
+  `v0.22.0` runtime against live Jellyfin `12.2.0` (`http://192.168.0.126:8097`).
+  `JELLYFIN_API_KEY` was supplied via a one-time secret file read into memory only
+  and immediately deleted.
+- Live `library_status({})` and `library_pick({"max_minutes": 20})` passed for user
+  `homelab-hp` (`682764864adc45bbb6b981837f790812`), returning
+  `BigBuckBunny_320x180` (`e5d6c471a8a4ea26e00a3694f91bf8d1`, 10 min Movie,
+  `source: "unwatched"`, `complete: true`, `truncated: false`, `errors: []`).
+- User signed in on Roku 3 (`192.168.0.104`) via Quick Connect and played
+  `BigBuckBunny_320x180`. Live `/Sessions` and `JellyfinClient.verify_playback`
+  confirmed exact item identity (`NowPlayingItem.Id == "e5d6c471a8a4ea26e00a3694f91bf8d1"`,
+  `verified: true`, `playing: true`, `paused: false`, `position_s: 84`,
+  `DeviceName: "Roku 3 (4200X)"`, `Client: "Jellyfin Roku"`, `ApplicationVersion: "3.2.4"`).
+- Live `/Sessions` also confirmed `SupportsMediaControl: false` and
+  `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so programmatic launch
+  and pause require Roku ECP on port `8060` (gated on the third-party ECP shipping
+  restriction).

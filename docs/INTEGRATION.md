@@ -293,5 +293,40 @@ Doctor exit 0: `registrations: 2 tool(s), 0 hook(s)`. Validate passes with
 `declared tools — matches registrations` and `security scan — safe`. Smoke:
 `PASS: official namespaced loader, YAML, library_status + library_pick through real client + respx, scoped secret rotation`.
 
-Limits unchanged: mocked Jellyfin only; authenticated Jellyfin 12.2.0, a live Hermes
-session, Telegram, `/watch`, `tv_*` tools and all Roku hardware remain unverified.
+Limits at registration checkpoint: mocked Jellyfin only; live verification against
+Jellyfin 12.2.0 and Roku 3 follows below.
+
+## Live Jellyfin 12.2.0 and Roku 3 session verification — 2026-11-09
+
+Plugin tested: `22d28304f787c339b20e137975193d91e88d8e89` (clean `main` and
+`/home/node/.t3/worktrees/terebi/t3-register-library-pick`). Executed in the
+isolated Hermes `v0.22.0` venv (`/tmp/hermes-screen-hermes-venv/bin/python`)
+through `PluginLoaderMixin._load_directory_module` with `agent.secret_scope`
+providing `JELLYFIN_API_KEY` in memory only (the one-time secret file was
+immediately unlinked and never written to disk or Git).
+
+1. **Live `library_status` and `library_pick(max_minutes=20)` against `http://192.168.0.126:8097`:**
+   - `library_status({})`:
+     `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"movies": 1, "series": 0, "episodes": 0}}`
+   - `library_pick({"max_minutes": 20})`:
+     `{"ok": true, "max_minutes": 20.0, "picks": [{"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180", "type": "Movie", "year": 2008, "minutes": 10, "source": "unwatched", "why": "Not watched yet in Jellyfin: BigBuckBunny_320x180, about 10 min, within your 20 min."}], "complete": true, "truncated": false, "errors": [], "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}}`
+   - Verified no Telegram gateway is configured in the isolated runtime.
+
+2. **Live Roku 3 (`192.168.0.104`) manual playback and `/Sessions` + `verify_playback`:**
+   - User signed in on Roku 3 via Quick Connect and started `BigBuckBunny_320x180`.
+   - Live `GET http://192.168.0.126:8097/Sessions` returned active session
+     `452bc61a34030e5b3dd86d07521d91f4` (`Client: "Jellyfin Roku"`,
+     `ApplicationVersion: "3.2.4"`, `DeviceName: "Roku 3 (4200X)"`,
+     `DeviceId: "3ed2ceba-4c54-56fe-a896-e40e3d810aachomelab-hp"`,
+     `RemoteEndPoint: "192.168.0.104"`, `SupportsMediaControl: false`,
+     `SupportsRemoteControl: false`,
+     `NowPlayingItem.Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`,
+     `PlayState.PositionTicks: 840000000`, `PlayState.IsPaused: false`).
+   - Live `JellyfinClient.verify_playback("e5d6c471a8a4ea26e00a3694f91bf8d1", ...)`
+     passed for both `device_name="Roku 3 (4200X)"` and
+     `device_id="3ed2ceba-4c54-56fe-a896-e40e3d810aachomelab-hp"`:
+     `{"ok": true, "verified": true, "reason": null, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "now_playing": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "paused": false, "playing": true, "position_s": 84, "session": {"device_name": "Roku 3 (4200X)", "client": "Jellyfin Roku", "user_name": "homelab-hp", "check_in_age_s": 4}, "matched_sessions": 1}`.
+
+Remaining limits: ZimaOS Hermes `v0.16.0` was not upgraded. Programmatic Roku
+launch/pause (`tv_*` tools), Telegram gateway surface, `/watch`, and the Roku
+third-party ECP shipping restriction remain open.

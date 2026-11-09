@@ -14,8 +14,12 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
 - Installed ZimaOS Hermes is `v0.16.0`, below the declared minimum; a separate
   v0.22.0 runtime is used for verification.
 - Jellyfin upstream OpenAPI `12.4.0`; live server `terebi` `12.2.0` at
-  `http://192.168.0.126:8097` (public endpoint reachable; authenticated access
-  unverified).
+  `http://192.168.0.126:8097` verified live at SHA
+  `22d28304f787c339b20e137975193d91e88d8e89` for `library_status`,
+  `library_pick(max_minutes=20)` (`BigBuckBunny_320x180` /
+  `e5d6c471a8a4ea26e00a3694f91bf8d1`), and Roku 3 `/Sessions` +
+  `JellyfinClient.verify_playback` (`verified: true`, `playing: true`,
+  `paused: false`).
 - Historical checks at integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`:
   220 tests passed, Ruff check/format passed, `git diff --check` passed, doctor
   and validate passed, mocked Hermes smoke passed.
@@ -25,9 +29,10 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
 - Combined picker integration tree: 328 tests, Ruff, diff check, official doctor,
   validate (security verdict **safe**) and mocked loader smoke passed with the picker
   still internal.
-- Current tree with `library_pick` registered: 385 tests, Ruff, diff check, official
-  doctor (2 tools, 0 hooks), validate (security verdict **safe**) and mocked loader
-  smoke pass. Independent review of this registration remains pending. See
+- Current tree with `library_pick` registered (`22d28304f787c339b20e137975193d91e88d8e89`):
+  385 tests, Ruff, diff check, official doctor (2 tools, 0 hooks), validate
+  (security verdict **safe**), mocked loader smoke, and live Jellyfin 12.2.0
+  `library_status` + `library_pick` + Roku 3 `/Sessions` verification pass. See
   INTEGRATION.md.
 
 ## Plugin quality
@@ -78,6 +83,7 @@ a zero-caution result is not a separate catalog requirement.
 
 ## Historical source provenance (select a new publication pin)
 
+- Tested `library_pick` registration tree: `22d28304f787c339b20e137975193d91e88d8e89`.
 - Prior published plugin tree: `9320c3638d9f7d8579326e1a622a205523b395d1`.
 - Integration review SHA: `4362ed1ecdb2a3606695925e24a79b3949063414`.
 - Jellyfin client worker: `c4c6c83e171a646b830b418cda79b6e420ecdf77`.
@@ -86,22 +92,27 @@ a zero-caution result is not a separate catalog requirement.
   `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
 - Jellyfin OpenAPI: `12.4.0`, SHA256
   `02a6064916b7e08f1f1d8d7ffc1fb1c7623df0e378729fcd7fd353766868036e`.
-- Jellyfin server: `terebi` `12.2.0` at `http://192.168.0.126:8097`.
-- Roku: model 4200X at `192.168.0.104` (read-only probes only).
+- Jellyfin server: `terebi` `12.2.0` at `http://192.168.0.126:8097` (live
+  `library_status`, `library_pick`, and `/Sessions` verified).
+- Roku: model 4200X at `192.168.0.104` (Quick Connect sign-in, manual playback of
+  `BigBuckBunny_320x180`, and live `/Sessions` item verification completed;
+  programmatic ECP launch/pause pending).
 
 ## Publication gates (must all be true before submitting)
 
-- [ ] Hardware gate closed: Roku app signed in, one manual playback demonstrated,
-  launch/in-app play/pause and exact target-session item ID verified; wake tested
-  separately and reported as supported or unknown for this external Roku player.
+- [ ] Hardware gate closed: Roku app signed in and manual playback + exact
+  target-session item ID (`e5d6c471a8a4ea26e00a3694f91bf8d1`) verified; programmatic
+  launch/in-app play/pause and wake test still pending.
 - [ ] Roku ECP third-party shipping restriction resolved or explicitly accepted.
-- [ ] Authenticated Jellyfin compatibility verified against the live server.
+- [x] Authenticated Jellyfin compatibility verified against the live server
+  (`12.2.0`, `library_status`, `library_pick`, `/Sessions`, `verify_playback`).
 - [ ] Review scan verdict at the publication SHA; document any caution findings.
 - [x] Deterministic picker integrated internally.
-- [x] `library_pick` registered (mocked Jellyfin only).
-- [ ] Verify `library_pick` through Hermes against the live server, then Telegram
-  pick/play/pause; `/watch` follows.
-- [ ] Independent review of the combined integration SHA (pending).
+- [x] `library_pick` registered and verified against live Jellyfin 12.2.0 in the
+  isolated Hermes v0.22.0 runtime.
+- [ ] Verify Telegram pick/play/pause; `/watch` follows.
+- [x] Independent review of `library_pick` registration SHA
+  (`22d28304f787c339b20e137975193d91e88d8e89`).
 - [ ] Catalog PR CI green at the pinned SHA.
 - [ ] Demo video under 90s recorded and posted.
 

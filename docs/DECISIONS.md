@@ -112,3 +112,29 @@ predictable model-facing contract, and `provides_tools` parity for catalog valid
 No dependency added. Validation order: argument shape, then configuration, then
 `pick_titles` value checks, so a bad `max_minutes` on an unconfigured install reports
 `not_configured` first.
+
+## D-013: Hold Roku 3 programmatic control on the ECP third-party restriction; evaluate Chromecast
+Date: 2026-11-09 · Status: accepted
+Context: Manual playback of `BigBuckBunny_320x180` (`e5d6c471a8a4ea26e00a3694f91bf8d1`)
+on Roku 3 (`192.168.0.104`) and exact item verification via Jellyfin `/Sessions`
+(`JellyfinClient.verify_playback`) succeeded. We then checked whether there is a
+documented, supported way for Terebi to start and pause Jellyfin on this Roku 3.
+Decision: Do not send ECP launch or pause commands to the Roku 3 while Roku's
+third-party platform restriction remains unresolved; assess the user's Chromecast as
+the next playback target once its LAN IP, model, and control mode are confirmed.
+Why:
+1. Live `/Sessions` on `Jellyfin Roku` `3.2.4` confirmed `SupportsMediaControl: false`,
+   `SupportsRemoteControl: false`, and `SupportedCommands: []`, ruling out Jellyfin
+   server-side remote control (`/Sessions/{id}/Playing`).
+2. `jellyfin-roku` does not implement a DIAL receiver, and DIAL does not define
+   post-launch pause control.
+3. Although `jellyfin-roku` `3.2.4` implements ECP `/launch`, `/input` deep links,
+   and `roInput` transport events (`type=transport&command=pause`), Roku's official
+   ECP docs state that *"ECP commands may not be sent from 3rd-party platforms (for
+   example, mobile applications)."*
+4. On Chromecast, direct Cast control (`pychromecast` over TCP `8009` to a configured
+   LAN IP) can launch the Default Media Receiver from idle over LAN HTTP and pause
+   it, or Jellyfin `/Sessions/{id}/Playing` can control an already-open Jellyfin
+   Android TV / Google TV session (`SupportsMediaControl: true`). Selecting between
+   those paths requires the user's Chromecast model and LAN IP (and dependency
+   approval if `pychromecast` is added).

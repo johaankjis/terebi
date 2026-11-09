@@ -22,10 +22,21 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   confirmed exact item identity (`verified: true`, `playing: true`, `paused: false`,
   `DeviceName: "Roku 3 (4200X)"`, `Client: "Jellyfin Roku"` `3.2.4`).
 - Reconcile the current ECP third-party restriction with the proposed shipping
-  path. Live `/Sessions` confirms `SupportsMediaControl: false` and
-  `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so programmatic launch
-  and pause require Roku ECP on port `8060`. Jellyfin source deep-link support
-  establishes receiver behavior, not an exception to Roku's restriction.
+  path. Live `/Sessions` confirms `SupportsMediaControl: false`,
+  `SupportsRemoteControl: false`, and `SupportedCommands: []` on `Jellyfin Roku`
+  `3.2.4`, and DIAL is unsupported by `jellyfin-roku`. While `jellyfin-roku` `3.2.4`
+  implements ECP `/launch`, `/input` deep links, and `roInput` transport commands
+  (`type=transport&command=pause`), Roku's official ECP documentation states that
+  *"ECP commands may not be sent from 3rd-party platforms."* With no documented
+  third-party exception, Roku 3 programmatic control remains blocked (no ECP
+  commands sent).
+- **Chromecast candidate assessed (2026-11-09):** Direct Cast (`pychromecast` on TCP
+  `8009` to a configured LAN IP) can launch the Default Media Receiver from idle over
+  LAN HTTP and pause playback, whereas Jellyfin `/Sessions/{id}/Playing` only works
+  when a Cast/Android TV Jellyfin client session is already active (`SupportsMediaControl: true`),
+  and the official Jellyfin Cast Web Receiver requires HTTPS/DNS. Next step requires
+  user identification of the Chromecast LAN IP and model (classic Chromecast vs.
+  Chromecast with Google TV) or an explicit decision on the Roku ECP gate.
 - No programmatic Hermes launch, pause, resume or TV wake evidence yet (manual
   playback and live `/Sessions` item verification succeeded on 2026-11-09). Roku 3
   is an external player, not a Roku TV; do not promise TV power control. See

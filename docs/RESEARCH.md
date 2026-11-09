@@ -195,3 +195,41 @@ The integrated-tree validation result is recorded separately in INTEGRATION.md.
   `JellyfinClient.verify_playback` filters out the epoch-checkin session and
   uniquely verifies the active playing session (`verified: true`, `playing: true`,
   `paused: false`, `matched_sessions: 1`).
+
+## Roku 3 control path evaluation and Chromecast assessment — 2026-11-09
+
+- **VERIFIED (source + live `/Sessions` + Roku docs):** There is no documented,
+  policy-clear path for a third-party platform/plugin to start and pause Jellyfin on
+  the Roku 3 without relying on Roku ECP:
+  1. **Jellyfin `/Sessions/{id}/Playing` remote control:** Unsupported by `Jellyfin Roku`
+     `3.2.4` (`SupportsMediaControl: false`, `SupportsRemoteControl: false`,
+     `SupportedCommands: []` in both `source/utils/deviceCapabilities.bs` and live
+     `/Sessions`).
+  2. **Roku DIAL (`:8060/dial`):** Not supported by the official `jellyfin-roku`
+     channel, and DIAL does not provide post-launch transport/pause control.
+  3. **Roku ECP (`:8060/launch`, `:8060/input`, `:8060/keypress`):** `jellyfin-roku`
+     `3.2.4` implements startup deep links (`onDeepLinkingEvent`), running-app
+     deep links (`roInputEvent`), and voice transport commands (`VoiceInputTask`
+     with `enableTransportEvents()` handling `type=transport&command=pause|play`
+     in `v3.2.1+`). However, official [Roku ECP docs](https://developer.roku.com/dev/docs/external-control-api)
+     explicitly state: *"In addition, ECP commands may not be sent from 3rd-party
+     platforms (for example, mobile applications)."* Therefore, the Roku 3 control
+     path remains blocked by Roku's third-party platform restriction, and no ECP
+     launch or pause commands were sent to `192.168.0.104`.
+- **Chromecast next-target assessment:**
+  - **Chromecast with Google TV (running the Jellyfin Android TV app):** When the
+    Jellyfin app is open and connected, its Jellyfin session reports
+    `SupportsMediaControl: true`, enabling server-side `/Sessions/{id}/Playing` and
+    `/Sessions/{id}/Playing/Pause` with native `/Sessions` item ID and `IsPaused`
+    verification; however, Jellyfin server API alone cannot wake or launch the app
+    from an idle screen without Cast or ADB/CEC.
+  - **Direct Google Cast (`pychromecast` over TCP `8009`):** Can wake/launch the
+    Default Media Receiver (`CC1AD845`) from idle over plain LAN HTTP (unlike the
+    official Jellyfin Cast Web Receiver, which requires HTTPS/DNS) and play/pause a
+    Jellyfin stream URL (`media_controller.play_media` / `media_controller.pause`).
+    Requires: (a) user identification of the Chromecast LAN IP and model (since mDNS
+    multicast does not cross the `hermes_default` Docker bridge), (b) dependency
+    approval for `pychromecast` in `DECISIONS.md` and `hermes plugins validate`, and
+    (c) handling the distinction between Cast `media_controller.status` telemetry
+    and Jellyfin `/Sessions` state if the Default Media Receiver is used instead of
+    a full Jellyfin client session.

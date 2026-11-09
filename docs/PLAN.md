@@ -6,44 +6,70 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
-2026-11-08 integration: live Jellyfin URL/version and installed ZimaOS Hermes version remain unknown. No hardware contact authorized for integrator; manager owns Roku checks. ECP shipping restriction remains unresolved. See [integration evidence](INTEGRATION.md).
+- Actual runtime is ZimaOS `192.168.0.126`, Docker container `hermes` on
+  `hermes_default`; installed Hermes version and remote execution access from this
+  T3 container (`172.23.0.2`, no Docker socket or SSH key) remain unconfirmed.
+  Earlier probes inside `hermes` were executed by the user in the ZimaOS terminal.
+- Authorized Roku is Roku 3 / 4200X at `192.168.0.104`, advertising OS 15.3.4.
+  Direct reachability from `hermes` to Roku port 8060 is proven. Jellyfin runs on
+  ZimaOS at `http://192.168.0.126:8097` (`ServerName: "terebi"`, `Version: "12.2.0"`
+  verified from the T3 container; reachability from inside `hermes` still awaits
+  confirmation). The Roku Jellyfin app currently reports `"Server not found"`
+  (user is completing a Roku packet capture separately; manual playback is the
+  next Roku milestone).
+- Reconcile the current ECP third-party restriction with the proposed shipping
+  path. Jellyfin source deep-link support establishes receiver behavior, not an
+  exception to Roku's restriction. Keep this question separate from device tests
+  and from the Roku-to-Jellyfin connection diagnosis.
+- No real Jellyfin launch, exact-title playback, resume, pause or TV wake evidence
+  yet. Roku 3 is an external player, not a Roku TV; do not promise TV power control.
+  See HARDWARE.md for carried-forward observations.
 
 ## Milestone 0: Setup + proof (Sun Nov 8, morning)
 
 - [x] Repo scaffold with agent docs
 - [x] Pivot docs to Jellyfin on Roku
-- [ ] Create GitHub repo and push
-- [ ] Get hardware: Roku on home WiFi; set Network access to Permissive
-- [ ] Jellyfin server in Docker on laptop; create API key
+- [x] Existing repo synced: main and origin/main at `4fd89d1b0cad82284f960be146bab444cfc9ff13` (further pushes remain user-owned)
+- [x] Identify authorized Roku and actual Hermes runtime; preserve probe evidence
+- [ ] Confirm applicable network-control setting and resolve ECP shipping restriction (kept separate from Roku connection diagnosis)
+- [ ] Confirm actual Jellyfin host/URL/version/user (`http://192.168.0.126:8097`, Jellyfin `12.2.0` `"terebi"` verified from T3 container; verify inside `hermes`, confirm user, and configure API key through Hermes secrets)
 - [ ] Add legal demo library (Blender open movies + a few public domain films); scan; posters show up
-- [ ] Install Jellyfin app on Roku; sign in to the server
+- [ ] Install Jellyfin app on Roku; sign in to the server (currently blocked by `"Server not found"` on Roku; manual playback is the next Roku milestone)
 - [ ] `curl http://ROKU_IP:8060/query/apps` → record Jellyfin channel ID in RESEARCH.md
-- [ ] **Proof:** curl `/launch/{id}?contentId=ITEM&mediaType=movie` plays the movie. Also test `/input` while app is open, and `episode`. Record in RESEARCH.md
+- [ ] **Sequential proof:** one known Jellyfin item on authorized Roku, from actual
+  Hermes container. Test launch, then input while open, episode, resume, and pause.
+  Use bounded requests (3s Roku / 8s Jellyfin) and a bounded verification loop.
+  Record app, player state, exact item evidence and human screen confirmation
+  separately. Cross-check the matching Roku Jellyfin session if Roku omits identity.
+- [ ] Test standby/CEC wake separately; report unsupported/unknown if it cannot be
+  established. Neither HTTP success nor generic playing state proves title identity.
 - [ ] Install Hermes; `hermes plugins list` works; note version for `requires_hermes`
 
 ## Milestone 1: Skeleton that validates (Sun Nov 8)
 
-- [x] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes
-- [x] `hermes plugins doctor . --ci` green
-- [x] `hermes plugins validate . --install-deps` green
-- [x] Settings via `config_schema`, secret API key read the sanctioned way
+- [x] `plugin.yaml` + `__init__.py` with one tool (`library_status`); loads in Hermes (verified against upstream Hermes `v0.22.0` at `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`; ZimaOS host version still unknown)
+- [x] `hermes plugins doctor . --ci` green (verified on integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`)
+- [x] `hermes plugins validate . --install-deps` green (verified on integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`)
+- [x] Settings via `config_schema`, secret API key read the sanctioned way (`agent.secret_scope.get_secret`)
 - [x] Test harness with respx
 
 ## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
-- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up — implementation and mock tests complete; real-server acceptance pending
+- [ ] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up — implementation and 220 combined mock tests complete at `4362ed1ecdb2a3606695925e24a79b3949063414`; real-server acceptance pending
 - [ ] Roku client: SSDP, apps, active app, media player, keypress, launch, input
 - [ ] Tools: `tv_discover`, `tv_status`, `tv_control`, `tv_play`, `library_find`, `library_continue`
-- [ ] `tv_play` verification loop
+- [ ] `tv_play` verification loop: exact title, unknown-title playback, app-opened, failure; no duplicate toggle on retry
 - [ ] End to end from Hermes CLI: "play Sintel" starts it on the TV
 
 ## Milestone 3: Smart + surfaces (Mon Nov 9)
 
 - [ ] `library_pick` with deterministic ranking + reasons
-- [ ] `/watch` slash command with `ctx.ask_choice`
+- [ ] `/watch` slash command with `ctx.ask_choice`; handle None/cancellation
+- [ ] Text fallback choices expire and are scoped to trusted conversation/requester
+  and profile; never trust a session ID supplied in model arguments
 - [ ] Works from Telegram (or Discord) through the Hermes gateway
 - [ ] `tv_youtube` (P1)
-- [ ] Movie night blueprint (P1)
+- [ ] Movie night blueprint (P1), after core: define vote collection/expiry; cron cannot wait on ask_choice
 
 ## Milestone 4: Polish + reliability (Tue Nov 10)
 
@@ -61,6 +87,53 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [ ] Submit typeform with both links
 - [ ] Walk SUBMISSION.md checklist
 
+## Worker assignments and integration contract
+
+All **new workers start at `4fd89d1b0cad82284f960be146bab444cfc9ff13`** in separate,
+verified worktrees. The user subsequently authorized two independent workers in parallel with the
+manager-owned hardware test. T3 worktree delegation preserves the single manager
+thread. Parallelism never includes device commands; hardware acceptance remains open.
+
+| Owner | Exclusive files | Assignment / dependency |
+|---|---|---|
+| Manager | `docs/**`, README, AGENTS, `hermes_screen/roku.py`, `tests/test_roku.py`, `tests/test_playback.py` | Resolve hardware/shipping gate; Roku client and post-launch evidence; review and integrate exact worker commits |
+| Worker A: native host | `plugin.yaml`, root `__init__.py`, `schemas.py`, `tools.py`, `pyproject.toml`, `.gitignore`, `.env.example`, `LICENSE`, `hermes_screen/__init__.py`, `hermes_screen/config.py`, `hermes_screen/errors.py`, `tests/test_plugin.py`, `tests/test_config.py` | M1 skeleton with library_status, secret/config adapters, packaging, doctor/validate; later wire M2/M3 tools and /watch after core integration |
+| Worker B: Jellyfin | `hermes_screen/jellyfin.py`, `tests/test_jellyfin.py` | M2 version-verified API, user lookup, items, resume, Next Up, session identity; 8s HTTP timeouts and respx failures |
+| Worker C: picker | `hermes_screen/picker.py`, `tests/test_picker.py` | M3 pure deterministic ranking of normalized Jellyfin records; strict runtime, actual watch-state reasons, at most three picks; starts after data contract is fixed |
+
+Manager publishes shared error/result and item contracts before workers edit;
+workers do not create shared conftest or change another owner's files. B/C may use
+local fixtures in their owned tests. Workers report evidence and proposed doc text
+for manager integration rather than editing docs concurrently. No TMDB client,
+independent watch-history store, polling watcher, or Chromecast worker.
+
+For every new worker, record tool-created checkout path, branch and full HEAD;
+verify clean status and exact base before work. Return full result SHA, changed
+files, checks and limitations. Review `base..result` and file ownership before
+integration; keep the original stash and backup refs intact. Once integrated,
+record the exact integration SHA and run pytest, Ruff, Hermes doctor and validate
+against that tree, plus actual Hermes invocation and hardware acceptance. Source
+review and mock tests never substitute for the real-device gate. Pushes, merges,
+PR creation, tagging/public release and public posting remain user-owned.
+
+## Prior-work review (2026-11-08)
+
+- Checkout verified clean at the base above. Git and T3 each report only the main
+  worktree; project thread inventory contains no child workers. No older worker
+  implementation commits were found in available branches, refs or reflogs.
+- Reviewed T3 checkpoints `5a84292`, `66a4fae`, `20b69c3`, `c67bb49`, `f91bd78`,
+  `b07b1a8`, `010177f`, `b1e3eca`, `da13ee7`: documentation only, no Python package.
+  `da13ee7` has the same tracked edits as stash `af18510`.
+- Reviewed `stash@{0}` / `af18510` ("T3 edits before GitHub sync"), including its
+  untracked HARDWARE.md. Carry forward specific network/device evidence, the
+  exact-title verification distinction, trusted expiring choices, and pinned
+  Hermes API references. Rewritten into current docs; stash not applied or popped.
+- Do not carry the old TMDB/subscription roadmap, local taste watcher, Chromecast
+  fallback, stale "no probes" statements, or old D-005/D-006 decision numbering.
+  These conflict with the new Jellyfin scope or later evidence.
+- Backup commit `460147a` changes only README branding to Terebi. Do not carry it:
+  current instructions explicitly name the product Hermes Screen.
+
 ## Proposed (not scheduled)
 
 - Chromecast / Google TV via Jellyfin's own cast sessions
@@ -71,4 +144,48 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 - 2026-11-08: Pivoted from streaming services (Netflix etc.) to Jellyfin. Reason: Jellyfin Roku app supports deep links with Jellyfin item IDs (verified in source), and Jellyfin gives us watch history. See D-005.
 
-- 2026-11-08 integration: native skeleton and Jellyfin client integrated; official Hermes v0.22.0 doctor/validate and 220 mock tests pass. See INTEGRATION.md. Hardware acceptance stays open. Telegram pick/play/pause comes before `/watch`; YouTube/Friday vote follow repeatable core.
+## Active execution checkpoint
+
+Base: `4fd89d1b0cad82284f960be146bab444cfc9ff13`; main retains manager documentation
+edits, stash and backup refs. No pushes, merges to main, PRs or publication.
+
+- Jellyfin worker: Claude, task suffix `51d02afa-ce94-4dbb-a8fc-ebc15e537bc3`,
+  branch `t3/implement-jellyfin-client`, separate checkout
+  `/home/node/.t3/worktrees/terebi/t3-4241fccf`, base verified in Git worktree list.
+  Owns only `hermes_screen/jellyfin.py` and `tests/test_jellyfin.py`. Result `c4c6c83e171a646b830b418cda79b6e420ecdf77`; only the two owned
+  paths changed, clean checkout. Worker reports 182 pytest tests and Ruff pass.
+- Skeleton worker: OpenCode, task suffix `9e267373-8d04-488f-8df9-19065dcc1967`,
+  branch `t3/native-plugin-skeleton`, clean separate checkout
+  `/home/node/.t3/worktrees/terebi/t3-9ea13dee`; result
+  `4ebcb722500fffea9f1af65f909298a1b294d888`. Owned-file scope verified.
+  Worker reports 12 tests and Ruff pass.
+- Integrator: Codex, task suffix `527a8343-4829-4996-acc9-78b8880aaff2`,
+  branch `t3/integrate-jellyfin-client`, clean separate checkout
+  `/home/node/.t3/worktrees/terebi/t3-e9bc44d9`. Cherry-picked `4ebcb72` (`310d83e`)
+  then `c4c6c83` (`eb08f2d`) from `4fd89d1`, and committed integration fixes at
+  exact SHA `4362ed1ecdb2a3606695925e24a79b3949063414`.
+  - Fixed YAML quoting in `plugin.yaml`, non-text config rejection, structured
+    config/secret/import/runtime error handling without raw exception text, closure-bound
+    context isolation, package-relative imports, exact case-sensitive username matching,
+    session scan-cap safety, and separated `verified` item identity from `playing`/`paused`.
+  - Automated checks on `4362ed1ecdb2a3606695925e24a79b3949063414`: `pytest -q` (220 passed),
+    `ruff check .`, `ruff format --check .`, `git diff --check`, and official Hermes `v0.22.0`
+    (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`) `hermes plugins doctor --ci`,
+    `hermes plugins validate --install-deps`, and `tests/hermes_smoke.py` (source + wheel) all pass.
+- Independent reviewer: Claude, task suffix `212af8f1-bcc5-4380-8ba7-2a5cbc345193`,
+  reviewed exact SHA `4362ed1ecdb2a3606695925e24a79b3949063414` in `/home/node/.t3/worktrees/terebi/t3-e9bc44d9`.
+  Re-ran all 220 pytest tests, Ruff check/format, `git diff --check`, `hermes plugins doctor --ci`,
+  `hermes plugins validate --install-deps`, and `tests/hermes_smoke.py`. Reported **zero blocking findings**
+  and 5 minor non-blocking observations (per-phase 8s httpx timeout vs total wall-clock, GUID lookup
+  not filtering `isDisabled`, 32-hex username treated as GUID, `.env.example` presence, and `hermes_smoke.py`
+  being a standalone CLI script).
+- Hardware: Jellyfin is on ZimaOS at `http://192.168.0.126:8097` (`ServerName: "terebi"`,
+  `Version: "12.2.0"` verified from T3 container; check from inside the `hermes` container
+  and installed `hermes` version check against `>=0.22.0` await user command output from
+  ZimaOS). The Roku Jellyfin app still reports `"Server not found"`; user is finishing a
+  Roku packet capture separately, and **manual playback is the next Roku milestone**.
+  Keep the third-party ECP restriction question separate from the Roku connection diagnosis.
+  Exact title must match requested item ID in the target Roku's Jellyfin session; absent
+  session evidence is unverified.
+- Demo order: Telegram picks/play/pause first; /watch next; YouTube and Friday vote
+  only after the core repeats reliably. No third picker worker launched.

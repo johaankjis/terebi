@@ -62,19 +62,25 @@ Context: Need a library to demo with.
 Decision: Blender open movies and public domain films. No `.strm` links to pirate, debrid or Stremio sources.
 Why: Public catalog PR and video under our names; it also keeps the project clean for the marketplace.
 
+## D-009: Rebase planning on the Jellyfin pivot; carry evidence selectively
+Date: 2026-11-08 · Status: accepted
+Context: Main is now 4fd89d1b0cad82284f960be146bab444cfc9ff13. Older checkpoints
+and stash describe the superseded streaming-subscription design.
+Decision: All new worker checkouts start at this exact base. Retain observed
+hardware/network results, honest playback states and session isolation; discard
+old TMDB/watcher/Chromecast assignments. Manager owns sequential hardware tests
+and shared docs; workers get disjoint implementation files after the backend gate.
+Why: Whole-stash application would overwrite the new product direction and collide
+with decision numbers. Jellyfin solves item IDs/history; real playback and the
+previously observed ECP shipping restriction still require explicit resolution.
 
-## Integration notes — 2026-11-08 (separate from manager D-009)
-
-- Use released Hermes v0.22.0 as the verified source floor, checked at
-  e06df9c2eae6901f4c88f464e0ae6e753c0428b8. Installed ZimaOS version remains unknown.
-- Bind handlers by closure and read settings/secrets each call; avoid global
-  context/client caches across profiles. Relative imports match the official loader.
-- Keep only library_status in the manifest; remove premature Roku settings and
-  document all other product flows as planned.
-- PyYAML >=6,<7 is a dev dependency to test actual manifest parsing. httpx remains
-  the only production dependency; bounded pytest/respx/ruff support tests and lint.
-- Explicit setuptools package mapping preserves native plugin files in wheels.
-  Installing a wheel does not automatically register or enable a Hermes plugin.
-- Exact usernames do not fold accents/case; this avoids resolving a different user.
-  Oversized session lists fail verification instead of hiding possible ambiguity.
-  Identity verification and actual playing/paused evidence are separate contracts.
+## D-010: Integration conventions for native loader, secrets, and session bounds
+Date: 2026-11-08 · Status: accepted
+Context: Combining the native Hermes skeleton (`4ebcb72`) and Jellyfin client (`c4c6c83`) at `4362ed1`.
+Decision:
+- Use released Hermes `v0.22.0` (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`) as the verified source floor; installed ZimaOS version remains to be confirmed on host.
+- Bind handlers by closure and read settings/secrets each call; avoid global context/client caches across profiles. Relative imports match the official `hermes_plugins.<slug>` loader.
+- Keep only `library_status` in `plugin.yaml` until Roku tools are built; document all other product flows as planned.
+- Use `PyYAML>=6,<7` as a dev dependency to test actual manifest parsing; `httpx` remains the sole production dependency.
+- Enforce exact case-sensitive username matching (or normalized GUID) and fail session verification when responses hit the 200-session scan cap rather than hiding possible device ambiguity. Separate item identity (`verified`) from `playing`/`paused` evidence.
+Why: Prevents cross-profile state leaks, guarantees valid manifest parsing under `hermes plugins validate`, and preserves strict verification semantics.

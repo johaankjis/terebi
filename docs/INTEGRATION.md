@@ -217,8 +217,8 @@ ties, deduplication, max-three results, errors and truncation are covered. No
 history query means no genre affinity. Fixed an oversized integer argument raising
 OverflowError, clarified Next Up time left, and labeled display rounding when it
 exceeds the exact window. Added real-client tests for fractional Next Up boundaries,
-one-tick overruns, missing runtime and missing history. Only library_status remains
-registered; this does not expose library_pick or Telegram flows.
+one-tick overruns, missing runtime and missing history. Only library_status remained
+registered at this checkpoint (library_pick registration follows below).
 
 Verification commands, executed from the integration checkout:
 
@@ -262,3 +262,36 @@ unverified. Roku 3 sign-in/manual playback, launch/in-app playback/pause/wake an
 exact target-session match remain pending; ECP restriction is a separate unresolved
 question. Hardware belongs to the manager. Priority: Telegram pick/play/pause,
 then /watch, then YouTube and Friday vote. No publication pin or catalog PR.
+
+## library_pick registration — 2026-11-09
+
+Worker checkout `/home/node/.t3/worktrees/terebi/t3-register-library-pick`, branch
+`t3/register-library-pick`, clean start at `895f28b8c1b813bb204d6429f14f4e151eaa3141`
+(the final SHA is in the handoff). Scope: `plugin.yaml`, `__init__.py`, `schemas.py`,
+`tools.py`, `tests/test_plugin.py`, `tests/hermes_smoke.py`, README and docs. No
+hardware, credentials or other worktrees were touched; nothing was pushed.
+
+Tests drive the real `tools.library_pick` -> `pick_titles` -> `JellyfinClient` -> respx:
+resume / Next Up / unwatched ranking, runtime filtering, limit, JSON-string arguments,
+26 invalid-argument cases (no HTTP call made), missing config/secret, wrong setting
+types, exception redaction at config/secret/import/picker/client, transport and auth
+errors, constructor validation and context/secret isolation across two contexts.
+
+```sh
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/pytest -q
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/ruff check .
+/home/node/.t3/worktrees/terebi/t3-e9bc44d9/.venv/bin/ruff format --check .
+git diff --check
+# from /tmp with a throwaway HERMES_HOME, PATH=/tmp/hermes-screen-hermes-venv/bin:/tmp/hermes-screen-integrator-bin:$PATH
+hermes plugins doctor <worktree> --ci
+hermes plugins validate <worktree> --install-deps
+/tmp/hermes-screen-hermes-venv/bin/python <worktree>/tests/hermes_smoke.py <worktree>
+```
+
+Results: **385 passed**; Ruff check and format pass (27 files); diff check passes.
+Doctor exit 0: `registrations: 2 tool(s), 0 hook(s)`. Validate passes with
+`declared tools — matches registrations` and `security scan — safe`. Smoke:
+`PASS: official namespaced loader, YAML, library_status + library_pick through real client + respx, scoped secret rotation`.
+
+Limits unchanged: mocked Jellyfin only; authenticated Jellyfin 12.2.0, a live Hermes
+session, Telegram, `/watch`, `tv_*` tools and all Roku hardware remain unverified.

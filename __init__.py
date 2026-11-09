@@ -2,7 +2,7 @@
 
 from typing import Any
 
-PROVIDES_TOOLS = ["library_status"]
+PROVIDES_TOOLS = ["library_status", "library_pick"]
 
 
 def register(ctx: Any) -> None:
@@ -17,4 +17,14 @@ def register(ctx: Any) -> None:
         toolset="hermes_screen",
         schema=schemas.LIBRARY_STATUS,
         handler=library_status,
+    )
+
+    def library_pick(args: dict, **kwargs: Any) -> str:
+        return tools.library_pick(args, ctx=ctx)
+
+    ctx.register_tool(
+        name="library_pick",
+        toolset="hermes_screen",
+        schema=schemas.LIBRARY_PICK,
+        handler=library_pick,
     )

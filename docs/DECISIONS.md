@@ -96,3 +96,19 @@ only, labeled when rounding exceeds the window; Next Up reasons say time left.
 Why: Avoid fabricated taste/history and preserve fractional limits. The picker
 stays internal; only library_status is registered. D-006's genre-affinity ambition
 is deferred until supported by actual history. No dependency or tool API added.
+
+## D-012: Register `library_pick` with a strict two-argument contract
+Date: 2026-11-09 · Status: accepted
+Context: Exposing the internal picker (D-011) as a Hermes tool.
+Decision: Register `library_pick(max_minutes, limit?)` beside `library_status`;
+`plugin.yaml` `provides_tools` lists both. The handler accepts a dict or its JSON
+text, rejects any other argument (the ARCHITECTURE sketch's `mood` and `type` do not
+exist yet, and silently ignoring a constraint would break the "strictly fits"
+promise) and passes values to `pick_titles` for validation. Settings and the secret
+are read on every call and a fresh client is opened per call, as in `library_status`;
+no exception text is returned. The tool only reads the library and starts no playback.
+Why: Same isolation and redaction guarantees as `library_status`, a deterministic and
+predictable model-facing contract, and `provides_tools` parity for catalog validation.
+No dependency added. Validation order: argument shape, then configuration, then
+`pick_titles` value checks, so a bad `max_minutes` on an unconfigured install reports
+`not_configured` first.

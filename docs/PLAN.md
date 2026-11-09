@@ -66,7 +66,8 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 ## Milestone 3: Smart + surfaces (Mon Nov 9)
 
 - [x] Internal deterministic picker with grounded reasons and exact client runtime filtering
-- [ ] Register `library_pick` and verify it through Hermes/Telegram
+- [x] Register `library_pick` (tool, schema, manifest parity; mocked Jellyfin tests, official loader smoke)
+- [ ] Verify `library_pick` through a live Hermes session, authenticated Jellyfin 12.2.0 and Telegram
 - [ ] `/watch` slash command with `ctx.ask_choice`; handle None/cancellation
 - [ ] Text fallback choices expire and are scoped to trusted conversation/requester
   and profile; never trust a session ID supplied in model arguments
@@ -260,3 +261,18 @@ repeat validation on the final integration SHA after adopting worker documentati
 - Hardware and credentials untouched. ZimaOS v0.16.0 unchanged; authenticated
   Jellyfin 12.2.0, Roku sign-in/manual playback, exact session match and ECP shipping
   question remain open. Telegram pick/play/pause precedes /watch, then YouTube/vote.
+
+## library_pick registration checkpoint — 2026-11-09
+
+- Worker checkout `/home/node/.t3/worktrees/terebi/t3-register-library-pick`, branch
+  `t3/register-library-pick`, clean start at
+  `895f28b8c1b813bb204d6429f14f4e151eaa3141`. Final SHA is given in the handoff.
+- `library_pick` is registered next to `library_status` (2 tools, 0 hooks):
+  `plugin.yaml`, `PROVIDES_TOOLS`, `register(ctx)`, `schemas.LIBRARY_PICK`,
+  `tools.library_pick`. Hermes-facing arguments are only `max_minutes` (required) and
+  `limit` (1 to 3); anything else is `invalid_argument`. See D-012.
+- Tests: 385 passed, Ruff check/format and diff check clean; official Hermes v0.22.0
+  doctor (2 tools), validate (`declared tools — matches registrations`,
+  `security scan — safe`) and `tests/hermes_smoke.py` pass. Details in INTEGRATION.md.
+- Still open: live Hermes session, authenticated Jellyfin 12.2.0, Telegram surface,
+  `/watch`, every `tv_*` tool and all Roku/hardware work. No hardware was contacted.

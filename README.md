@@ -5,17 +5,27 @@ Work in progress for the November 2026 Hermes Agent Plugin Hackathon.
 
 ## Implemented today
 
-The only registered tool is **`library_status`**. It checks your configured Jellyfin
-server, resolves a user, and returns the server name/version and available library
-counts. Failures return a short reason and a hint.
+Two tools are registered:
 
-The Jellyfin client also has mocked coverage for library filtering, resume,
-Next Up and session evidence. Those methods are **not** exposed as tools and the
-deterministic picker is integrated as an internal module, with resume, Next Up,
-then unwatched picks and strict runtime filtering. It is not registered as
-`library_pick`. Picking titles through Hermes, Roku playback/control, Telegram pick/play/pause, `/watch`, YouTube and Friday
-voting are planned, not available. Roku ECP shipping restrictions remain
-unresolved; this build contains no TV control or discovery.
+- **`library_status`** checks your configured Jellyfin server, resolves a user, and
+  returns the server name/version and available library counts.
+- **`library_pick`** (`max_minutes`, optional `limit` 1 to 3, default 3) picks up to
+  three watchable items from your Jellyfin library, in this order: unfinished items
+  to resume, Next Up episodes, then never-watched movies/videos. Resume and Next Up
+  items must fit in their *remaining* time and unwatched items in their full runtime,
+  strictly within `max_minutes`; items with unknown runtime are never picked. Each
+  pick carries a one-line reason drawn only from Jellyfin's watch state and metadata.
+  It only reads the library: it does **not** start anything on the TV.
+
+Failures return a short reason and a hint. A failed Jellyfin lookup is reported as
+an error or a partial result, never as "nothing to watch".
+
+The Jellyfin client also has mocked coverage for library search and session
+evidence; those methods are **not** exposed as tools. `library_pick` is verified
+only against mocked Jellyfin responses, not yet against the live server or from
+Telegram. Roku playback/control (`tv_*`), Telegram pick/play/pause, `/watch`,
+YouTube and Friday voting are planned, not available. Roku ECP shipping
+restrictions remain unresolved; this build contains no TV control or discovery.
 
 ## Install and configure
 
@@ -80,7 +90,7 @@ build.
 ## Validation
 
 Official Hermes v0.22.0 doctor, validate (security verdict **safe**) and mocked
-loader smoke pass on the integrated tree; 328 tests and Ruff pass. Details are in
+loader smoke pass on the integrated tree; 385 tests and Ruff pass. Details are in
 [integration evidence](docs/INTEGRATION.md). They do not establish authenticated
 live-server compatibility or working TV playback. Catalog rules distinguish a
 validation failure from a caution finding requiring review.
@@ -92,7 +102,8 @@ validation failure from a caution finding requiring review.
   launch, in-app play, pause, wake or exact item ID has been demonstrated.
 - Roku ECP third-party shipping restriction is unresolved.
 - Authenticated Jellyfin compatibility is unverified.
-- The internal picker still needs tool registration and surface integration.
+- `library_pick` is registered but not yet verified through a live Hermes session,
+  against the live Jellyfin server, or from Telegram; `/watch` is not built.
 - No TMDB, Chromecast or watcher implementation exists or is planned for the
   hackathon scope.
 
@@ -106,7 +117,7 @@ validation failure from a caution finding requiring review.
 
 ## Privacy and network use
 
-The implemented tool makes HTTP requests only to the configured Jellyfin server,
+The implemented tools make HTTP requests only to the configured Jellyfin server,
 with explicit 8-second request timeouts. Redirects are not followed. API keys are
 sent in authentication headers, never query strings. There are no shell commands,
 background processes, SSDP, Roku requests or third-party service calls at runtime.

@@ -1,8 +1,9 @@
 name: hermes-screen
 version: "0.1.0"
-description: "Check your Jellyfin server, user and library counts from Hermes."
+description: "Check your Jellyfin server and pick what to watch from your own library, using real watch history."
 provides_tools:
   - library_status
+  - library_pick
 provides_hooks: []
 manifest_version: 2
 api_version: 1

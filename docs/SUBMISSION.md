@@ -7,7 +7,8 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
 
 ## Current state (as of 2026-11-09)
 
-- Registered tool: `library_status` only.
+- Registered tools: `library_status` and `library_pick` (2). No `tv_*` tool, `/watch`
+  or Roku control exists.
 - Hermes floor verified: `>=0.22.0` against upstream
   `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
 - Installed ZimaOS Hermes is `v0.16.0`, below the declared minimum; a separate
@@ -21,9 +22,13 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
 - Historical independent review of `4362ed1` reported zero blocking findings.
 - The prior published `9320c3638d9f7d8579326e1a622a205523b395d1` differs from
   that reviewed integration by docs only.
-- Current combined tree: 328 tests, Ruff, diff check, official doctor, validate
-  (security verdict **safe**) and mocked loader smoke pass. Picker is internal;
-  independent review of this integration remains pending. See INTEGRATION.md.
+- Combined picker integration tree: 328 tests, Ruff, diff check, official doctor,
+  validate (security verdict **safe**) and mocked loader smoke passed with the picker
+  still internal.
+- Current tree with `library_pick` registered: 385 tests, Ruff, diff check, official
+  doctor (2 tools, 0 hooks), validate (security verdict **safe**) and mocked loader
+  smoke pass. Independent review of this registration remains pending. See
+  INTEGRATION.md.
 
 ## Plugin quality
 
@@ -31,10 +36,10 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
 - [ ] `hermes plugins validate . --install-deps` passes at the exact publication commit
   (publication commit not selected; integration validation recorded below)
 - [x] `provides_tools` / hooks / `requires_env` match what `register()` registers
-  (`library_status` only)
+  (`library_status`, `library_pick`)
 - [x] `requires_hermes` SemVer floor in `plugin.yaml` (`>=0.22.0`)
 - [x] No secrets in repo; secrets read only through Hermes
-- [x] All tests pass; lint clean (328 tests, Ruff)
+- [x] All tests pass; lint clean (385 tests, Ruff)
 - [ ] README: what it does, GIF, requirements (Roku Permissive setting), install,
   config, troubleshooting, disclosures (GIF and Roku steps pending hardware)
 - [x] LICENSE present; `version` in `plugin.yaml` matches the manifest (`0.1.0`; publication pin pending)
@@ -60,8 +65,8 @@ a zero-caution result is not a separate catalog requirement.
   (with disclosure lines), `maintainer`, `tier: community`, `category: tools`,
   `requires_hermes`, `docs_url` (README at the SHA), `version` (quoted),
   `platforms`, `capabilities`
-- [ ] `capabilities.provides_tools` must list exactly `library_status` until more
-  tools are registered and verified.
+- [ ] `capabilities.provides_tools` must list exactly `library_status` and `library_pick`
+  until more tools are registered and verified.
 - [ ] PR description: what it does, Hermes surfaces used, disclosures, screenshots
 - [ ] Wait for catalog CI to go green; respond to reviewer
 
@@ -93,7 +98,9 @@ a zero-caution result is not a separate catalog requirement.
 - [ ] Authenticated Jellyfin compatibility verified against the live server.
 - [ ] Review scan verdict at the publication SHA; document any caution findings.
 - [x] Deterministic picker integrated internally.
-- [ ] Register `library_pick` and verify Telegram pick/play/pause; `/watch` follows.
+- [x] `library_pick` registered (mocked Jellyfin only).
+- [ ] Verify `library_pick` through Hermes against the live server, then Telegram
+  pick/play/pause; `/watch` follows.
 - [ ] Independent review of the combined integration SHA (pending).
 - [ ] Catalog PR CI green at the pinned SHA.
 - [ ] Demo video under 90s recorded and posted.

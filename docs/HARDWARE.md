@@ -255,3 +255,38 @@ unverified; no local embedding model is enabled. Existing-session seeks are
 covered by mocked tests; this live sequence verified a fresh 60-second LOAD and
 pause. The temporary feature gateway is stopped; original demo checkout remains
 clean and unchanged at `8e978d7`.
+
+
+## Scene marker final-code retest — 2026-11-10 (passed)
+
+**PASS on exact runtime code `37582aea9f2a3bfba66c1ac116b78eb03f138be7`.**
+The isolated Hermes v0.22.0 gateway loaded all plugin modules from a clean,
+SHA-pinned copy. The harness rechecked that SHA before each tool invocation.
+Telegram polling was healthy; the existing exact-edition “one-minute test scene”
+marker resolved to 60.0s before the user began the retest.
+
+| UTC time | Observed result |
+|---|---|
+| 18:20:52.546 | Telegram resolved the saved marker using trusted session scope |
+| 18:20:58.919 | Receiver PLAYING at **60.0s**, media session **1** |
+| 18:20:58.923 | `tv_scene_play`: `ok:true`, `verified:true`, exact item/source |
+| 18:21:15.325 | Receiver PAUSED at **74.652622s**, same content hash/session |
+| 18:21:15.326 | `tv_pause`: `ok:true`, `verified:true`, displayed position 74.7s |
+| 18:21:15.378 | Test harness released the relay after verified pause |
+
+Exact edition: `BigBuckBunny_320x180`, item and media source
+`e5d6c471a8a4ea26e00a3694f91bf8d1`; the saved edition fingerprint matched.
+Receiver content hash matched the single-item relay capability. GET ranges
+returned HTTP 206. Local TCP 8765 subsequently refused connections, so the
+external `t3-cast-8765` forwarder is safe to stop. The isolated bot remains
+running; the original demo checkout remains clean and unchanged at `8e978d7`.
+
+This retest verifies the final session-context adapter through actual Telegram
+calls as well as the final Cast source/offset/pause code. It supersedes the
+previous live-code gap; it does not add live SEEK or subtitle-fetch evidence.
+TV wake is excluded. Receiver telemetry is verified; no independent visual
+screen observation is claimed. The configurable LAN bind scanner caution
+remains visible.
+
+Sanitized evidence: [scene-marker-37582ae-20261110.json](evidence/scene-marker-37582ae-20261110.json).
+No raw media bearer URL, API key, or Telegram token is included.

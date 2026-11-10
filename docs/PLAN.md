@@ -30,10 +30,12 @@ Draft PR #3 has the same head; this new feature PR will target main independentl
 - [x] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
   timestamp fallback, Hermes tools and focused integration tests.
 - [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
-- [x] Live Telegram: manually saved Big Buck Bunny marker → verified start position
-  on Den TV at 60.0s → PAUSED at 73.071335s, runtime SHA `ff27aaf`, relay closed.
-  Final session-context adapter fix `37582ae` verified separately through real
-  Hermes dispatch and cross-session tests; full suite 722 passed.
+- [x] Live Telegram retest on final code `37582ae`: saved Big Buck Bunny marker →
+  Den TV PLAYING at 60.0s → PAUSED at 74.652622s, same exact content/session.
+  Runtime module origins and every tool invocation verified the pinned SHA;
+  real Telegram calls used trusted session scope. Relay closed after pause.
+  Full automated suite previously passed 722 tests; see
+  [exact-code retest evidence](evidence/scene-marker-37582ae-20261110.json).
 - [x] Draft PR #4 opened; merge remains user-owned.
 
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2

@@ -351,3 +351,12 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   Final code prefers conversation ID when available, otherwise trusted session ID,
   rejects missing host context, and invalidates choices across session changes.
   This adapter correction was made after the recorded live hardware run.
+
+- **VERIFIED (live exact final code, 2026-11-10 18:20–18:21 UTC):** runtime
+  `37582aea9f2a3bfba66c1ac116b78eb03f138be7`, real Hermes v0.22.0 Telegram
+  `library_scene_find` → `tv_scene_play` → `tv_pause`, trusted session scope.
+  Existing manual marker for the exact Big Buck Bunny source loaded at 60.0s;
+  receiver PLAYING 60.0s then PAUSED 74.652622s, same media session/content hash.
+  Relay served HTTP 206 and was released after verified pause; TCP 8765 closed.
+  This closes the final adapter's prior live-code gap. Evidence:
+  [scene-marker-37582ae-20261110.json](evidence/scene-marker-37582ae-20261110.json).

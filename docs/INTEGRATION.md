@@ -467,3 +467,23 @@ The actual ToolRegistry dispatcher smoke now covers this path; cross-session
 rejection is tested. This adapter change was tested separately after the live run;
 Cast timestamp and pause code were unchanged. Final automated checks pass as above.
 No new hardware acceptance is claimed for existing-session SEEK or subtitle fetch.
+
+
+### Exact-code Telegram retest (2026-11-10)
+
+The final code **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`** now has live
+acceptance through the real isolated Hermes v0.22.0 Telegram gateway. Loaded
+module origins were verified against the clean pinned checkout; the harness
+rechecked the SHA for every tool call. The existing manual marker resolved
+under the injected trusted session scope. Den TV reported the exact edition
+PLAYING at **60.0s**, then PAUSED at **74.652622s**, with identical capability
+hash and media session **1**. Both tools returned verified success.
+
+HTTP ranges returned 206. The harness released the relay after verified pause;
+local TCP 8765 refused connections. The isolated gateway remains running while
+its media endpoint is closed. Root demo checkout remains clean at `8e978d7`.
+See [hardware retest](HARDWARE.md#scene-marker-final-code-retest--2026-11-10-passed)
+and [sanitized evidence](evidence/scene-marker-37582ae-20261110.json).
+This evidence update changes documentation only; the prior 722-test automated
+result still applies to the exact code tested live. Existing-session SEEK,
+live subtitle fetch, and actual semantic ranking gain no new live evidence.

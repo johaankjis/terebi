@@ -1,0 +1,171 @@
+{
+  "date": "2026-11-10",
+  "live_tested_sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+  "runtime": "Hermes v0.22.0",
+  "surface": "Telegram @terebitvbot",
+  "target": {
+    "name": "Den TV",
+    "model": "Chromecast Gen 2",
+    "ip": "192.168.0.134"
+  },
+  "runtime_pin": {
+    "at": "2026-11-10T18:18:46.428329+00:00",
+    "kind": "runtime_pin",
+    "sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+    "tracked_clean": true,
+    "module_origins": {
+      "hermes_plugins.hermes_screen": "/tmp/terebi-pinned-37582ae-69oz667_/__init__.py",
+      "hermes_plugins.hermes_screen.schemas": "/tmp/terebi-pinned-37582ae-69oz667_/schemas.py",
+      "hermes_plugins.hermes_screen.hermes_screen": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/__init__.py",
+      "hermes_plugins.hermes_screen.hermes_screen.config": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/config.py",
+      "hermes_plugins.hermes_screen.hermes_screen.errors": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/errors.py",
+      "hermes_plugins.hermes_screen.tools": "/tmp/terebi-pinned-37582ae-69oz667_/tools.py",
+      "hermes_plugins.hermes_screen.hermes_screen.relay": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/relay.py",
+      "hermes_plugins.hermes_screen.hermes_screen.cast": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/cast.py",
+      "hermes_plugins.hermes_screen.hermes_screen.playback": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/playback.py",
+      "hermes_plugins.hermes_screen.hermes_screen.jellyfin": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/jellyfin.py",
+      "hermes_plugins.hermes_screen.hermes_screen.subtitles": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/subtitles.py",
+      "hermes_plugins.hermes_screen.hermes_screen.scene_search": "/tmp/terebi-pinned-37582ae-69oz667_/hermes_screen/scene_search.py",
+      "hermes_plugins.hermes_screen.scene_tools": "/tmp/terebi-pinned-37582ae-69oz667_/scene_tools.py"
+    }
+  },
+  "saved_marker_verified": {
+    "at": "2026-11-10T18:18:46.507615+00:00",
+    "kind": "saved_marker_verified",
+    "sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+    "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+    "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+    "start_time_s": 60.0,
+    "label": "one-minute test scene",
+    "marker_id": "cdb7ed85213fd0e7a9353882"
+  },
+  "item": {
+    "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+    "title": "BigBuckBunny_320x180",
+    "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+  },
+  "marker": {
+    "kind": "marker",
+    "method": "user_supplied",
+    "source_fingerprint": "0566d3557fd06c0d60fbfb9f9808291508c4c072105b8f9e5002e14ac2f5c7ad",
+    "marker_id": "cdb7ed85213fd0e7a9353882",
+    "label": "one-minute test scene"
+  },
+  "receiver": [
+    {
+      "at": "2026-11-10T18:20:58.919292+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "910d994f4b5647b9728e3875704b1e0c714cf7652e36780832e4effc7adcf395",
+      "state": "PLAYING",
+      "session_id": 1,
+      "position_s": 60.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T18:21:15.324912+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "910d994f4b5647b9728e3875704b1e0c714cf7652e36780832e4effc7adcf395",
+      "state": "PAUSED",
+      "session_id": 1,
+      "position_s": 74.652622,
+      "idle_reason": null
+    }
+  ],
+  "tool_results": [
+    {
+      "at": "2026-11-10T18:20:58.923131+00:00",
+      "tool": "tv_scene_play",
+      "result": {
+        "ok": true,
+        "state": "playing",
+        "verified": true,
+        "action": "started",
+        "item": {
+          "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+          "title": "BigBuckBunny_320x180",
+          "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+        },
+        "position_s": 60.0,
+        "duration_s": 596.5,
+        "relay_expires_in_minutes": 25,
+        "requested_start_time_s": 60.0,
+        "position_tolerance_s": 3.0,
+        "note": "The Chromecast reported this exact item playing. TV power and input were not checked. The stream link stops working after relay_expires_in_minutes.",
+        "scene_evidence": {
+          "kind": "marker",
+          "method": "user_supplied",
+          "source_fingerprint": "0566d3557fd06c0d60fbfb9f9808291508c4c072105b8f9e5002e14ac2f5c7ad",
+          "marker_id": "cdb7ed85213fd0e7a9353882",
+          "label": "one-minute test scene"
+        }
+      },
+      "pin_verified_sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+      "host_scope_kind": "session"
+    },
+    {
+      "at": "2026-11-10T18:21:15.326462+00:00",
+      "tool": "tv_pause",
+      "result": {
+        "ok": true,
+        "state": "paused",
+        "verified": true,
+        "already_paused": false,
+        "item": {
+          "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+          "title": "BigBuckBunny_320x180",
+          "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+        },
+        "position_s": 74.7
+      },
+      "pin_verified_sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+      "host_scope_kind": "session"
+    }
+  ],
+  "relay_capability": {
+    "at": "2026-11-10T18:20:54.929599+00:00",
+    "kind": "relay_capability",
+    "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+    "ttl_s": 1496.458333,
+    "content_sha256": "910d994f4b5647b9728e3875704b1e0c714cf7652e36780832e4effc7adcf395"
+  },
+  "relay_http": [
+    {
+      "at": "2026-11-10T18:20:57.778510+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "at": "2026-11-10T18:20:57.919368+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=64290816-"
+    },
+    {
+      "at": "2026-11-10T18:20:59.789899+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=6586368-"
+    }
+  ],
+  "cleanup": {
+    "at": "2026-11-10T18:21:15.377899+00:00",
+    "kind": "relay_cleanup",
+    "released": true,
+    "after_verified_pause": true,
+    "pin_verified_sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+    "local_port_8765_connection_refused": true,
+    "gateway_left_running": true
+  },
+  "limitations": [
+    "TV wake excluded.",
+    "Fresh LOAD and pause verified; existing-session SEEK remains mocked-test verified only.",
+    "Live subtitle extraction and semantic-model quality remain unverified.",
+    "Receiver telemetry verified; no independent visual screen observation is claimed."
+  ]
+}

@@ -1,6 +1,6 @@
 # Big Buck Bunny saved-description demo
 
-Status: implementation complete; scene markers saved; live Telegram/Den TV acceptance pending.
+Status: live Telegram paraphrase → Den TV scene playback verified (2026-11-10).
 Base: open PR #4 at `3cc3c1e7748dbd043ac98eab201a0adced9e3a78`.
 Manager checkout: `/home/node/.t3/worktrees/terebi/feat-bbb-scene-demo`.
 
@@ -80,5 +80,16 @@ Automated verification on **`cb4b69d73ec242cf8b76d673f2e8679fce46a8cb`**:
   pause and cleanup. This is mocked media/receiver evidence, not live Telegram.
 - Local logs: `/tmp/terebi-bbb-description-checks-3bltl0zq/{doctor,validate,smoke}.log`.
 
-Live Telegram and Den TV evidence: **not yet collected** for this feature. The three
-scene markers are saved from user-supplied timestamps. Keep the new PR draft; user owns merging.
+Live Telegram and Den TV evidence (2026-11-10 21:23–21:25 UTC, pinned `cb4b69d`):
+
+- **Verified:** “Play the part where Bunny gets up and goes outside” matched the
+  burrow marker (45 s) as the only candidate. The bot asked for confirmation; the
+  user confirmed. Den TV reported PLAYING at 45.0 s, and the user confirmed the
+  scene on screen.
+- **Device-reported only:** pause. The receiver reported PAUSED at 56.1 s, and
+  `tv_pause` verified it. The relay was released afterward. Not separately
+  confirmed on screen.
+- **Not verified live:** no-match requests that start no playback, and multi-candidate choices.
+  Both are covered by unit tests only.
+
+Evidence: [bbb-scene-live-telegram-20261110.json](evidence/bbb-scene-live-telegram-20261110.json). Keep the new PR draft; user owns merging.

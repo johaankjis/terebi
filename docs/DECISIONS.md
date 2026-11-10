@@ -192,3 +192,16 @@ indexing, or frame analysis is added. An ambiguous description requires choice;
 unmatched descriptions offer a timestamp. Revalidate the edition fingerprint and
 saved record before consuming a conversation-bound playback candidate. Scene
 start times must come from exact-copy inspection or explicit user verification.
+
+
+## D-019: Merge scene playback on live saved-description acceptance (2026-11-10)
+
+The user authorized merging PR #4 (edition-specific scene playback) and PR #5
+(saved-description matching) through the normal GitHub PR flow. This replaces
+the earlier PR #4 gate that required live subtitle-derived scene resolution. The
+library still has no subtitled movie, so subtitle scene search remains verified by
+tests only. Live acceptance verified that a Telegram paraphrase reached a confirmed
+burrow marker on Den TV at 45 s. Pause is device-reported. No-match behavior is
+covered by unit tests only. PR #4 merges with a merge commit so that the stacked
+PR #5 diff contains only its own commits. Deploying to the production bot is a
+separate step.

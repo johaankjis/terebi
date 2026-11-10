@@ -43,8 +43,10 @@ on PR #4 while that dependency remains unmerged. User owns merging this slice.
   changed-record revalidation, and lookup-only ambiguous/unmatched results.
 - [x] Three user-supplied scenes saved for the exact copy (45 s, 185 s, 244 s),
   separate from the movie; 60-second marker preserved, no duplicates, no aliases.
-- [ ] Telegram paraphrase → exact-edition PLAYING near selected saved start.
-- [ ] Ambiguous and unmatched descriptions do not initiate playback.
+- [x] Telegram paraphrase → exact-edition PLAYING near selected saved start
+  (burrow marker, receiver 45.0 s, user confirmed on Den TV). Pause device-reported.
+- [ ] Ambiguous and unmatched descriptions do not initiate playback (unit tests
+  only; no live evidence).
 - [x] Focused/full tests and Hermes checks on code `cb4b69d`: 817 tests,
   Ruff, Hermes v0.22.0 doctor/validation and real-loader/dispatcher smoke passed.
   Existing LAN-bind scanner caution remains visible.
@@ -54,7 +56,9 @@ on PR #4 while that dependency remains unmerged. User owns merging this slice.
 **Scene data:** resolved 2026-11-10 21:19 UTC. The 401 came from the ad-hoc
 bootstrap's `X-Emby-Token` header; the plugin's `Authorization` header gets 200.
 Gateway for @terebitvbot runs pinned `cb4b69d` with the saved markers; Den TV
-`192.168.0.134` reachable. Remaining: user's live Telegram → Den TV test.
+`192.168.0.134` reachable. Live Telegram → Den TV test passed 2026-11-10. User authorized merging PR #4
+and PR #5 via the normal PR flow, overriding the earlier subtitle-scene merge gate.
+Production bot deployment is a separate step.
 
 ## Current slice: edition-specific scene playback (2026-11-10)
 

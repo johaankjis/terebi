@@ -265,6 +265,12 @@ class MediaRelay:
         with self._lock:
             return self._server.server_address[:2] if self._server else None
 
+    @property
+    def bound_to(self) -> tuple[str, int] | None:
+        """The configured ``(host, port)`` the listener was started with."""
+        with self._lock:
+            return self._bind
+
     def current(self) -> Capability | None:
         """The live capability, or ``None`` if there is none or it expired."""
         with self._lock:

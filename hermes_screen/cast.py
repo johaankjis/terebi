@@ -335,7 +335,14 @@ class PyChromecastSession:
         if cast is None:
             return
         try:
-            cast.disconnect(timeout=2.0)  # closes our connection; the receiver keeps playing
+            # Drop virtual-channel bookkeeping before disconnect so pychromecast
+            # closes our TCP socket without sending a Cast CLOSE message to the
+            # Default Media Receiver's transport_id (which terminates CC1AD845 on
+            # Chromecast Gen 2 when the last sender disconnects).
+            open_channels = getattr(getattr(cast, "socket_client", None), "_open_channels", None)
+            if hasattr(open_channels, "clear"):
+                open_channels.clear()
+            cast.disconnect(timeout=2.0)
         except Exception:
             pass
 

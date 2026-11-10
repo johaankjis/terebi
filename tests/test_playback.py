@@ -147,6 +147,38 @@ def test_other_item_replaces_and_revokes_previous_capability(manager, receiver, 
     conn.close()
 
 
+def test_load_ignores_outgoing_session_interrupted_event(manager, receiver, relay):
+    """On Chromecast Gen 2, loading over an existing session emits IDLE/INTERRUPTED
+    with extendedStatus.media.contentId set to the new URL before the new session
+    reports BUFFERING and PLAYING."""
+    play(manager)
+    orig_load = receiver.on_load
+
+    def load_with_outgoing_interrupted(self, url, *, title, duration_s):
+        self.r.commands.append(("LOAD", url, title))
+        old_sid = self.r.session_id
+        self.r.content_id = url
+        self._push(session_id=old_sid, player_state="IDLE", idle_reason="INTERRUPTED")
+        self.r.session_id = old_sid + 1
+        self.r.state = "BUFFERING"
+        self._push()
+        self.r.state, self.r.position = "PLAYING", 0.2
+        self._push()
+
+    from fake_cast import FakeSession
+
+    old_method = FakeSession.load
+    FakeSession.load = load_with_outgoing_interrupted
+    try:
+        result = play(manager, OTHER_ID)
+    finally:
+        FakeSession.load = old_method
+        receiver.on_load = orig_load
+    assert result["ok"] is True and result["verified"] is True
+    assert result["item"]["item_id"] == OTHER_ID
+    assert manager.pause()["ok"] is True
+
+
 @pytest.mark.parametrize(
     ("behavior", "reason", "evidence", "kept"),
     [

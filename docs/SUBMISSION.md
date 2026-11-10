@@ -32,15 +32,16 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
   385 tests, Ruff, diff check, official doctor (2 tools, 0 hooks), validate
   (security verdict **safe**), mocked loader smoke, and live Jellyfin 12.2.0
   `library_status` + `library_pick` + Roku 3 `/Sessions` verification pass.
-- Current Jellyfin-to-Chromecast branch (`feat/jellyfin-chromecast-playback`, worker
-  code `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493` / cherry-picked `da54f74`):
-  **552 tests**, Ruff check/format (37 files), `git diff --check`, official doctor
+- Current Jellyfin-to-Chromecast branch (`feat/jellyfin-chromecast-playback`):
+  **553 tests**, Ruff check/format (37 files), `git diff --check`, official doctor
   (`4 tool(s), 0 hook(s)`), validate (`2 requirements from pyproject`, `security scan — caution`
-  with visible `bind_all_interfaces` findings), `tests/hermes_smoke.py`, and live
-  Jellyfin `12.2.0` cast-source + authenticated `HEAD`/`Range` preflight pass. Live
-  `tv_play` + `tv_pause` on Chromecast Gen 2 (`192.168.0.134`) is ready to run once
-  the Chromecast is powered on and the temporary ZimaOS port forwarder
-  (`192.168.0.126:8765` -> `172.23.0.2:8765`) is started. See INTEGRATION.md.
+  with visible `bind_all_interfaces` findings), `tests/hermes_smoke.py`, live
+  Jellyfin `12.2.0` cast-source + authenticated `HEAD`/`Range` preflight, and live
+  end-to-end `library_status` -> `library_pick` -> `tv_play` (`verified: true`,
+  `state: "playing"`) -> `tv_pause` (`verified: true`, `state: "paused"`,
+  `position_s: 4.7`, plus idempotent repeat `already_paused: true`) on Chromecast
+  Gen 2 (`192.168.0.134`) all pass in the isolated Hermes `v0.22.0` runtime. See
+  INTEGRATION.md and HARDWARE.md.
 
 ## Plugin quality
 
@@ -51,14 +52,14 @@ plugin is catalog-ready or playback-ready; see the publication gates below.
   (`library_status`, `library_pick`, `tv_play`, `tv_pause`)
 - [x] `requires_hermes` SemVer floor in `plugin.yaml` (`>=0.22.0`)
 - [x] No secrets in repo; secrets read only through Hermes
-- [x] All tests pass; lint clean (552 tests, Ruff)
+- [x] All tests pass; lint clean (553 tests, Ruff)
 - [ ] README: what it does, GIF, requirements, install, config, troubleshooting,
-  disclosures (GIF and live `tv_play`/`tv_pause` hardware step pending)
+  disclosures (GIF pending; live `tv_play`/`tv_pause` hardware step passed on Chromecast Gen 2)
 - [x] LICENSE present; `version` in `plugin.yaml` matches the manifest (`0.1.0`; publication pin pending)
 
 ## Security scan state
 
-On the 4-tool Jellyfin-to-Chromecast tree (`da54f74`), `hermes plugins validate --install-deps`
+On the 4-tool Jellyfin-to-Chromecast tree, `hermes plugins validate --install-deps`
 exits 0 with `✓ security scan — caution`:
 `⚠ security scan caution: bind_all_interfaces (playback.py:77), bind_all_interfaces (plugin.yaml:50), bind_all_interfaces (relay.py:158), bind_all_interfaces (relay.py:166)`.
 This caution is triggered by the `0.0.0.0:8765` bind address documented and supported

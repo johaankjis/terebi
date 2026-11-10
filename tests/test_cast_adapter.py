@@ -96,8 +96,10 @@ def test_direct_connection_with_explicit_cast_type_and_bounded_timeouts():
     assert "zconf" not in cast.kwargs
     assert cast.wait_timeout == 6.0
     assert cast.media_controller.listeners
+    cast.socket_client._open_channels = ["receiver-0", "transport-1"]
     session.close()
     session.close()
+    assert cast.socket_client._open_channels == []
     assert cast.disconnected == [2.0]
 
 

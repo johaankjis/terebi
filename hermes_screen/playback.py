@@ -503,6 +503,13 @@ class CastPlaybackManager:
                 if event.content_id == url and (
                     session_id is None or event.session_id == session_id
                 ):
+                    if (
+                        session_id is None
+                        and outcome.last_state not in ("BUFFERING", "PLAYING")
+                        and event.player_state == "IDLE"
+                        and event.idle_reason == "INTERRUPTED"
+                    ):
+                        continue
                     outcome.saw_ours = True
                     outcome.last_state = event.player_state
                     if event.player_state == want:

@@ -374,7 +374,7 @@ HERMES_HOME=/tmp/terebi-validate-home hermes plugins validate /home/node/project
 python tests/hermes_smoke.py /home/node/projects/terebi
 ```
 
-- `pytest -q`: **552 passed**
+- `pytest -q`: **553 passed**
 - `ruff check .` and `ruff format --check .`: pass (37 files formatted)
 - `git diff --check`: pass
 - `hermes plugins doctor /home/node/projects/terebi --ci`:
@@ -384,12 +384,17 @@ python tests/hermes_smoke.py /home/node/projects/terebi
 - `tests/hermes_smoke.py`:
   `PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + tv_pause through real client + respx + local relay + fake Chromecast, scoped secret rotation, context isolation, on_unload cleanup`
 
-### Live Jellyfin 12.2.0 preflight and Chromecast readiness — 2026-11-10
+### Live Jellyfin 12.2.0 preflight and Chromecast Gen 2 `tv_play` / `tv_pause` acceptance — 2026-11-10
 
-- Executed in `/tmp/hermes-screen-hermes-venv/bin/python` against live `http://192.168.0.126:8097` with `JELLYFIN_API_KEY` read into memory from a one-time secret file and immediately `unlink()`ed (`secret_file_unlinked: True`):
-  - `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` returned `{"duration_s": 596.458333, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "minutes": 10, "title": "BigBuckBunny_320x180", "type": "Movie"}` (raw `MediaSources[0]`: `mp4`, `File`, `h264` `320x180`, `aac` 2ch `48000` Hz, `64657027` bytes).
-  - `JellyfinClient.cast_stream_target(source)` authenticated `HEAD` returned HTTP `200` (`video/mp4`, `Accept-Ranges: bytes`, `Content-Length: 64657027`) and authenticated `GET` (`Range: bytes=0-1023`) returned HTTP `206` (`Content-Range: bytes 0-1023/64657027`, `1024` bytes, MP4 box signature `ftypisom`).
-- Live hardware readiness at `2026-11-10T01:19:26Z`:
-  - Chromecast Gen 2 `192.168.0.134:8009` was unreachable (`TimeoutError: timed out` / `OSError: [Errno 113] No route to host` — powered off or asleep with the TV; TV wake is out of scope).
-  - ZimaOS host forwarder `192.168.0.126:8765` -> `172.23.0.2:8765` was not running (`ConnectionRefusedError: [Errno 111] Connection refused`).
-  - Live `tv_play` + `tv_pause` verification against `192.168.0.134` is ready to run as soon as the Chromecast is powered on and the temporary host forwarder on `192.168.0.126:8765` is started.
+- Executed in `/tmp/hermes-screen-hermes-venv/bin/python` through the official `PluginLoaderMixin._load_directory_module` and `agent.secret_scope` against live Jellyfin `12.2.0` (`http://192.168.0.126:8097`) and live Chromecast Gen 2 (`192.168.0.134`) with host forwarder `t3-cast-8765` (`192.168.0.126:8765` -> `172.23.0.2:8765`). In each run, the one-time `JELLYFIN_API_KEY` secret file was read into memory and immediately `unlink()`ed (`secret_file_unlinked: True`):
+  - **Preflight:** `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` validated local MP4 / H.264 `320x180` / AAC 2ch (`duration_s: 596.458333`, `minutes: 10`), authenticated `HEAD` returned HTTP `200` (`video/mp4`, `Accept-Ranges: bytes`, `Content-Length: 64657027`), and authenticated `GET` (`Range: bytes=0-1023`) returned HTTP `206` (`Content-Range: bytes 0-1023/64657027`, MP4 signature `ftypisom`).
+  - **Real-hardware fixes applied during live testing:**
+    1. `PyChromecastSession.close()` (`hermes_screen/cast.py`) now clears `socket_client._open_channels` before `cast.disconnect(timeout=2.0)` so disconnecting the per-call control socket does not send a Cast `CLOSE` message to `CC1AD845`'s `transport_id` (which caused the Chromecast Gen 2 Default Media Receiver to exit immediately after `tv_play` returned).
+    2. `CastPlaybackManager._await()` (`hermes_screen/playback.py`) ignores an outgoing session's transitional `IDLE`/`INTERRUPTED` status before the new `LOAD` reaches `BUFFERING` or `PLAYING`.
+  - **Live acceptance flow (`01:43:22Z` – `01:43:32Z` UTC): PASS**
+    - `library_status({})`: `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"episodes": 0, "movies": 1, "series": 0}}`
+    - `library_pick({"max_minutes": 20})`: recommended `BigBuckBunny_320x180` (`item_id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `source: "resume"`, `remaining_minutes: 2`, `complete: true`, `truncated: false`, `errors: []`)
+    - `tv_play({"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"})`: `{"ok": true, "verified": true, "state": "playing", "action": "started", "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 0.0, "duration_s": 596.5, "relay_expires_in_minutes": 25, ...}`
+    - `tv_pause({})` (after 5.0s playback): `{"ok": true, "verified": true, "state": "paused", "already_paused": false, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`
+    - `tv_pause({})` (idempotent repeat): `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`
+    - `on_unload` cleanup: `relay_port_8765_closed: true`, `secret_file_unlinked: true`.

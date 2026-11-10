@@ -94,17 +94,20 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [x] One Claude Code worker owns implementation and focused mocked tests in a
   separate tool-created worktree (`/home/node/.t3/worktrees/terebi/t3-8d379d55`,
   branch `t3/jellyfin-chromecast-playback`, HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`).
-  Manager integrated onto `feat/jellyfin-chromecast-playback` (`da54f74`), reviewed
-  relay security/bind/expiry/cleanup, ran automated + Hermes `v0.22.0` checks (552
-  pytest tests, Ruff, doctor 4 tools, validate with visible `bind_all_interfaces`
+  Manager integrated onto `feat/jellyfin-chromecast-playback`, fixed two real-hardware
+  Cast behaviors discovered during live testing (suppressing `CLOSE` on `CC1AD845`'s
+  `transport_id` when closing per-call control sockets, and ignoring outgoing session
+  `IDLE`/`INTERRUPTED` transitions on `LOAD`), ran automated + Hermes `v0.22.0` checks
+  (553 pytest tests, Ruff, doctor 4 tools, validate with visible `bind_all_interfaces`
   caution, `hermes_smoke.py`), and verified live Jellyfin `12.2.0` item metadata
   (`get_cast_source`) + authenticated `HEAD` (`200`) and byte-range (`206`) streaming.
-- [ ] Live acceptance: `library_pick` recommends Big Buck Bunny; explicitly select
-  its returned item ID, invoke play, then pause, and record exact receiver evidence
-  (live Jellyfin preflight passed; physical Chromecast `192.168.0.134:8009` was
-  powered off/unreachable and ZimaOS host forwarder `192.168.0.126:8765` was stopped
-  at `2026-11-10T01:19:26Z` — ready to run once Chromecast is powered on and
-  forwarder is active).
+- [x] Live acceptance (`2026-11-10T01:43:22Z–01:43:32Z`): `library_pick` recommended
+  Big Buck Bunny (`e5d6c471a8a4ea26e00a3694f91bf8d1`, `source: "resume"`, 2m left);
+  `tv_play` verified `state: "playing"` (`action: "started"`, `position_s: 0.0`,
+  `duration_s: 596.5`, `relay_expires_in_minutes: 25`) on Chromecast Gen 2
+  `192.168.0.134`, `tv_pause` verified `state: "paused"` (`already_paused: false`,
+  `position_s: 4.7`) and idempotent repeat (`already_paused: true`, `position_s: 4.7`),
+  and `on_unload` closed the relay (`relay_port_8765_closed: true`).
 
 This explicit user request supersedes the older exclusions of Chromecast workers
 and the historic worker-base instructions below. No Roku control, TV wake, new
@@ -352,7 +355,7 @@ repeat validation on the final integration SHA after adopting worker documentati
   and pause require Roku ECP on port `8060` (gated on the third-party ECP shipping
   restriction).
 
-## Jellyfin-to-Chromecast integration and live preflight checkpoint — 2026-11-10
+## Jellyfin-to-Chromecast integration and live acceptance checkpoint — 2026-11-10
 
 - Worker checkout `/home/node/.t3/worktrees/terebi/t3-8d379d55` (`t3/jellyfin-chromecast-playback`,
   HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`, verified clean) was cherry-picked
@@ -372,15 +375,28 @@ repeat validation on the final integration SHA after adopting worker documentati
   - `hermes plugins validate --install-deps` passes with a visible `security scan — caution`
     for `bind_all_interfaces` (`playback.py:77`, `plugin.yaml:50`, `relay.py:158`,
     `relay.py:166`); kept visible without scanner suppression.
-- Automated checks: **552 pytest tests passed**, Ruff check/format clean (37 files),
+- Two real-hardware fixes applied after live Chromecast Gen 2 (`192.168.0.134`, firmware
+  `1.56.467165`) testing:
+  1. `PyChromecastSession.close()` in `hermes_screen/cast.py` clears
+     `socket_client._open_channels` before calling `cast.disconnect(timeout=2.0)` so
+     disconnecting the per-call control socket does not send a Cast `CLOSE` message to
+     `CC1AD845`'s `transport_id` (which caused `CC1AD845` to exit between `tv_play` and
+     `tv_pause`).
+  2. `CastPlaybackManager._await()` in `hermes_screen/playback.py` ignores an outgoing
+     session's transitional `IDLE`/`INTERRUPTED` status when `session_id is None` and
+     `outcome.last_state` has not yet reached `"BUFFERING"` or `"PLAYING"`.
+- Automated checks: **553 pytest tests passed**, Ruff check/format clean (37 files),
   `git diff --check` clean, `hermes plugins doctor --ci` passed (4 tools, 0 hooks),
   `hermes plugins validate --install-deps` passed, and `tests/hermes_smoke.py` passed.
-- Live Jellyfin `12.2.0` preflight in the isolated Hermes `v0.22.0` runtime passed for
-  `e5d6c471a8a4ea26e00a3694f91bf8d1` (`get_cast_source` validated local MP4 / H.264
-  `320x180` / AAC 2ch; authenticated `HEAD` returned `200 OK` `64657027` bytes;
-  authenticated `Range: bytes=0-1023` returned `206 Partial Content` `bytes 0-1023/64657027`
-  with MP4 signature `ftypisom`).
-- Live Chromecast hardware blocker at `2026-11-10T01:19:26Z`: Chromecast Gen 2
-  `192.168.0.134:8009` timed out / returned `[Errno 113] No route to host` (powered off
-  or asleep with the TV; TV wake is out of scope), and ZimaOS host forwarder
-  `192.168.0.126:8765` -> `172.23.0.2:8765` returned `[Errno 111] Connection refused`.
+- Live Jellyfin `12.2.0` preflight and Chromecast Gen 2 (`192.168.0.134`) acceptance in
+  the isolated Hermes `v0.22.0` runtime passed at `2026-11-10T01:43:22Z–01:43:32Z` UTC:
+  - `library_status({})`: `ok: true`, `terebi` `12.2.0`, user `homelab-hp`.
+  - `library_pick({"max_minutes": 20})`: `BigBuckBunny_320x180`
+    (`e5d6c471a8a4ea26e00a3694f91bf8d1`, `source: "resume"`, `remaining_minutes: 2`).
+  - `tv_play({"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"})`: `ok: true`,
+    `verified: true`, `state: "playing"`, `action: "started"`, `position_s: 0.0`,
+    `duration_s: 596.5`, `relay_expires_in_minutes: 25`.
+  - `tv_pause({})` after 5.0s: `ok: true`, `verified: true`, `state: "paused"`,
+    `already_paused: false`, `position_s: 4.7`, followed by idempotent repeat
+    `tv_pause({})` (`already_paused: true`, `position_s: 4.7`) and `on_unload` cleanup
+    (`relay_port_8765_closed: true`, receiver returned to idle Backdrop).

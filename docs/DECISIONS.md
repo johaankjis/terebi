@@ -180,3 +180,28 @@ are scoped to trusted conversation context. Manual markers are local, idempotent
 by edition and label, and explicitly user supplied; they do not claim visual
 understanding. A user timestamp is an honest fallback for captionless scenes.
 The user approved OpenCode GLM 5.3 Flash after requested GLM 5.1 was unavailable.
+
+
+## D-018: Local lookup of verified saved scene descriptions (2026-11-10)
+
+Reuse exact-edition marker storage and timestamp playback. Optional description,
+aliases, and end metadata extend existing marker evidence without replacing other
+markers or altering movie files. A small deterministic phrase/synonym matcher
+returns clear, ambiguous, or none; no model, dependency, network lookup, subtitle
+indexing, or frame analysis is added. An ambiguous description requires choice;
+unmatched descriptions offer a timestamp. Revalidate the edition fingerprint and
+saved record before consuming a conversation-bound playback candidate. Scene
+start times must come from exact-copy inspection or explicit user verification.
+
+
+## D-019: Merge scene playback on live saved-description acceptance (2026-11-10)
+
+The user authorized merging PR #4 (edition-specific scene playback) and PR #5
+(saved-description matching) through the normal GitHub PR flow. This replaces
+the earlier PR #4 gate that required live subtitle-derived scene resolution. The
+library still has no subtitled movie, so subtitle scene search remains verified by
+tests only. Live acceptance verified that a Telegram paraphrase reached a confirmed
+burrow marker on Den TV at 45 s. Pause is device-reported. No-match behavior is
+covered by unit tests only. PR #4 merges with a merge commit so that the stacked
+PR #5 diff contains only its own commits. Deploying to the production bot is a
+separate step.

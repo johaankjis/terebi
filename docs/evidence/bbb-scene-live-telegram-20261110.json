@@ -1,0 +1,224 @@
+{
+  "recorded_at": "2026-11-10",
+  "plugin_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+  "runtime": "isolated Hermes v0.22.0 Telegram gateway for @terebitvbot, pinned checkout, tracked tree clean; pin re-verified on every tool call",
+  "receiver": "Den TV, Chromecast Gen 2, 192.168.0.134",
+  "user_request": "Play the part where Bunny gets up and goes outside",
+  "verified": {
+    "paraphrase_to_burrow_marker": "library_scene_find returned one candidate (bunny-comes-out-of-burrow, 45 s), the bot asked for confirmation, and the user confirmed.",
+    "playback_at_scene": "Receiver PLAYING at 45.0 s in session 1; tv_scene_play verified=true; the user confirmed on Den TV that the scene played.",
+    "pause": "Receiver-reported only: PAUSED at 56.1 s, tv_pause verified=true, relay released after the verified pause. Not separately confirmed by the user on screen."
+  },
+  "not_verified": {
+    "no_match_does_not_play": "No live no-match request in this session. Covered only by unit tests and the offline matcher check.",
+    "ambiguous_choice_live": "The live request returned a single candidate that needed confirmation; no multi-candidate live case."
+  },
+  "note": "The first library_scene_find call without item_id returned movie_required; the agent resolved the movie via library_status/library_pick and retried with item_id.",
+  "audit": [
+    {
+      "at": "2026-11-10T21:23:25.998864+00:00",
+      "kind": "tool",
+      "tool": "library_scene_find",
+      "args": {
+        "description": "Bunny gets up and goes outside"
+      },
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": false,
+        "reason": "movie_required"
+      }
+    },
+    {
+      "at": "2026-11-10T21:23:26.058915+00:00",
+      "kind": "tool",
+      "tool": "library_status",
+      "args": {},
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "at": "2026-11-10T21:23:28.092037+00:00",
+      "kind": "tool",
+      "tool": "library_pick",
+      "args": {
+        "max_minutes": 1440,
+        "limit": 3
+      },
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": true
+      }
+    },
+    {
+      "at": "2026-11-10T21:23:29.982366+00:00",
+      "kind": "tool",
+      "tool": "library_scene_find",
+      "args": {
+        "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+        "description": "Bunny gets up and goes outside"
+      },
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": true,
+        "match": "ambiguous",
+        "candidates": [
+          {
+            "label": "bunny-comes-out-of-burrow",
+            "start_time_s": 45.0
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-10T21:24:48.710656+00:00",
+      "kind": "relay_capability",
+      "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+      "ttl_s": 1496.458333,
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb"
+    },
+    {
+      "at": "2026-11-10T21:24:51.081988+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": null,
+      "state": "UNKNOWN",
+      "session_id": null,
+      "position_s": 0.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:24:51.108462+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": null,
+      "state": "UNKNOWN",
+      "session_id": null,
+      "position_s": 0.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:24:51.150853+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "IDLE",
+      "session_id": 1,
+      "position_s": 0.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:24:51.437427+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "at": "2026-11-10T21:24:51.843810+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=64290816-"
+    },
+    {
+      "at": "2026-11-10T21:24:52.294788+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "BUFFERING",
+      "session_id": 1,
+      "position_s": 0.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:24:52.522659+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "PLAYING",
+      "session_id": 1,
+      "position_s": 45.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:24:52.526619+00:00",
+      "kind": "tool",
+      "tool": "tv_scene_play",
+      "args": {
+        "candidate_id": "JidLNXI52ttY48hdW4yIYJ7y"
+      },
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": true,
+        "verified": true,
+        "position_s": 45.0,
+        "state": "playing"
+      }
+    },
+    {
+      "at": "2026-11-10T21:24:53.657029+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=4947968-"
+    },
+    {
+      "at": "2026-11-10T21:25:05.568839+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "PLAYING",
+      "session_id": 1,
+      "position_s": 55.9588,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:25:05.579096+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "PLAYING",
+      "session_id": 1,
+      "position_s": 55.9588,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:25:05.612958+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "79bcdb9fd01548c4f170be3903cc70bb5d0bc09712e683496eacb7dcc21acfbb",
+      "state": "PAUSED",
+      "session_id": 1,
+      "position_s": 56.136092,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T21:25:05.614519+00:00",
+      "kind": "tool",
+      "tool": "tv_pause",
+      "args": {},
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+      "host_scope_kind": "session",
+      "result": {
+        "ok": true,
+        "verified": true,
+        "position_s": 56.1,
+        "state": "paused"
+      }
+    },
+    {
+      "at": "2026-11-10T21:25:05.644372+00:00",
+      "kind": "relay_cleanup",
+      "released": true,
+      "after_verified_pause": true,
+      "pin_verified_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb"
+    }
+  ]
+}

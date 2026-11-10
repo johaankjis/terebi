@@ -122,7 +122,12 @@ LIBRARY_SCENE_FIND = {
     "description": (
         "Find a scene in an exact Jellyfin movie edition. Supply movie (title) OR item_id. "
         "Ambiguous movies/editions return choices: ask the user which one, never pick the first. "
-        "Without query, marker or start_time_s, returns edition details and saved markers. "
+        "With no selector, returns edition details and saved markers. "
+        "For a scene described in the user's own words, use description to look up locally saved "
+        "scene descriptions and aliases. This does not inspect subtitles or video frames. "
+        "A clear saved-description match may be played immediately; for match=ambiguous or "
+        "needs_choice=true, ask the user to choose, even if only one tentative candidate is shown. "
+        "For match=none, say no saved scene matched and offer a timestamp; do not call playback. "
         "Use query for dialogue caption search, marker for a user-saved label, or start_time_s "
         "for an explicit timestamp the user supplied. Text search is exact or approximate lexical, "
         "not visual understanding or semantic search. Relay evidence and timestamps. If several "
@@ -138,6 +143,11 @@ LIBRARY_SCENE_FIND = {
             "item_id": {"type": "string", "description": "Exact library item ID."},
             "media_source_id": {"type": "string", "description": "Selected edition/source ID."},
             "query": {"type": "string", "description": "Dialogue or caption text to find."},
+            "description": {
+                "type": "string",
+                "maxLength": 200,
+                "description": "What happens in a saved scene, in the user's own words.",
+            },
             "marker": {"type": "string", "description": "User-saved scene marker label."},
             "start_time_s": {
                 "type": "number",
@@ -156,6 +166,9 @@ LIBRARY_SCENE_SAVE = {
     "description": (
         "Save or update a local scene marker at a timestamp explicitly supplied by the user "
         "for one exact Jellyfin movie edition. Requires item_id, label and start_time_s. "
+        "Optionally save a verified short description and paraphrase aliases for local description "
+        "lookup; never invent scene times from general movie knowledge. Optional end_time_s is "
+        "metadata only; playback does not stop there. Existing markers are preserved. "
         "Supply media_source_id when there are multiple versions. A saved label is user evidence, "
         "not an automatically understood visual scene. Same label+edition updates safely. "
         "Resolve the movie/edition with library_scene_find first when needed. Does not play."
@@ -168,6 +181,17 @@ LIBRARY_SCENE_SAVE = {
             "media_source_id": {"type": "string"},
             "label": {"type": "string", "maxLength": 80},
             "start_time_s": {"type": "number", "minimum": 0},
+            "description": {"type": "string", "maxLength": 500},
+            "aliases": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {"type": "string", "maxLength": 120},
+            },
+            "end_time_s": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Optional end metadata, after start and within edition runtime.",
+            },
         },
         "required": ["item_id", "label", "start_time_s"],
     },

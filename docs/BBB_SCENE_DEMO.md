@@ -61,3 +61,20 @@ commit `7737eb222a9b8347b939b3fffda3eddf1fc2b84d` changed only the matcher and i
 adds 15 registered-tool tests and extends the official-loader/dispatcher smoke
 to use a paraphrase, with synthetic timing and a fake receiver. These checks
 are separate from the pending three-scene live acceptance.
+
+
+Automated verification on **`cb4b69d73ec242cf8b76d673f2e8679fce46a8cb`**:
+
+- Full suite: **817 passed**, including 80 pure matcher tests and 15 registered-tool
+  description tests. Focused resolver/scene wiring subset: **122 passed**.
+- Ruff lint/format and `git diff --check`: passed (50 Python files formatted).
+- Official isolated Hermes v0.22.0 doctor: passed, 7 tools and 0 hooks.
+- `validate --install-deps`: passed. Existing configurable LAN listener caution
+  `bind_all_interfaces` remains visible; no suppression or new dependency.
+- Real namespaced loader plus ToolRegistry dispatcher smoke: passed, local saved
+  description paraphrase → session-bound choice → fake receiver seek/position →
+  pause and cleanup. This is mocked media/receiver evidence, not live Telegram.
+- Local logs: `/tmp/terebi-bbb-description-checks-3bltl0zq/{doctor,validate,smoke}.log`.
+
+Live Telegram and Den TV evidence: **not yet collected** for this feature. Three
+scene timestamps remain unverified. Keep the new PR draft; user owns merging.

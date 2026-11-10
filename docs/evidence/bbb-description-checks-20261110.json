@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-10",
+  "tested_code_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+  "base_pr": 4,
+  "base_sha": "3cc3c1e7748dbd043ac98eab201a0adced9e3a78",
+  "checks": {
+    "pytest_passed": 817,
+    "focused_scene_tests_passed": 122,
+    "ruff_lint": "passed",
+    "ruff_format": "passed",
+    "diff_check": "passed",
+    "hermes_version": "0.22.0",
+    "doctor": "passed",
+    "registered_tools": 7,
+    "registered_hooks": 0,
+    "validate_install_deps": "passed",
+    "official_loader_dispatcher_smoke": "passed"
+  },
+  "scanner_caution": "bind_all_interfaces for configurable LAN relay",
+  "live_scene_times": null,
+  "live_telegram_acceptance": "blocked",
+  "live_receiver_acceptance": "not_run",
+  "blocker": "Exact-copy inspection returned Jellyfin HTTP 401; need three verified action-start timestamps or authenticated inspection.",
+  "note": "All test offsets are synthetic; no live caption/frame/scene understanding claim."
+}

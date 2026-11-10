@@ -45,7 +45,10 @@ on PR #4 while that dependency remains unmerged. User owns merging this slice.
   from the movie. Candidate actions: Bunny emerges, butterfly attacked, traps.
 - [ ] Telegram paraphrase → exact-edition PLAYING near selected saved start.
 - [ ] Ambiguous and unmatched descriptions do not initiate playback.
-- [ ] Focused/full tests, Ruff, Hermes checks, tested SHA and numbered draft PR.
+- [x] Focused/full tests and Hermes checks on code `cb4b69d`: 817 tests,
+  Ruff, Hermes v0.22.0 doctor/validation and real-loader/dispatcher smoke passed.
+  Existing LAN-bind scanner caution remains visible.
+- [ ] Open one numbered draft PR; keep scene-data/live acceptance blockers visible.
 
 **Scene-data blocker:** authenticated exact-copy metadata/stream inspection
 returned HTTP 401 with the newly supplied credential. No timestamps have been

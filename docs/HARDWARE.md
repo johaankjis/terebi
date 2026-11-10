@@ -211,3 +211,25 @@ Executed in the isolated Hermes `v0.22.0` runtime (`/tmp/hermes-screen-hermes-ve
      - Idempotent second `tv_pause({})` (`01:43:31.898Z` -> `01:43:32.115Z`):
        `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`.
      - `on_unload` cleanup (`01:43:32.416Z`): `relay_port_8765_closed: true`, `secret_file_unlinked: true`, and receiver quit back to idle.
+
+## Scene marker acceptance — 2026-11-10 (pending)
+
+Feature code tested with mocks at `1d25ec685026b65963f8f46d03e0600f1939dbcf`.
+Authorized target remains Chromecast Gen 2 / Den TV at `192.168.0.134`.
+User supplied manual marker **“one-minute test scene” at 00:01:00 (60 seconds)**
+for `BigBuckBunny_320x180`, item/source
+`e5d6c471a8a4ea26e00a3694f91bf8d1`. This is user evidence, not a caption or visual
+scene inference.
+
+An isolated feature gateway profile is prepared at
+`/tmp/terebi-scenes-gateway-pzpm5mn8`, with the feature checkout symlinked as its
+plugin. The original demo checkout remains clean at `8e978d7`. A routing probe on
+`0.0.0.0:8765` returned HTTP 200 via `192.168.0.126:8765`; the probe was then stopped.
+
+Live marker start/seek and PAUSED have **not yet run**. Startup awaits fresh private
+credential delivery after a bootstrap PID-file parsing error, before replacing the
+old isolated bot process. The error consumed one-time files but left the prior
+process and checkout intact. No key or media capability URL was logged or committed.
+After startup, send the saved-marker play request through Telegram, then pause;
+record fresh exact-content receiver position near 60 seconds and pause separately.
+TV power/CEC wake remains outside this slice.

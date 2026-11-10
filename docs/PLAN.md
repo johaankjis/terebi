@@ -6,6 +6,10 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
+- Scene code passes automated/Hermes checks. Live Telegram scene acceptance is
+  awaiting private credential delivery for the isolated feature gateway after a
+  corrected PID-reader bootstrap error. LAN forwarding probe passed HTTP 200.
+
 - Scene slice: no local embedding model is approved; semantic ranking stays disabled.
   User approved OpenCode `opencode/glm-5.3-flash-free` after GLM 5.1 was unavailable.
   Live marker: user-supplied “one-minute test scene”, 60 seconds, for

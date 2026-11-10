@@ -9,8 +9,9 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2
   `192.168.0.134` reported `PLAYING` then `PAUSED` for the exact temporary LAN MP4
   URL after host port 8765 became reachable. Server stopped and copy deleted.
-  This was run from T3, not the actual `hermes` container; TV/CEC wake and human
-  screen confirmation remain unverified. See [hardware evidence](HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10).
+  This was run from T3, not the actual `hermes` container. A repeat with the user
+  watching confirmed visible playback and receiver-reported pause at 14.46s;
+  TV/CEC wake and human confirmation of pause remain unverified. See [hardware evidence](HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10).
   Record this proof before building the Cast integration; production stream/auth
   handling and Hermes runtime reachability still need design and verification.
 - Actual runtime is ZimaOS `192.168.0.126`, Docker container `hermes` on

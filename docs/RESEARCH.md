@@ -250,7 +250,7 @@ The integrated-tree validation result is recorded separately in INTEGRATION.md.
   Both reports matched the exact URL and media session `1`. Receiver app:
   Default Media Receiver `CC1AD845`. HTTP range GETs returned 206; observed peer
   `172.23.0.3` is the forwarding path, not the Chromecast's own IP.
-- **UNVERIFIED:** TV/CEC wake, human screen confirmation, mDNS discovery, execution
+- **UNVERIFIED:** TV/CEC wake, human confirmation of pause, mDNS discovery, execution
   inside actual `hermes`, and Jellyfin history/session reporting through this receiver.
   `is_stand_by` remained true during playback and cannot prove TV power state.
 - **VERIFIED (cleanup):** Test receiver quit; HTTP server stopped and local TCP 8765
@@ -259,3 +259,9 @@ The integrated-tree validation result is recorded separately in INTEGRATION.md.
   directory listings were exposed. The plugin and its dependencies are unchanged.
 
 Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10).
+
+- **VERIFIED (repeat + human observation, 2026-11-10):** Same exact-URL test repeated
+  from idle at 00:35 UTC. User replied “yes i see it” during playback. Receiver
+  subsequently confirmed `PAUSED` at 14.462817s in the same media session; paused
+  frame held for 15s before cleanup. Human-visible playback is confirmed; physical
+  wake and human confirmation of pause remain unverified. Endpoint/copy removed.

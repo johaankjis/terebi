@@ -161,3 +161,22 @@ Checks on the unchanged plugin: **385 pytest tests passed**, Ruff lint/format
 passed (27 files), isolated official Hermes v0.22.0 doctor passed (2 tools, 0 hooks),
 and `hermes plugins validate --install-deps` passed with security scan **safe**.
 Validation logs: `/tmp/terebi-cast-proof-hermes-gt64kwx3/`.
+
+### Repeat with the user watching — 2026-11-10
+
+At the user's request, repeated the same exact-URL test from idle Backdrop, with
+15 seconds allowed after the first PLAYING report and a further 15 seconds holding
+the paused frame before cleanup. Same device, file hash, one-file endpoint and
+bound `0.0.0.0:8765` address; no integration changes.
+
+- **00:35:31.262 UTC:** exact-URL `PLAYING`, media session `1`.
+- **Human observation:** user replied **“yes i see it”** after the playing update.
+  This confirms visible playback. The user did not separately confirm the frozen
+  frame or whether the TV was initially on; physical wake remains unverified.
+- **00:35:46.298:** exact-URL `PAUSED`, same session `1`, position **14.462817s**.
+- **00:36:01.717:** receiver quit, HTTP server closed and temporary MP4 deleted.
+
+Local evidence: `observed-repeat-result.json` and `human-observation.json` under
+`/tmp/terebi-cast-proof-20261110/`. The automatic runner's human-confirmation field
+is not chat-aware; the separate annotation records the actual user response.
+The earlier exact-URL log is preserved as `first-exact-url-result.json`.

@@ -7,8 +7,8 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 ## Blockers
 
 - Scene code passes automated/Hermes checks. Live Telegram scene acceptance is
-  awaiting private credential delivery for the isolated feature gateway after a
-  corrected PID-reader bootstrap error. LAN forwarding probe passed HTTP 200.
+  awaiting the user’s Telegram saved-marker play and pause. The isolated feature
+  gateway is connected, marker saved, and LAN forwarding probe passed HTTP 200.
 
 - Scene slice: no local embedding model is approved; semantic ranking stays disabled.
   User approved OpenCode `opencode/glm-5.3-flash-free` after GLM 5.1 was unavailable.
@@ -35,7 +35,7 @@ Draft PR #3 has the same head; this new feature PR will target main independentl
 - [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
 - [ ] Live Telegram: manually saved Big Buck Bunny marker → verified start position
   on Den TV → PAUSED, recording exact tested SHA and cleanup.
-- [ ] One numbered draft PR; merge remains user-owned.
+- [x] Draft PR #4 opened; merge remains user-owned.
 
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2
   `192.168.0.134` reported `PLAYING` then `PAUSED` for the exact temporary LAN MP4

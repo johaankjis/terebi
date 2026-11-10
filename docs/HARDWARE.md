@@ -226,10 +226,16 @@ An isolated feature gateway profile is prepared at
 plugin. The original demo checkout remains clean at `8e978d7`. A routing probe on
 `0.0.0.0:8765` returned HTTP 200 via `192.168.0.126:8765`; the probe was then stopped.
 
-Live marker start/seek and PAUSED have **not yet run**. Startup awaits fresh private
-credential delivery after a bootstrap PID-file parsing error, before replacing the
-old isolated bot process. The error consumed one-time files but left the prior
-process and checkout intact. No key or media capability URL was logged or committed.
-After startup, send the saved-marker play request through Telegram, then pause;
-record fresh exact-content receiver position near 60 seconds and pause separately.
-TV power/CEC wake remains outside this slice.
+Live marker start/seek and PAUSED have **not yet run**. The corrected bootstrap
+stopped the previous isolated test gateway and started the feature gateway (PID
+126556), with `✓ telegram connected` at **09:13:24.305 UTC**. Actual runtime-loaded
+feature SHA: `ff27aaf111f12c5a02e4b821d0b88276bc168367` (code identical to the
+automated-tested commit; its additional commit is documentation).
+
+Startup through the actual Hermes plugin manager confirmed `library_status` on
+Jellyfin 12.2.0 and saved the user's manual marker through `library_scene_save`,
+including exact item/source, start 60.0 and a source fingerprint. No key or media
+capability URL was logged or committed; one-time credential files were removed.
+The user can now send the saved-marker play request through Telegram, then pause.
+Record fresh receiver position near 60 seconds and pause separately. TV power/CEC
+wake remains outside this slice.

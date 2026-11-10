@@ -451,7 +451,9 @@ No actual embedding model is approved or enabled. Fixture lexical/exact results
 are not semantic paraphrase validation. Live subtitle extraction on Jellyfin 12.2
 still needs a library item with a usable text track; Big Buck Bunny has no dialogue.
 
-Live scene acceptance is pending the isolated feature Telegram gateway. A bounded
+Live scene acceptance is pending the user’s play/pause in the connected isolated
+feature Telegram gateway. Startup saved the user’s edition-specific marker through
+the real Hermes plugin manager. Runtime-loaded SHA is `ff27aaf111f12c5a02e4b821d0b88276bc168367`. A bounded
 probe verified host `192.168.0.126:8765` forwards to the T3 listener (HTTP 200), then
 stopped its temporary probe endpoint. No feature Cast commands have been sent yet.
 The user's manual marker is “one-minute test scene”, 60 seconds, exact item/source

@@ -81,6 +81,26 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [x] Settings via `config_schema`, secret API key read the sanctioned way (`agent.secret_scope.get_secret`)
 - [x] Test harness with respx
 
+## Current slice: Jellyfin to Chromecast (authorized 2026-11-10)
+
+- Base verified clean at `c19b1f70fedf19c7ad608998026f1d6974f88fca`; origin/main
+  is `6b11f9711e1213c3a650c6ecb0095da4945b379b`. Draft PR #2 is open and docs-only.
+  Code has no dependency on its changes; this slice stacks on its branch to retain
+  verified hardware evidence and avoid duplicating it in the implementation PR.
+- [ ] Reuse `library_pick`; add exact Jellyfin item play and explicit pause tools.
+- [ ] Serve an expiring, item-scoped LAN media capability; keep Jellyfin credentials
+  server-side, support bounded streaming/ranges, redact tokens, clean up on expiry.
+- [ ] Verify exact URL and fresh PLAYING/PAUSED receiver states; keep TV wake out.
+- [ ] One Claude Code worker owns implementation and focused mocked tests in a
+  separate tool-created worktree. Manager owns integration review, shared docs,
+  live Hermes v0.22.0 + Chromecast acceptance and one numbered draft PR.
+- [ ] Live acceptance: `library_pick` recommends Big Buck Bunny; explicitly select
+  its returned item ID, invoke play, then pause, and record exact receiver evidence.
+
+This explicit user request supersedes the older exclusions of Chromecast workers
+and the historic worker-base instructions below. No Roku control, TV wake, new
+recommendation engine, watcher, automatic history writes or Telegram UI is included.
+
 ## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
 - [x] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up, session identity — implementation, mocked tests, live `library_status` + `library_pick(max_minutes=20)`, and live Roku 3 `/Sessions` + `verify_playback` verified against Jellyfin `12.2.0` at `22d28304f787c339b20e137975193d91e88d8e89`

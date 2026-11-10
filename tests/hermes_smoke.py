@@ -49,11 +49,22 @@ def main() -> None:
             s.bind(("127.0.0.1", 0))
             return s.getsockname()[1]
 
+    class State:
+        def __init__(self):
+            self.data = {}
+
+        def get(self, key, default=None):
+            return self.data.get(key, default)
+
+        def set(self, key, value):
+            self.data[key] = value
+
     class Context:
         def __init__(self, url):
             self.url = url
             self.tools = []
             self.unload = []
+            self.state = State()
             self.port = free_port()
             self.settings = {
                 "jellyfin_url": url,
@@ -175,6 +186,48 @@ def main() -> None:
         assert paused["ok"] is True and paused["state"] == "paused", paused
         again = json.loads(first.tools[pause_tool]["handler"]({}))
         assert again["ok"] is True and again["already_paused"] is True
+
+        # Scene flow through the real namespaced loader, resolver and relay,
+        # with a source-bound manual marker and measured fake-receiver seek.
+        handlers = {tool["name"]: tool["handler"] for tool in first.tools}
+        token = set_secret_scope({"JELLYFIN_API_KEY": "cast-key"})
+        try:
+            saved = json.loads(
+                handlers["library_scene_save"](
+                    {
+                        "item_id": BBB_ID,
+                        "media_source_id": BBB_ID,
+                        "label": "fixture scene",
+                        "start_time_s": 60,
+                    }
+                )
+            )
+            assert saved["ok"], saved
+            found = json.loads(
+                handlers["library_scene_find"](
+                    {
+                        "item_id": BBB_ID,
+                        "marker": "fixture scene",
+                    },
+                    conversation_id="scene-smoke",
+                )
+            )
+            assert found["ok"] and len(found["candidates"]) == 1, found
+            scene = json.loads(
+                handlers["tv_scene_play"](
+                    {
+                        "candidate_id": found["candidates"][0]["candidate_id"],
+                    },
+                    conversation_id="scene-smoke",
+                )
+            )
+            assert scene["ok"] and scene["verified"] and scene["action"] == "seeked", scene
+            assert 57 <= scene["position_s"] <= 63
+            assert scene["item"]["media_source_id"] == BBB_ID
+            paused = json.loads(handlers["tv_pause"]({}))
+            assert paused["ok"] and paused["state"] == "paused"
+        finally:
+            reset_secret_scope(token)
     assert len(first.unload) == 1 and len(second.unload) == 1
     for callback in first.unload + second.unload:
         callback()
@@ -186,7 +239,8 @@ def main() -> None:
     print(
         "PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + "
         "tv_pause through real client + respx + local relay + fake Chromecast, scoped "
-        "secret rotation, context isolation, on_unload cleanup"
+        "secret rotation, context isolation, scene marker seek + measured position, "
+        "on_unload cleanup"
     )
 
 

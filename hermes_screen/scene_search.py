@@ -265,6 +265,7 @@ def _source_summary(source: Mapping[str, Any], item: Mapping[str, Any]) -> dict[
         "name": _label(source.get("Name")),
         "container": _label(source.get("Container"), 24),
         "duration_s": round(duration, 3) if duration is not None else None,
+        "fingerprint": _source_signature(source, item),
         "subtitle_tracks": tracks,
         "searchable_tracks": sum(1 for t in tracks if t["searchable"]),
     }

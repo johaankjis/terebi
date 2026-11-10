@@ -133,7 +133,9 @@ def test_captionless_scene_offers_marker_or_timestamp(scene_ctx, respx_mock):
     routes(respx_mock)
     assert find(scene_ctx, query="the rabbit dances")["reason"] == "no_subtitles"
     candidate = find(scene_ctx, start_time_s=60)["candidates"][0]
-    assert candidate["evidence"] == {"kind": "timestamp", "method": "user_supplied"}
+    assert candidate["evidence"]["kind"] == "timestamp"
+    assert candidate["evidence"]["method"] == "user_supplied"
+    assert len(candidate["evidence"]["source_fingerprint"]) == 64
 
 
 def test_scene_play_handoff_and_conversation_isolation(scene_ctx, respx_mock, plugin, monkeypatch):
@@ -183,3 +185,52 @@ def test_changed_subtitle_refuses_old_candidate(scene_ctx, respx_mock):
     route.respond(content=b"1\n00:02:00,000 --> 00:02:03,000\nWe must leave now.\n")
     result = call(scene_ctx, "tv_scene_play", {"candidate_id": choice["candidate_id"]})
     assert result["reason"] == "scene_changed"
+
+
+def test_real_registered_marker_play_seeks_and_pause(scene_ctx, respx_mock, receiver):
+    routes(respx_mock)
+    saved = call(
+        scene_ctx,
+        "library_scene_save",
+        {"item_id": BBB_ID, "label": "one-minute test scene", "start_time_s": 60},
+    )
+    assert saved["ok"]
+    found = find(scene_ctx, marker="one-minute test scene")
+    candidate = found["candidates"][0]
+    args = {"candidate_id": candidate["candidate_id"]}
+    played = call(scene_ctx, "tv_scene_play", args)
+    assert played["ok"] and played["verified"]
+    assert played["position_s"] == pytest.approx(60.2)
+    assert played["requested_start_time_s"] == 60
+    assert played["item"]["media_source_id"] == BBB_ID
+    paused = call(scene_ctx, "tv_pause", {})
+    assert paused["ok"] and paused["state"] == "paused"
+    sought = call(scene_ctx, "tv_scene_play", args)
+    assert sought["ok"] and sought["action"] == "seeked"
+    assert sought["position_s"] == pytest.approx(60.0)
+    assert call(scene_ctx, "tv_pause", {})["ok"]
+    assert KEY not in json.dumps(scene_ctx.state.data)
+
+
+def test_changed_edition_invalidates_saved_marker(scene_ctx, respx_mock):
+    item = cast_item()
+    route = routes(respx_mock, item)
+    assert call(
+        scene_ctx, "library_scene_save", {"item_id": BBB_ID, "label": "scene", "start_time_s": 60}
+    )["ok"]
+    item["MediaSources"][0]["Size"] += 1
+    route.respond(json=item)
+    assert find(scene_ctx, marker="scene")["reason"] == "marker_stale"
+
+
+@pytest.mark.parametrize("offset", [True, -1, float("nan"), float("inf"), "60", None])
+def test_tv_play_rejects_bad_offset_before_http(scene_ctx, respx_mock, offset):
+    result = call(scene_ctx, "tv_play", {"item_id": BBB_ID, "start_time_s": offset})
+    assert result["reason"] == "invalid_argument"
+    assert len(respx_mock.calls) == 0
+
+
+def test_movie_must_be_identified_before_scene_search(scene_ctx, respx_mock):
+    result = call(scene_ctx, "library_scene_find", {"query": "leaving"})
+    assert result["reason"] == "movie_required"
+    assert not respx_mock.calls

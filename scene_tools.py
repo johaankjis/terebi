@@ -220,6 +220,10 @@ class SceneTools:
                 "track_index",
             },
         )
+        if "movie" not in args and "item_id" not in args:
+            return _error(
+                "movie_required", "Which movie should I search? Supply its title or item_id."
+            )
         item_id, error = self._movie(args, connection)
         if error:
             return error
@@ -267,6 +271,14 @@ class SceneTools:
                     and m["media_source_id"] == source_id
                     and m["evidence"]["label"].casefold() == label
                 ]
+                if any(
+                    m["evidence"].get("source_fingerprint") != edition["fingerprint"]
+                    for m in candidates
+                ):
+                    return _error(
+                        "marker_stale",
+                        "The edition changed. Confirm its timestamp and save the marker again.",
+                    )
                 result = {"ok": True, "method": "user_supplied", "no_match": not candidates}
             else:
                 seconds = _offset(args["start_time_s"], edition["duration_s"])
@@ -275,7 +287,11 @@ class SceneTools:
                         "item_id": item_id,
                         "media_source_id": source_id,
                         "start_time_s": seconds,
-                        "evidence": {"kind": "timestamp", "method": "user_supplied"},
+                        "evidence": {
+                            "kind": "timestamp",
+                            "method": "user_supplied",
+                            "source_fingerprint": edition["fingerprint"],
+                        },
                     }
                 ]
                 result = {"ok": True, "method": "user_supplied", "no_match": False}
@@ -316,6 +332,7 @@ class SceneTools:
             "evidence": {
                 "kind": "marker",
                 "method": "user_supplied",
+                "source_fingerprint": edition["fingerprint"],
                 "marker_id": matches[0]["evidence"]["marker_id"]
                 if matches
                 else secrets.token_hex(12),
@@ -347,6 +364,11 @@ class SceneTools:
             if error:
                 return error
             _offset(candidate["start_time_s"], edition["duration_s"])
+            expected = candidate["evidence"].get("source_fingerprint")
+            if expected is not None and expected != edition["fingerprint"]:
+                return _error(
+                    "scene_changed", "The edition changed. Find and choose the scene again."
+                )
             if choice["lookup"]:
                 lookup = choice["lookup"]
                 fresh = resolver.search(

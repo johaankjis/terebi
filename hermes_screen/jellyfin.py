@@ -596,7 +596,9 @@ class JellyfinClient:
         problem = _cast_problem(source)
         if problem is not None:
             raise _unsupported_media(problem)
-        ticks = _positive_ticks(source.get("RunTimeTicks")) or item["_ticks"]
+        ticks = _positive_ticks(source.get("RunTimeTicks"))
+        if ticks is None and len(dicts) == 1:
+            ticks = item["_ticks"]  # only one edition: item runtime describes that file
         return {
             "item_id": norm,
             "title": item["title"],

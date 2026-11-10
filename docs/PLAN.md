@@ -24,9 +24,9 @@ Draft PR #3 has the same head; this new feature PR will target main independentl
 - [x] Agree worker handoff and ownership in [SCENE_CONTRACT.md](SCENE_CONTRACT.md).
 - [x] Claude Code: exact-source text subtitle ingestion, original cue timestamps,
   neighboring cue search, local index refresh and resolver tests.
-- [ ] OpenCode: optional source/offset playback, fresh load and seek, measured
-  receiver position, ordinary play/pause regression tests (model gate above).
-- [ ] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
+- [x] OpenCode: optional source/offset playback, fresh load and seek, measured
+  receiver position, ordinary play/pause regression tests (approved GLM 5.3 Flash).
+- [x] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
   timestamp fallback, Hermes tools and focused integration tests.
 - [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
 - [ ] Live Telegram: manually saved Big Buck Bunny marker → verified start position

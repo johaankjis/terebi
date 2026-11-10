@@ -166,7 +166,9 @@ def editions_item():
     cut["Path"] = "/media/movies/BigBuckBunny_320x180_extended.mp4"
     cut["RunTimeTicks"] = 12_000_000_000  # 1200 s: a longer cut
     cut["Name"] = "Ultimate extended edition"
-    return multi_edition_item(PLAIN_ITEM["MediaSources"][0], cut)
+    return multi_edition_item(
+        {**PLAIN_ITEM["MediaSources"][0], "RunTimeTicks": PLAIN_ITEM["RunTimeTicks"]}, cut
+    )
 
 
 def test_explicit_source_selects_its_own_runtime(api, jf):
@@ -265,3 +267,9 @@ def test_all_sources_without_valid_ids_still_reports_the_problem(api, jf):
         jf.get_cast_source(BBB_ID)
     assert exc.value.reason == "unsupported_media"
     assert "no valid id" in exc.value.hint
+
+
+def test_multi_edition_missing_source_runtime_is_unknown(api, jf, editions_item):
+    editions_item["MediaSources"][0].pop("RunTimeTicks")
+    api.get(f"/Items/{BBB_ID}").respond(json=editions_item)
+    assert jf.get_cast_source(BBB_ID, media_source_id=BBB_ID)["duration_s"] is None

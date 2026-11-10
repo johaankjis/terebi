@@ -61,14 +61,16 @@ TV_PLAY = {
     "description": (
         "Play one item from the user's Jellyfin library on the configured "
         "Chromecast and confirm it is really playing. Pass the exact item_id "
-        "returned by library_pick (never a title, and never a guessed or "
+        "returned by library_pick or library_scene_find (never a title, and never a guessed or "
         "remembered id). Only MP4 files with H.264 video (up to 1080p) and "
         "AAC/MP3 audio can play; others return reason 'unsupported_media' "
         "(there is no transcoding). ok=true means the Chromecast itself reported "
         "that exact item PLAYING. If ok is false, relay 'reason', 'evidence' and "
         "'hint' honestly: for example 'app_opened' means the player opened but "
         "the video was not confirmed, so never say it is playing. Calling it "
-        "again for the same item does not restart it (a paused item resumes). "
+        "again without start_time_s does not restart it (a paused item resumes). "
+        "An explicit start_time_s starts or seeks the selected media_source_id, resumes "
+        "playback, and verifies the measured receiver position within its stated tolerance. "
         "It does not turn on the TV or switch inputs, and the temporary stream "
         "link expires after 'relay_expires_in_minutes'."
     ),
@@ -80,6 +82,17 @@ TV_PLAY = {
                 "minLength": 32,
                 "maxLength": 36,
                 "description": "Exact Jellyfin item id from library_pick, e.g. 32 hex characters.",
+            },
+            "media_source_id": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 36,
+                "description": "Exact selected edition/source from library_scene_find.",
+            },
+            "start_time_s": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Explicit timestamp in seconds, strictly below edition runtime.",
             },
         },
         "required": ["item_id"],

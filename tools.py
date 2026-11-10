@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from typing import Any
@@ -155,11 +156,13 @@ def _parse_play_args(args: Any) -> str | dict:
     parsed = _parse_object(args)
     if isinstance(parsed, str):
         return parsed
-    unknown = sorted(str(key) for key in parsed if key != "item_id")
+    unknown = sorted(
+        str(key) for key in parsed if key not in {"item_id", "media_source_id", "start_time_s"}
+    )
     if unknown:
         return _error(
             "invalid_argument",
-            "Unsupported argument(s): " + ", ".join(unknown)[:100] + ". Use only item_id.",
+            "Use only item_id, optional media_source_id and optional start_time_s.",
         )
     item_id = parsed.get("item_id")
     if not isinstance(item_id, str) or not _ITEM_ID_RE.match(item_id.strip()):
@@ -168,7 +171,23 @@ def _parse_play_args(args: Any) -> str | dict:
             "item_id must be the exact Jellyfin item id returned by library_pick, "
             "not a title. Call library_pick first.",
         )
-    return {"item_id": item_id.strip()}
+    result = {"item_id": item_id.strip()}
+    if "media_source_id" in parsed:
+        source_id = parsed["media_source_id"]
+        if not isinstance(source_id, str) or not _ITEM_ID_RE.fullmatch(source_id.strip()):
+            return _error("invalid_argument", "media_source_id must identify a Jellyfin edition.")
+        result["media_source_id"] = source_id.strip()
+    if "start_time_s" in parsed:
+        offset = parsed["start_time_s"]
+        if (
+            isinstance(offset, bool)
+            or not isinstance(offset, int | float)
+            or offset < 0
+            or (isinstance(offset, float) and not math.isfinite(offset))
+        ):
+            return _error("invalid_argument", "start_time_s must be finite nonnegative seconds.")
+        result["start_time_s"] = offset
+    return result
 
 
 def _read_cast_settings(ctx: Any) -> Any:
@@ -219,7 +238,11 @@ def tv_play(
         )
     try:
         with JellyfinClient(base_url, api_key, user_id=user_id) as client:
-            source = client.get_cast_source(parsed["item_id"])
+            source = (
+                client.get_cast_source(parsed["item_id"], parsed["media_source_id"])
+                if "media_source_id" in parsed
+                else client.get_cast_source(parsed["item_id"])
+            )
             upstream_url, auth_header = client.cast_stream_target(source)
     except JellyfinError as exc:
         return json.dumps(exc.to_dict())
@@ -229,7 +252,8 @@ def tv_play(
             "Could not check that item in Jellyfin. Check the server and settings.",
         )
     try:
-        return json.dumps(manager.play(settings, source, upstream_url, auth_header))
+        kwargs = {"start_time_s": parsed["start_time_s"]} if "start_time_s" in parsed else {}
+        return json.dumps(manager.play(settings, source, upstream_url, auth_header, **kwargs))
     except Exception:
         return _error("cast_failed", "Something went wrong talking to the Chromecast. Try again.")
 

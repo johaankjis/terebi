@@ -329,3 +329,19 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   behavior. Big Buck Bunny has no dialogue; its acceptance uses a manual marker.
 - No real embedding model is approved or enabled. Fake-embedder tests establish
   only the injectable interface, not semantic paraphrase quality.
+
+
+## Scene timestamp playback verification — 2026-11-10
+
+- **VERIFIED (source + mocked receiver):** pychromecast 14.1.1 LOAD supports
+  `current_time`; Cast SEEK uses `currentTime` and `resumeState: PLAYBACK_START`.
+  Explicit offsets on an owned running/paused edition seek and start playback;
+  no-offset ordinary play/pause behavior remains covered by regression tests.
+- **VERIFIED (mocked receiver):** exact URL/state alone does not verify a scene.
+  Fresh measured receiver position must be in [target − 3s, target + elapsed + 3s].
+  Missing, nonfinite or incorrect positions remain unverified. Explicit source
+  selection cannot silently fall back to another file. Multi-edition sources
+  without a source runtime cannot use another edition's item-level runtime.
+- **UNVERIFIED (live feature branch):** 60-second manual marker playback/seek
+  and pause from Telegram. Baseline Telegram pick/play/pause audit at `8e978d7`
+  is verified (03:01:18 UTC PLAYING, 03:02:11 PAUSED at 52.1 seconds).

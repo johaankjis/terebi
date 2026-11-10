@@ -120,7 +120,7 @@ def plain_text(raw: str) -> str:
     text = _ASS_OVERRIDE_RE.sub("", raw)
     text = _TAG_RE.sub("", text)
     text = html.unescape(text)
-    text = text.replace("‎", "").replace("‏", "")  # &lrm; / &rlm;
+    text = text.replace("\u200e", "").replace("\u200f", "")  # &lrm; / &rlm;
     return " ".join(text.split())
 
 
@@ -182,7 +182,7 @@ def _prepare(data: str | bytes) -> str:
         raise SubtitleParseError("subtitle_unparseable", "subtitle data is not text")
     if len(data) > MAX_SUBTITLE_CHARS:
         raise SubtitleParseError("subtitle_too_large", "subtitle data is too large")
-    if data.startswith("﻿"):
+    if data.startswith("\ufeff"):
         data = data[1:]
     if "\x00" in data:
         raise SubtitleParseError("subtitle_unparseable", "subtitle contains NUL bytes")

@@ -6,6 +6,34 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
+- Scene slice provider gate (2026-11-10): requested OpenCode GLM 5.1 is not
+  advertised. Available alternative is `opencode/glm-5.3-flash-free`; user choice
+  is pending before substitution. Claude resolver work can proceed independently.
+- Scene live test needs a user-supplied Big Buck Bunny marker label/timestamp.
+  No local embedding model is approved; semantic ranking stays disabled.
+
+## Current slice: edition-specific scene playback (2026-11-10)
+
+The user explicitly authorized this slice, superseding historic scope exclusions.
+Base: clean `8e978d71474029fdc2994a1d3dcd3156ebc52b45`, already on origin/main.
+The working demo remains at `/home/node/projects/terebi`; manager feature checkout
+is `/home/node/.t3/worktrees/terebi/feat-scene-playback`, branch `feat/scene-playback`.
+Telegram audit confirms pick → exact-item PLAYING → PAUSED on this base.
+Draft PR #3 has the same head; this new feature PR will target main independently.
+
+- [x] Verify demo base and preserve its checkout.
+- [x] Agree worker handoff and ownership in [SCENE_CONTRACT.md](SCENE_CONTRACT.md).
+- [ ] Claude Code: exact-source text subtitle ingestion, original cue timestamps,
+  neighboring cue search, local index refresh and resolver tests.
+- [ ] OpenCode: optional source/offset playback, fresh load and seek, measured
+  receiver position, ordinary play/pause regression tests (model gate above).
+- [ ] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
+  timestamp fallback, Hermes tools and focused integration tests.
+- [ ] Dialogue query fixture; semantic paraphrase only if a local model is approved.
+- [ ] Live Telegram: manually saved Big Buck Bunny marker → verified start position
+  on Den TV → PAUSED, recording exact tested SHA and cleanup.
+- [ ] One numbered draft PR; merge remains user-owned.
+
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2
   `192.168.0.134` reported `PLAYING` then `PAUSED` for the exact temporary LAN MP4
   URL after host port 8765 became reachable. Server stopped and copy deleted.

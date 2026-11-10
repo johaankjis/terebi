@@ -61,14 +61,16 @@ TV_PLAY = {
     "description": (
         "Play one item from the user's Jellyfin library on the configured "
         "Chromecast and confirm it is really playing. Pass the exact item_id "
-        "returned by library_pick (never a title, and never a guessed or "
+        "returned by library_pick or library_scene_find (never a title, and never a guessed or "
         "remembered id). Only MP4 files with H.264 video (up to 1080p) and "
         "AAC/MP3 audio can play; others return reason 'unsupported_media' "
         "(there is no transcoding). ok=true means the Chromecast itself reported "
         "that exact item PLAYING. If ok is false, relay 'reason', 'evidence' and "
         "'hint' honestly: for example 'app_opened' means the player opened but "
         "the video was not confirmed, so never say it is playing. Calling it "
-        "again for the same item does not restart it (a paused item resumes). "
+        "again without start_time_s does not restart it (a paused item resumes). "
+        "An explicit start_time_s starts or seeks the selected media_source_id, resumes "
+        "playback, and verifies the measured receiver position within its stated tolerance. "
         "It does not turn on the TV or switch inputs, and the temporary stream "
         "link expires after 'relay_expires_in_minutes'."
     ),
@@ -80,6 +82,17 @@ TV_PLAY = {
                 "minLength": 32,
                 "maxLength": 36,
                 "description": "Exact Jellyfin item id from library_pick, e.g. 32 hex characters.",
+            },
+            "media_source_id": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 36,
+                "description": "Exact selected edition/source from library_scene_find.",
+            },
+            "start_time_s": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Explicit timestamp in seconds, strictly below edition runtime.",
             },
         },
         "required": ["item_id"],
@@ -100,5 +113,79 @@ TV_PAUSE = {
         "type": "object",
         "properties": {},
         "required": [],
+    },
+}
+
+
+LIBRARY_SCENE_FIND = {
+    "name": "library_scene_find",
+    "description": (
+        "Find a scene in an exact Jellyfin movie edition. Supply movie (title) OR item_id. "
+        "Ambiguous movies/editions return choices: ask the user which one, never pick the first. "
+        "Without query, marker or start_time_s, returns edition details and saved markers. "
+        "Use query for dialogue caption search, marker for a user-saved label, or start_time_s "
+        "for an explicit timestamp the user supplied. Text search is exact or approximate lexical, "
+        "not visual understanding or semantic search. Relay evidence and timestamps. If several "
+        "candidates match, show them and ask the user to choose before calling tv_scene_play. "
+        "For approximate matches ask for confirmation; for no caption match offer a manual "
+        "timestamp or saved marker. Choices expire after 15 minutes in this conversation."
+    ),
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "movie": {"type": "string", "description": "Movie title as in Jellyfin."},
+            "item_id": {"type": "string", "description": "Exact library item ID."},
+            "media_source_id": {"type": "string", "description": "Selected edition/source ID."},
+            "query": {"type": "string", "description": "Dialogue or caption text to find."},
+            "marker": {"type": "string", "description": "User-saved scene marker label."},
+            "start_time_s": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Explicit user-supplied timestamp in seconds.",
+            },
+            "language": {"type": "string", "description": "Subtitle language, such as eng."},
+            "track_index": {"type": "integer", "minimum": 0},
+        },
+        "required": [],
+    },
+}
+
+LIBRARY_SCENE_SAVE = {
+    "name": "library_scene_save",
+    "description": (
+        "Save or update a local scene marker at a timestamp explicitly supplied by the user "
+        "for one exact Jellyfin movie edition. Requires item_id, label and start_time_s. "
+        "Supply media_source_id when there are multiple versions. A saved label is user evidence, "
+        "not an automatically understood visual scene. Same label+edition updates safely. "
+        "Resolve the movie/edition with library_scene_find first when needed. Does not play."
+    ),
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "item_id": {"type": "string"},
+            "media_source_id": {"type": "string"},
+            "label": {"type": "string", "maxLength": 80},
+            "start_time_s": {"type": "number", "minimum": 0},
+        },
+        "required": ["item_id", "label", "start_time_s"],
+    },
+}
+
+TV_SCENE_PLAY = {
+    "name": "tv_scene_play",
+    "description": (
+        "Play a scene candidate returned by library_scene_find in this conversation. "
+        "Pass its candidate_id, never invent one. When multiple or approximate matches were "
+        "offered, obtain the user's choice first. Revalidates the exact edition and subtitle "
+        "evidence, then starts or seeks on the configured Chromecast. Only report success "
+        "when the receiver confirms PLAYING near the requested position. tv_pause pauses it."
+    ),
+    "parameters": {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {"candidate_id": {"type": "string"}},
+        "required": ["candidate_id"],
     },
 }

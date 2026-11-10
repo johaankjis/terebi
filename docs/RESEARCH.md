@@ -311,3 +311,52 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
        (`verified: true`, `state: "paused"`, `already_paused: false`,
        `position_s: 4.7`) -> idempotent repeat `tv_pause` (`already_paused: true`,
        `position_s: 4.7`) -> `on_unload` cleanup (`relay_port_8765_closed: true`).
+
+## Scene subtitle source verification — 2026-11-10
+
+- **VERIFIED (OpenAPI 12.4.0 + source v12.4):** text subtitle route is
+  `GET /Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{srt|vtt}`.
+  Stream index is looked up in the specified source. Default start position is
+  zero, preserving original cue timestamps. Item metadata lists source-specific
+  subtitle streams. Sources were checked at
+  `83d0d0e7f76e23e2e085c8ff67d28b772d35967d` by the Claude resolver worker.
+  Its downloaded stable OpenAPI hash matches the existing `02a60649…6036e` snapshot.
+- **VERIFIED (mocked fixtures):** SRT/WebVTT parsing, timestamped dialogue across
+  neighboring cues, repeated lines, exact source/track selection, local cache
+  refresh and structured errors. Full track text stays local; compact matching
+  excerpts can appear in chat and therefore reach the user's model provider.
+- **UNVERIFIED (live):** Jellyfin 12.2 subtitle extraction/conversion and ETag
+  behavior. Big Buck Bunny has no dialogue; its acceptance uses a manual marker.
+- No real embedding model is approved or enabled. Fake-embedder tests establish
+  only the injectable interface, not semantic paraphrase quality.
+
+
+## Scene timestamp playback verification — 2026-11-10
+
+- **VERIFIED (source + mocked receiver):** pychromecast 14.1.1 LOAD supports
+  `current_time`; Cast SEEK uses `currentTime` and `resumeState: PLAYBACK_START`.
+  Explicit offsets on an owned running/paused edition seek and start playback;
+  no-offset ordinary play/pause behavior remains covered by regression tests.
+- **VERIFIED (mocked receiver):** exact URL/state alone does not verify a scene.
+  Fresh measured receiver position must be in [target − 3s, target + elapsed + 3s].
+  Missing, nonfinite or incorrect positions remain unverified. Explicit source
+  selection cannot silently fall back to another file. Multi-edition sources
+  without a source runtime cannot use another edition's item-level runtime.
+- **VERIFIED (live feature branch):** Telegram manual-marker fresh LOAD at 60.0s,
+  receiver-confirmed PLAYING then PAUSED at 73.071335s, same exact content/session,
+  runtime SHA `ff27aaf111f12c5a02e4b821d0b88276bc168367`. Existing-session SEEK
+  remains mocked-test verified only; live subtitle extraction remains unverified.
+- **VERIFIED (v0.22.0 source + live kwargs audit + dispatcher regression):** this
+  release injects `session_id`, not `conversation_id`, into registry handlers.
+  Final code prefers conversation ID when available, otherwise trusted session ID,
+  rejects missing host context, and invalidates choices across session changes.
+  This adapter correction was made after the recorded live hardware run.
+
+- **VERIFIED (live exact final code, 2026-11-10 18:20–18:21 UTC):** runtime
+  `37582aea9f2a3bfba66c1ac116b78eb03f138be7`, real Hermes v0.22.0 Telegram
+  `library_scene_find` → `tv_scene_play` → `tv_pause`, trusted session scope.
+  Existing manual marker for the exact Big Buck Bunny source loaded at 60.0s;
+  receiver PLAYING 60.0s then PAUSED 74.652622s, same media session/content hash.
+  Relay served HTTP 206 and was released after verified pause; TCP 8765 closed.
+  This closes the final adapter's prior live-code gap. Evidence:
+  [scene-marker-37582ae-20261110.json](evidence/scene-marker-37582ae-20261110.json).

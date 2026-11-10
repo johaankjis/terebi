@@ -398,3 +398,92 @@ python tests/hermes_smoke.py /home/node/projects/terebi
     - `tv_pause({})` (after 5.0s playback): `{"ok": true, "verified": true, "state": "paused", "already_paused": false, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`
     - `tv_pause({})` (idempotent repeat): `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`
     - `on_unload` cleanup: `relay_port_8765_closed: true`, `secret_file_unlinked: true`.
+
+## Scene playback integration — 2026-11-10
+
+Working feature: `feat/scene-playback` in
+`/home/node/.t3/worktrees/terebi/feat-scene-playback`. Base verified clean at
+`8e978d71474029fdc2994a1d3dcd3156ebc52b45`, already on origin/main and verified by
+Telegram pick/play/pause audit. `/home/node/projects/terebi` remains unchanged at
+that base. This feature targets main; PR #3's implementation is already in main.
+
+Worker ownership and adopted commits:
+
+- Claude Code `claude-opus-5-5`, separate `t3-04b6fa22`, actual branch
+  `t3/subtitle-scene-search`: `51d6c06a4a492f32b0d3194a4afbd2f9bed0a5f6` and
+  `5056699b851f04bb9ba2195cdddbafd24277b955` integrated as `c83aa9e` and `427cb31`.
+  New parser/resolver modules and fixture tests only. No hardware/credentials.
+- OpenCode `opencode/glm-5.3-flash-free`, separate `t3-f4af51ca`, branch
+  `t3/timestamp-playback`: `de4f351f6f34f87ca42a06b73236996f57df1111`,
+  `8834d599f91d7399522802909c62c499aeaa3f30`,
+  `08cf86581bd611d0ba05f58cd2a65196c25924d4` integrated as `56554cf`, `ad7efcb`,
+  `0a086be`. Only owned Jellyfin/Cast/playback modules and tests changed. GLM 5.1
+  was unavailable; substitution was explicitly approved before launch.
+
+Manager reviewed the exact diffs, wired seven tools, added conversation-scoped
+expiring choices and profile-local manual markers, and retained subtitle evidence
+for replay validation. Fingerprints invalidate markers and choices when the edition
+changes. Explicit offset validation cannot borrow another edition's runtime when
+source runtime is missing. Existing relay expiry, API-key handling, Cast disconnect
+lifetime workaround, outgoing LOAD interruption handling and ordinary pause remain.
+Unicode BOM/direction-mark handling uses readable escapes instead of invisible
+source literals; parser behavior remains covered by fixtures.
+
+Automated tested final code: **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`**.
+The initial 720-test tree was `1d25ec685026b65963f8f46d03e0600f1939dbcf`.
+
+- `/tmp/opencode/ts-pyvenv/bin/pytest -q`: **722 passed**, including real handler →
+  resolver → mocked Jellyfin, dialogue cue timestamps, repeated matches,
+  source/track refresh, marker/source isolation, expired choices, revalidation,
+  registered marker → exact-source LOAD/SEEK → measured PLAYING → PAUSED.
+- Ruff lint and format pass (45 files); `git diff --check` passes.
+- Official Hermes v0.22.0 (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`), isolated
+  home `/tmp/terebi-scenes-checks-wg_yibis`: doctor passes (7 tools, 0 hooks),
+  `validate --install-deps` passes, exact declared tools match registration.
+- Scanner caution stays visible: `bind_all_interfaces` in playback.py:85,
+  plugin.yaml:53, relay.py:158 and relay.py:166. It reflects the configurable LAN
+  listener. No suppression was added.
+- Expanded official-loader smoke passes, including local marker, source-bound
+  SEEK, measured position and pause using real relay/respx/fake receiver, plus
+  context isolation and unload cleanup. Logs: `final-doctor.log`,
+  `final-validate.log`, `final-smoke.log` in the isolated home above.
+
+No actual embedding model is approved or enabled. Fixture lexical/exact results
+are not semantic paraphrase validation. Live subtitle extraction on Jellyfin 12.2
+still needs a library item with a usable text track; Big Buck Bunny has no dialogue.
+
+Live scene acceptance **passed** on runtime-loaded
+`ff27aaf111f12c5a02e4b821d0b88276bc168367`: Telegram resolved the user’s manual
+“one-minute test scene” marker, loaded the exact Big Buck Bunny source at 60.0s,
+then confirmed PAUSED at 73.071335s in the same receiver media session. HTTP ranges
+returned 206; cleanup released the relay and stopped the isolated test gateway.
+See [HARDWARE.md](HARDWARE.md#scene-marker-acceptance--2026-11-10-passed) and the
+sanitized [evidence JSON](evidence/scene-marker-20261110.json).
+
+The live audit exposed missing `conversation_id` kwargs on Hermes v0.22.0.
+Commit `37582aea9f2a3bfba66c1ac116b78eb03f138be7` corrects scene selection scope
+using its injected `session_id` as fallback and rejects calls missing host identity.
+The actual ToolRegistry dispatcher smoke now covers this path; cross-session
+rejection is tested. This adapter change was tested separately after the live run;
+Cast timestamp and pause code were unchanged. Final automated checks pass as above.
+No new hardware acceptance is claimed for existing-session SEEK or subtitle fetch.
+
+
+### Exact-code Telegram retest (2026-11-10)
+
+The final code **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`** now has live
+acceptance through the real isolated Hermes v0.22.0 Telegram gateway. Loaded
+module origins were verified against the clean pinned checkout; the harness
+rechecked the SHA for every tool call. The existing manual marker resolved
+under the injected trusted session scope. Den TV reported the exact edition
+PLAYING at **60.0s**, then PAUSED at **74.652622s**, with identical capability
+hash and media session **1**. Both tools returned verified success.
+
+HTTP ranges returned 206. The harness released the relay after verified pause;
+local TCP 8765 refused connections. The isolated gateway remains running while
+its media endpoint is closed. Root demo checkout remains clean at `8e978d7`.
+See [hardware retest](HARDWARE.md#scene-marker-final-code-retest--2026-11-10-passed)
+and [sanitized evidence](evidence/scene-marker-37582ae-20261110.json).
+This evidence update changes documentation only; the prior 722-test automated
+result still applies to the exact code tested live. Existing-session SEEK,
+live subtitle fetch, and actual semantic ranking gain no new live evidence.

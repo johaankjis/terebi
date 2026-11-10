@@ -5,7 +5,7 @@ Work in progress for the November 2026 Hermes Agent Plugin Hackathon.
 
 ## Implemented today
 
-Four tools are registered:
+Seven tools are registered:
 
 - **`library_status`** checks your configured Jellyfin server, resolves a user, and
   returns the server name/version and available library counts.
@@ -16,7 +16,7 @@ Four tools are registered:
   strictly within `max_minutes`; items with unknown runtime are never picked. Each
   pick carries a one-line reason drawn only from Jellyfin's watch state and metadata.
   It only reads the library: it does **not** start anything on the TV.
-- **`tv_play`** (`item_id`) validates that the exact Jellyfin item is a directly
+- **`tv_play`** (`item_id`, optional `media_source_id`, `start_time_s`) validates that the exact Jellyfin item is a directly
   playable local MP4/M4V file (H.264 video up to 1080p, AAC/MP3 or no audio), mints
   an expiring single-item LAN capability URL (`/cast/<token>/video.mp4`), launches
   the Chromecast Default Media Receiver (`CC1AD845`) at `chromecast_host`, and waits
@@ -26,6 +26,38 @@ Four tools are registered:
 - **`tv_pause`** (no arguments) pauses the active Hermes Screen media session on the
   configured Chromecast and verifies that the receiver transitions to `PAUSED` on
   the same capability URL and media session.
+
+### Play a scene from your edition
+
+Ask Hermes: “Find the line ‘keep the lamp burning’ in Lighthouse,” then choose
+one of the returned timestamps and ask to play it. `library_scene_find` resolves
+movie and edition choices, searches that source's text subtitle track, and shows
+caption evidence with original timestamps. Multiple matches require your choice.
+Exact and approximate lexical matches are labelled; semantic ranking is disabled
+until a local embedding model is approved. It cannot recognize an uncaptioned
+visual scene.
+
+For those scenes, supply a timestamp or save a manual marker: “Save one-minute
+test scene at 01:00 in BigBuckBunny_320x180.” `library_scene_save` stores the marker
+for the selected edition locally. Later ask: “Play one-minute test scene from
+BigBuckBunny_320x180.” `tv_scene_play` consumes the selected candidate, starts or
+seeks the exact source, and confirms the receiver is PLAYING near its timestamp.
+`tv_pause` confirms pause afterward. Ordinary play without a timestamp keeps its
+existing resume behavior; an explicit timestamp seeks and starts playing.
+
+A subtitle index refreshes when its source, track or fetched text changes. Subtitle
+tracks and indexes stay in local profile state; only matching excerpts are returned
+in chat and may be seen by your model provider. Saved markers are user evidence,
+not generated scene descriptions. Changed editions invalidate saved markers.
+Pending scene choices expire after 15 minutes and belong to the requesting
+conversation (or trusted Hermes session on v0.22.0; resetting the session requires
+a fresh lookup). Playback rechecks the edition and caption evidence before acting.
+
+The offset must be finite, nonnegative, and below the selected source's runtime.
+The receiver's measured position must be within 3 seconds before the requested
+point or 3 seconds plus elapsed playback after it. A loaded movie at the wrong
+position is reported as unverified. Unsupported video formats still require a
+separate transcoding solution; this slice adds none.
 
 Failures return a short reason and a hint. A failed Jellyfin lookup is reported as
 an error or a partial result, never as "nothing to watch".
@@ -37,7 +69,8 @@ authenticated `HEAD`/byte-range streaming, and `JellyfinClient.verify_playback`
 against an active Roku 3 (`192.168.0.104`) playback session have been verified
 live against the Jellyfin `12.2.0` server (`terebi`) and the user's Chromecast
 Gen 2 (`192.168.0.134`) in the isolated Hermes `v0.22.0` runtime.
-Programmatic Roku control, TV/CEC wake, Telegram pick/play/pause, `/watch`, YouTube,
+The base Telegram pick/play/pause flow is verified. Programmatic Roku control,
+TV/CEC wake, `/watch`, YouTube,
 and Friday voting are not included in this slice.
 
 ## Install and configure
@@ -114,9 +147,9 @@ Non-text settings are rejected.
 
 ## Validation
 
-Official Hermes v0.22.0 doctor (`4 tool(s), 0 hook(s)`), validate, mocked loader
+Official Hermes v0.22.0 doctor (`7 tool(s), 0 hook(s)`), validate, mocked loader
 smoke (`tests/hermes_smoke.py`), and live Jellyfin 12.2.0 + Chromecast Gen 2
-`tv_play` / `tv_pause` acceptance pass on the integrated tree; **553 automated tests**
+`tv_play` / `tv_pause` acceptance pass on the integrated tree; **722 automated tests**
 and Ruff pass. `hermes plugins validate --install-deps` passes with a visible
 `security scan — caution` (`bind_all_interfaces` on `playback.py:77`,
 `plugin.yaml:50`, `relay.py:158`, `relay.py:166`) because containerized setups can
@@ -135,8 +168,10 @@ validation failure from a caution finding requiring review.
 - Roku 3 programmatic control remains gated on Roku's third-party ECP restriction
   (and live `/Sessions` confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
 - TV/CEC wake is out of scope and unverified.
-- `library_pick`, `tv_play`, and `tv_pause` are verified live in the isolated Hermes
-  v0.22.0 runtime, but not yet from Telegram; `/watch` is not built.
+- `library_pick`, `tv_play`, and `tv_pause` are verified from Telegram on the base
+  commit. Scene marker playback through Telegram is verified at 60.0 seconds, followed
+  by receiver-confirmed pause at 73.1 seconds;
+  `/watch` is not built.
 
 ## Troubleshooting
 

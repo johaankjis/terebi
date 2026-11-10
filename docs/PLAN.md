@@ -6,6 +6,57 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
+
+- **2026-11-10 merge gate: live subtitle scene acceptance blocked.** User now
+  authorizes merge only after describing a scene in Telegram without a timestamp
+  or saved-marker name, subtitle resolution for the exact edition, and receiver
+  confirmation at the matched time. Latest live library audit (18:20 UTC) has
+  one movie, `BigBuckBunny_320x180`, with no subtitle tracks. Its successful
+  manual-marker test does not satisfy this gate. Need a user-selected movie
+  edition with usable text subtitles and the user's natural-language request.
+  PR #4 is the scene feature itself, already targeting main; no separate
+  scene-search PR exists to retarget. Keep #4 draft and unmerged until acceptance.
+  Automated candidate `3833745` rechecked: 722 tests, Ruff, Hermes v0.22.0
+  doctor/validation passed; GitHub reports no checks. Branch-protection/rules
+  API reads returned HTTP 403 (private-repository plan restriction); do not
+  infer protections or bypass the normal GitHub merge flow.
+
+
+- Scene slice: no local embedding model is approved; semantic ranking stays disabled.
+  User approved OpenCode `opencode/glm-5.3-flash-free` after GLM 5.1 was unavailable.
+  Live marker: user-supplied “one-minute test scene”, 60 seconds, for
+  `BigBuckBunny_320x180` and its exact media source.
+
+## Current slice: edition-specific scene playback (2026-11-10)
+
+The user explicitly authorized this slice, superseding historic scope exclusions.
+Base: clean `8e978d71474029fdc2994a1d3dcd3156ebc52b45`, already on origin/main.
+The working demo remains at `/home/node/projects/terebi`; manager feature checkout
+is `/home/node/.t3/worktrees/terebi/feat-scene-playback`, branch `feat/scene-playback`.
+Telegram audit confirms pick → exact-item PLAYING → PAUSED on this base.
+Draft PR #3 has the same head; this new feature PR will target main independently.
+
+- [x] Verify demo base and preserve its checkout.
+- [x] Agree worker handoff and ownership in [SCENE_CONTRACT.md](SCENE_CONTRACT.md).
+- [x] Claude Code: exact-source text subtitle ingestion, original cue timestamps,
+  neighboring cue search, local index refresh and resolver tests.
+- [x] OpenCode: optional source/offset playback, fresh load and seek, measured
+  receiver position, ordinary play/pause regression tests (approved GLM 5.3 Flash).
+- [x] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
+  timestamp fallback, Hermes tools and focused integration tests.
+- [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
+- [x] Live Telegram retest on final code `37582ae`: saved Big Buck Bunny marker →
+  Den TV PLAYING at 60.0s → PAUSED at 74.652622s, same exact content/session.
+  Runtime module origins and every tool invocation verified the pinned SHA;
+  real Telegram calls used trusted session scope. Relay closed after pause.
+  Full automated suite previously passed 722 tests; see
+  [exact-code retest evidence](evidence/scene-marker-37582ae-20261110.json).
+- [x] Draft PR #4 opened.
+- [ ] New merge acceptance: natural-language scene description → exact-edition
+  subtitle match → Den TV playback verified at that cue timestamp. Manual
+  markers/timestamps do not count. User authorizes normal GitHub merge after
+  this acceptance and passing checks; currently blocked as recorded above.
+
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2
   `192.168.0.134` reported `PLAYING` then `PAUSED` for the exact temporary LAN MP4
   URL after host port 8765 became reachable. Server stopped and copy deleted.

@@ -211,3 +211,82 @@ Executed in the isolated Hermes `v0.22.0` runtime (`/tmp/hermes-screen-hermes-ve
      - Idempotent second `tv_pause({})` (`01:43:31.898Z` -> `01:43:32.115Z`):
        `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`.
      - `on_unload` cleanup (`01:43:32.416Z`): `relay_port_8765_closed: true`, `secret_file_unlinked: true`, and receiver quit back to idle.
+
+## Scene marker acceptance — 2026-11-10 (passed)
+
+**PASS through Telegram → isolated Hermes v0.22.0 → Jellyfin 12.2.0 → Den TV.**
+Live runtime-loaded SHA: **`ff27aaf111f12c5a02e4b821d0b88276bc168367`**.
+Target: Chromecast Gen 2 / Den TV, `192.168.0.134`.
+User-supplied manual marker: **“one-minute test scene”, 60 seconds**, for
+`BigBuckBunny_320x180`, item/source `e5d6c471a8a4ea26e00a3694f91bf8d1`.
+The label is user evidence, not a caption or generated visual-scene match.
+
+| UTC time | Observed result |
+|---|---|
+| 09:13:11 | Actual Hermes `library_scene_save` persisted the exact-source marker and fingerprint |
+| 17:17:52.898 | Telegram `library_scene_find` returned its single candidate at 00:01:00.000 |
+| 17:17:57.763 | Receiver reported exact content `PLAYING`, media session `1`, position **60.0s** |
+| 17:17:57.767 | `tv_scene_play`: `ok:true`, `verified:true`, requested 60.0s, measured 60.0s |
+| 17:18:12.630 | Receiver reported same content/session `PAUSED`, position **73.071335s** |
+| 17:18:12.631 | Telegram `tv_pause`: `ok:true`, `verified:true`, measured 73.1s (display rounding) |
+| 17:21:24.380 | Test gateway shutdown released the relay; local TCP 8765 closed |
+
+Media range requests returned HTTP 206 through the configured LAN forwarder.
+The relay minted a capability for this item with TTL 1496.46s; receiver content
+identity was correlated using its URL's SHA256, without logging the bearer URL
+or API key. Sanitized durable evidence: [scene-marker-20261110.json](evidence/scene-marker-20261110.json).
+Full local audit: `/tmp/terebi-scenes-gateway-pzpm5mn8/acceptance.jsonl`.
+The user reported completing the two Telegram commands; no independent visual
+screen confirmation is claimed. TV power/CEC wake is excluded.
+
+The live audit revealed that v0.22.0 injects `session_id`, not `conversation_id`.
+After the live test, commit **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`** fixes
+selection isolation by preferring a trusted conversation ID, falling back to the
+trusted runtime session ID and failing closed when neither exists. The final
+adapter was verified through the actual Hermes ToolRegistry dispatcher and
+cross-session regression tests; the recorded hardware run used the earlier
+adapter. Cast timestamp, source-selection and pause code are unchanged by that fix.
+Resetting a Hermes session requires a fresh scene lookup.
+
+The final code passes **722 tests**, Ruff, official v0.22.0 doctor (7 tools),
+validation (visible `bind_all_interfaces` caution), and official-loader/dispatcher
+smoke. Live Jellyfin subtitle extraction and semantic-model quality remain
+unverified; no local embedding model is enabled. Existing-session seeks are
+covered by mocked tests; this live sequence verified a fresh 60-second LOAD and
+pause. The temporary feature gateway is stopped; original demo checkout remains
+clean and unchanged at `8e978d7`.
+
+
+## Scene marker final-code retest — 2026-11-10 (passed)
+
+**PASS on exact runtime code `37582aea9f2a3bfba66c1ac116b78eb03f138be7`.**
+The isolated Hermes v0.22.0 gateway loaded all plugin modules from a clean,
+SHA-pinned copy. The harness rechecked that SHA before each tool invocation.
+Telegram polling was healthy; the existing exact-edition “one-minute test scene”
+marker resolved to 60.0s before the user began the retest.
+
+| UTC time | Observed result |
+|---|---|
+| 18:20:52.546 | Telegram resolved the saved marker using trusted session scope |
+| 18:20:58.919 | Receiver PLAYING at **60.0s**, media session **1** |
+| 18:20:58.923 | `tv_scene_play`: `ok:true`, `verified:true`, exact item/source |
+| 18:21:15.325 | Receiver PAUSED at **74.652622s**, same content hash/session |
+| 18:21:15.326 | `tv_pause`: `ok:true`, `verified:true`, displayed position 74.7s |
+| 18:21:15.378 | Test harness released the relay after verified pause |
+
+Exact edition: `BigBuckBunny_320x180`, item and media source
+`e5d6c471a8a4ea26e00a3694f91bf8d1`; the saved edition fingerprint matched.
+Receiver content hash matched the single-item relay capability. GET ranges
+returned HTTP 206. Local TCP 8765 subsequently refused connections, so the
+external `t3-cast-8765` forwarder is safe to stop. The isolated bot remains
+running; the original demo checkout remains clean and unchanged at `8e978d7`.
+
+This retest verifies the final session-context adapter through actual Telegram
+calls as well as the final Cast source/offset/pause code. It supersedes the
+previous live-code gap; it does not add live SEEK or subtitle-fetch evidence.
+TV wake is excluded. Receiver telemetry is verified; no independent visual
+screen observation is claimed. The configurable LAN bind scanner caution
+remains visible.
+
+Sanitized evidence: [scene-marker-37582ae-20261110.json](evidence/scene-marker-37582ae-20261110.json).
+No raw media bearer URL, API key, or Telegram token is included.

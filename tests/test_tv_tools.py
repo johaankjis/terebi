@@ -140,7 +140,15 @@ def assert_clean(result, receiver=None):
 def test_registers_four_tools_and_unload_hook(plugin):
     c = Ctx(free_port())
     plugin.register(c)
-    assert list(c.tools) == ["library_status", "library_pick", "tv_play", "tv_pause"]
+    assert list(c.tools) == [
+        "library_status",
+        "library_pick",
+        "tv_play",
+        "tv_pause",
+        "library_scene_find",
+        "library_scene_save",
+        "tv_scene_play",
+    ]
     assert len(c.unload) == 1
     assert c.tools["tv_play"]["schema"]["parameters"]["required"] == ["item_id"]
     assert c.tools["tv_pause"]["schema"]["parameters"]["properties"] == {}
@@ -150,7 +158,11 @@ def test_play_stream_pause_unload(ctx, receiver, respx_mock):
     stream = jellyfin(respx_mock)
     result = ctx.call("tv_play", {"item_id": BBB_ID})
     assert result["ok"] is True and result["verified"] is True and result["state"] == "playing"
-    assert result["item"] == {"item_id": BBB_ID, "title": "BigBuckBunny_320x180"}
+    assert result["item"] == {
+        "item_id": BBB_ID,
+        "title": "BigBuckBunny_320x180",
+        "media_source_id": BBB_ID,
+    }
     assert_clean(result, receiver)
 
     # The receiver got only a capability URL on the advertised base: no key, no Jellyfin host.

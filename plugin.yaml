@@ -6,6 +6,9 @@ provides_tools:
   - library_pick
   - tv_play
   - tv_pause
+  - library_scene_find
+  - library_scene_save
+  - tv_scene_play
 provides_hooks: []
 manifest_version: 2
 api_version: 1

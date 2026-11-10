@@ -94,7 +94,18 @@ class CastSession(Protocol):
 
     def launch_receiver(self) -> None: ...
 
-    def load(self, url: str, *, title: str, duration_s: float | None) -> None: ...
+    def load(
+        self,
+        url: str,
+        *,
+        title: str,
+        duration_s: float | None,
+        start_time_s: float | None = None,
+    ) -> None: ...
+
+    def seek(self, session_id: int, position_s: float) -> None:
+        """Move this media session to ``position_s`` seconds and start playing there."""
+        ...
 
     def pause(self, session_id: int) -> None: ...
 
@@ -284,7 +295,14 @@ class PyChromecastSession:
                 "The Chromecast didn't open its media player. Try again in a moment.",
             ) from None
 
-    def load(self, url: str, *, title: str, duration_s: float | None) -> None:
+    def load(
+        self,
+        url: str,
+        *,
+        title: str,
+        duration_s: float | None,
+        start_time_s: float | None = None,
+    ) -> None:
         if self.app_id() != APP_DEFAULT_MEDIA_RECEIVER:
             raise CastError(
                 "cast_launch_failed",
@@ -294,14 +312,28 @@ class PyChromecastSession:
         if duration_s:
             media_info["duration"] = duration_s
         try:
-            self._cast.media_controller.play_media(
-                url,
-                "video/mp4",
-                title=title,
-                stream_type="BUFFERED",
-                media_info=media_info or None,
-                callback_function=self._recorder.command_result,
-            )
+            # ``current_time`` is only sent when an explicit start exists so the
+            # ordinary launch carries no new keyword (verified 14.1.1 API:
+            # play_media(..., current_time=None) puts "currentTime" in the LOAD).
+            if start_time_s is None:
+                self._cast.media_controller.play_media(
+                    url,
+                    "video/mp4",
+                    title=title,
+                    stream_type="BUFFERED",
+                    media_info=media_info or None,
+                    callback_function=self._recorder.command_result,
+                )
+            else:
+                self._cast.media_controller.play_media(
+                    url,
+                    "video/mp4",
+                    title=title,
+                    stream_type="BUFFERED",
+                    media_info=media_info or None,
+                    current_time=start_time_s,
+                    callback_function=self._recorder.command_result,
+                )
         except Exception:
             raise CastError(
                 "cast_command_failed", "The Chromecast didn't accept the video. Try again."
@@ -329,6 +361,31 @@ class PyChromecastSession:
 
     def play(self, session_id: int) -> None:
         self._command("PLAY", session_id)
+
+    def seek(self, session_id: int, position_s: float) -> None:
+        """Documented Cast SEEK (developers.google.com/cast/docs/reference/messages):
+        the receiver jumps to ``position_s`` seconds and plays from there
+        (``resumeState`` PLAYBACK_START also resumes a paused session)."""
+        if not self._media_ready():
+            raise CastError(
+                "not_our_playback",
+                "The Chromecast is not showing our player any more, so nothing was sent.",
+            )
+        try:
+            self._cast.media_controller.send_message(
+                {
+                    "type": "SEEK",
+                    "mediaSessionId": session_id,
+                    "currentTime": position_s,
+                    "resumeState": "PLAYBACK_START",
+                },
+                inc_session_id=True,
+                callback_function=self._recorder.command_result,
+            )
+        except Exception:
+            raise CastError(
+                "cast_command_failed", "The Chromecast didn't accept the command. Try again."
+            ) from None
 
     def close(self) -> None:
         cast, self._cast = self._cast, None

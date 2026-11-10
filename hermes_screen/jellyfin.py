@@ -529,19 +529,37 @@ class JellyfinClient:
             raise _bad_shape("item")
         return item
 
-    def get_cast_source(self, item_id: str) -> dict[str, Any]:
-        """Validate that ``item_id`` is one file the Chromecast can play as-is.
+    def get_cast_source(self, item_id: str, media_source_id: str | None = None) -> dict[str, Any]:
+        """Validate one file (edition) of an item the Chromecast can play as-is.
+
+        When ``media_source_id`` is given it must be a media source that belongs
+        to exactly this item; it is used as it is (never a silent fallback to
+        another edition). When it is left out and the item has several editions
+        of which more than one could play directly, ``edition_ambiguous`` is
+        raised instead of quietly picking one.
 
         The item is read as the configured user (so the user must be able to see
         it). Only a local MP4 with H.264 video (at most 1080p) and AAC/MP3 or no
         audio is accepted; anything else raises ``unsupported_media`` rather than
-        pretending a transcode exists. Returns ``{"item_id", "title", "type",
+        pretending a transcode exists. ``duration_s`` and ``minutes`` come from
+        the selected source (the source's own runtime when Jellyfin reports one,
+        so offset bounds belong to that edition rather than the item's mixing
+        another edition's runtime). Returns ``{"item_id", "title", "type",
         "minutes", "duration_s", "media_source_id"}``; the file path is never
         returned.
         """
         norm = _norm_id(item_id)
         if norm is None:
             raise JellyfinError("invalid_argument", "item_id must be a Jellyfin item id.")
+        wanted_source = None
+        if media_source_id is not None:
+            wanted_source = _norm_id(media_source_id)
+            if wanted_source is None:
+                raise JellyfinError(
+                    "invalid_argument",
+                    "media_source_id must be a Jellyfin media source id (its 32 hexadecimal "
+                    "characters, dashed or not).",
+                )
         user = self.resolve_user()
         try:
             data, _ = self._get(f"/Items/{norm}", {"userId": user["id"]})
@@ -567,25 +585,27 @@ class JellyfinClient:
                 "unsupported_media", "Jellyfin lists no playable file for this item."
             )
         dicts = [s for s in sources if isinstance(s, dict)]
-        source = next((s for s in dicts if _norm_id(s.get("Id")) == norm), None)
-        if source is None:
-            source = dicts[0] if dicts else None
+        if not dicts:
+            raise _unsupported_media("Jellyfin lists no usable file")
+        valid = [s for s in dicts if _norm_id(s.get("Id")) is not None]
+        source = (
+            _selected_cast_source(valid, wanted_source)
+            if wanted_source is not None
+            else _default_cast_source(dicts, valid)
+        )
         problem = _cast_problem(source)
         if problem is not None:
-            raise JellyfinError(
-                "unsupported_media",
-                f"This item can't play directly on the Chromecast: {problem}. Only MP4 files "
-                "with H.264 video (up to 1080p) and AAC or MP3 audio are supported; "
-                "transcoding is not.",
-            )
-        ticks = item["_ticks"]
+            raise _unsupported_media(problem)
+        ticks = _positive_ticks(source.get("RunTimeTicks"))
+        if ticks is None and len(dicts) == 1:
+            ticks = item["_ticks"]  # only one edition: item runtime describes that file
         return {
             "item_id": norm,
             "title": item["title"],
             "type": item["type"],
-            "minutes": item["minutes"],
+            "minutes": _minutes(ticks) if ticks else None,
             "duration_s": ticks / TICKS_PER_SECOND if ticks else None,
-            "media_source_id": _norm_id(source.get("Id")) if source else None,
+            "media_source_id": _norm_id(source.get("Id")),
         }
 
     def cast_stream_target(self, source: Mapping[str, Any]) -> tuple[str, str]:
@@ -994,6 +1014,61 @@ def _cast_problem(source: Any) -> str | None:
         if not isinstance(codec, str) or codec.lower() not in CAST_AUDIO_CODECS:
             return f"its audio codec is {_safe_label(codec)}, not AAC or MP3"
     return None
+
+
+def _unsupported_media(problem: str) -> JellyfinError:
+    return JellyfinError(
+        "unsupported_media",
+        f"This item can't play directly on the Chromecast: {problem}. Only MP4 files "
+        "with H.264 video (up to 1080p) and AAC or MP3 audio are supported; "
+        "transcoding is not.",
+    )
+
+
+def _selected_cast_source(valid: list[dict[str, Any]], wanted: str) -> dict[str, Any]:
+    """The one media source of this item whose id is exactly ``wanted``.
+
+    Never falls back to another source: zero matches and duplicate ids are
+    reported honestly so the caller re-checks which edition it meant.
+    """
+    matches = [s for s in valid if _norm_id(s.get("Id")) == wanted]
+    if not matches:
+        raise JellyfinError(
+            "source_not_found",
+            "That item has no media source with that media_source_id; the id may belong "
+            "to another item or be mistyped. Re-check the edition you want to play.",
+        )
+    if len(matches) > 1:
+        raise JellyfinError(
+            "jellyfin_bad_response",
+            "Jellyfin lists more than one media source with the same id on this item, "
+            "so that media source id does not name exactly one edition.",
+        )
+    return matches[0]
+
+
+def _default_cast_source(
+    dicts: list[dict[str, Any]], valid: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """The media source to cast when the caller did not name one.
+
+    One source (or one directly playable source among several): that one.
+    Several equally playable editions: ``edition_ambiguous``, never a quiet pick.
+    """
+    if not valid:
+        return dicts[0]  # diagnosed by _cast_problem below (first: no valid id)
+    if len(valid) == 1:
+        return valid[0]
+    castable = [s for s in valid if _cast_problem(s) is None]
+    if len(castable) == 1:
+        return castable[0]  # the only edition that could work is not ambiguous
+    if len(castable) > 1:
+        raise JellyfinError(
+            "edition_ambiguous",
+            f"This item has {len(valid)} media sources (editions) and more than one could "
+            "play directly. Choose an edition and pass its media_source_id.",
+        )
+    return valid[0]  # none playable: diagnosed by _cast_problem below
 
 
 def _parse_user(entry: Any) -> dict[str, str] | None:

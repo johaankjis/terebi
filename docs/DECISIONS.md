@@ -166,3 +166,17 @@ Decision:
 - Clear `socket_client._open_channels` before `cast.disconnect(timeout=2.0)` in `PyChromecastSession.close()` so closing a per-call control connection does not send a Cast `CLOSE` message to `CC1AD845`'s `transport_id` (which terminates the Default Media Receiver on Chromecast Gen 2 when the last sender disconnects), and ignore the outgoing session's transitional `IDLE`/`INTERRUPTED` event when `LOAD` replaces an existing session on the receiver.
 - Keep the `hermes plugins validate` `security scan — caution` (`bind_all_interfaces` on `playback.py:77`, `plugin.yaml:50`, `relay.py:158`, `relay.py:166`) visible and documented rather than suppressing scanner rules or hiding the containerized `0.0.0.0:8765` bind option.
 Why: The Chromecast Default Media Receiver fetches media over plain HTTP from the LAN and cannot safely receive the user's Jellyfin API key in a query string. An expiring single-item capability relay bounds exposure to the selected item and duration while preserving strict receiver verification.
+
+## D-016: Scene resolution is bound to one edition and preserves evidence
+Date: 2026-11-10 · Status: accepted
+Decision: Search the selected media source's own text subtitles, preserving cue
+text, language and millisecond timestamps; exact and approximate lexical results
+remain labelled. Keep a bounded local profile cache, refresh content/metadata on
+lookup, and revalidate caption evidence before playing a chosen scene. No embedding
+model is enabled without explicit local-model approval. No new dependency.
+
+Movie/edition ambiguity returns choices. Scene candidates expire in 15 minutes and
+are scoped to trusted conversation context. Manual markers are local, idempotent
+by edition and label, and explicitly user supplied; they do not claim visual
+understanding. A user timestamp is an honest fallback for captionless scenes.
+The user approved OpenCode GLM 5.3 Flash after requested GLM 5.1 was unavailable.

@@ -80,6 +80,9 @@ def main() -> None:
         "library_pick",
         "tv_play",
         "tv_pause",
+        "library_scene_find",
+        "library_scene_save",
+        "tv_scene_play",
     ]
     assert [t["name"] for t in second.tools] == manifest_data["provides_tools"]
     status_tool, pick_tool, play_tool, pause_tool = 0, 1, 2, 3

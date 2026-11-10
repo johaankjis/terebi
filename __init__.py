@@ -2,7 +2,15 @@
 
 from typing import Any
 
-PROVIDES_TOOLS = ["library_status", "library_pick", "tv_play", "tv_pause"]
+PROVIDES_TOOLS = [
+    "library_status",
+    "library_pick",
+    "tv_play",
+    "tv_pause",
+    "library_scene_find",
+    "library_scene_save",
+    "tv_scene_play",
+]
 
 
 def register(ctx: Any) -> None:
@@ -78,3 +86,22 @@ def register(ctx: Any) -> None:
         schema=schemas.TV_PAUSE,
         handler=tv_pause,
     )
+
+    from .scene_tools import SceneTools
+
+    scenes = SceneTools(ctx, manager)
+
+    def scene_handler(method: str) -> Any:
+        def handler(args: dict, **kwargs: Any) -> str:
+            return scenes.call(method, args, kwargs.get("conversation_id"))
+
+        return handler
+
+    for name, method, schema in (
+        ("library_scene_find", "find", schemas.LIBRARY_SCENE_FIND),
+        ("library_scene_save", "save", schemas.LIBRARY_SCENE_SAVE),
+        ("tv_scene_play", "play", schemas.TV_SCENE_PLAY),
+    ):
+        ctx.register_tool(
+            name=name, toolset="hermes_screen", schema=schema, handler=scene_handler(method)
+        )

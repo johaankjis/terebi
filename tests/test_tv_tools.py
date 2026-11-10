@@ -140,7 +140,15 @@ def assert_clean(result, receiver=None):
 def test_registers_four_tools_and_unload_hook(plugin):
     c = Ctx(free_port())
     plugin.register(c)
-    assert list(c.tools) == ["library_status", "library_pick", "tv_play", "tv_pause"]
+    assert list(c.tools) == [
+        "library_status",
+        "library_pick",
+        "tv_play",
+        "tv_pause",
+        "library_scene_find",
+        "library_scene_save",
+        "tv_scene_play",
+    ]
     assert len(c.unload) == 1
     assert c.tools["tv_play"]["schema"]["parameters"]["required"] == ["item_id"]
     assert c.tools["tv_pause"]["schema"]["parameters"]["properties"] == {}

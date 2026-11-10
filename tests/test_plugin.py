@@ -57,7 +57,15 @@ def test_manifest_and_registration(plugin):
     ctx = FakeCtx()
     plugin.register(ctx)
     assert [t["name"] for t in ctx.registered] == manifest["provides_tools"]
-    assert manifest["provides_tools"] == ["library_status", "library_pick", "tv_play", "tv_pause"]
+    assert manifest["provides_tools"] == [
+        "library_status",
+        "library_pick",
+        "tv_play",
+        "tv_pause",
+        "library_scene_find",
+        "library_scene_save",
+        "tv_scene_play",
+    ]
     assert plugin.PROVIDES_TOOLS == manifest["provides_tools"]
     assert manifest["provides_hooks"] == []
     schemas = {t["name"]: t["schema"] for t in ctx.registered}

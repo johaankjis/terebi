@@ -311,3 +311,21 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
        (`verified: true`, `state: "paused"`, `already_paused: false`,
        `position_s: 4.7`) -> idempotent repeat `tv_pause` (`already_paused: true`,
        `position_s: 4.7`) -> `on_unload` cleanup (`relay_port_8765_closed: true`).
+
+## Scene subtitle source verification — 2026-11-10
+
+- **VERIFIED (OpenAPI 12.4.0 + source v12.4):** text subtitle route is
+  `GET /Videos/{itemId}/{mediaSourceId}/Subtitles/{index}/Stream.{srt|vtt}`.
+  Stream index is looked up in the specified source. Default start position is
+  zero, preserving original cue timestamps. Item metadata lists source-specific
+  subtitle streams. Sources were checked at
+  `83d0d0e7f76e23e2e085c8ff67d28b772d35967d` by the Claude resolver worker.
+  Its downloaded stable OpenAPI hash matches the existing `02a60649…6036e` snapshot.
+- **VERIFIED (mocked fixtures):** SRT/WebVTT parsing, timestamped dialogue across
+  neighboring cues, repeated lines, exact source/track selection, local cache
+  refresh and structured errors. Full track text stays local; compact matching
+  excerpts can appear in chat and therefore reach the user's model provider.
+- **UNVERIFIED (live):** Jellyfin 12.2 subtitle extraction/conversion and ETag
+  behavior. Big Buck Bunny has no dialogue; its acceptance uses a manual marker.
+- No real embedding model is approved or enabled. Fake-embedder tests establish
+  only the injectable interface, not semantic paraphrase quality.

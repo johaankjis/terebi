@@ -6,11 +6,10 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
-- Scene slice provider gate (2026-11-10): requested OpenCode GLM 5.1 is not
-  advertised. Available alternative is `opencode/glm-5.3-flash-free`; user choice
-  is pending before substitution. Claude resolver work can proceed independently.
-- Scene live test needs a user-supplied Big Buck Bunny marker label/timestamp.
-  No local embedding model is approved; semantic ranking stays disabled.
+- Scene slice: no local embedding model is approved; semantic ranking stays disabled.
+  User approved OpenCode `opencode/glm-5.3-flash-free` after GLM 5.1 was unavailable.
+  Live marker: user-supplied “one-minute test scene”, 60 seconds, for
+  `BigBuckBunny_320x180` and its exact media source.
 
 ## Current slice: edition-specific scene playback (2026-11-10)
 
@@ -23,13 +22,13 @@ Draft PR #3 has the same head; this new feature PR will target main independentl
 
 - [x] Verify demo base and preserve its checkout.
 - [x] Agree worker handoff and ownership in [SCENE_CONTRACT.md](SCENE_CONTRACT.md).
-- [ ] Claude Code: exact-source text subtitle ingestion, original cue timestamps,
+- [x] Claude Code: exact-source text subtitle ingestion, original cue timestamps,
   neighboring cue search, local index refresh and resolver tests.
 - [ ] OpenCode: optional source/offset playback, fresh load and seek, measured
   receiver position, ordinary play/pause regression tests (model gate above).
 - [ ] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
   timestamp fallback, Hermes tools and focused integration tests.
-- [ ] Dialogue query fixture; semantic paraphrase only if a local model is approved.
+- [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
 - [ ] Live Telegram: manually saved Big Buck Bunny marker → verified start position
   on Den TV → PAUSED, recording exact tested SHA and cleanup.
 - [ ] One numbered draft PR; merge remains user-owned.

@@ -1,6 +1,6 @@
 # Big Buck Bunny saved-description demo
 
-Status: implementation complete; scene data and live acceptance blocked.
+Status: implementation complete; scene markers saved; live Telegram/Den TV acceptance pending.
 Base: open PR #4 at `3cc3c1e7748dbd043ac98eab201a0adced9e3a78`.
 Manager checkout: `/home/node/.t3/worktrees/terebi/feat-bbb-scene-demo`.
 
@@ -11,19 +11,24 @@ Revalidate this fingerprint when saving and playing; do not assume a replacement
 file has the same timings. The pre-existing 60-second test marker is unrelated
 to these three scene actions and must remain intact.
 
-| Candidate description | Start in exact copy | Verification |
+| Saved description (user-supplied) | Start in exact copy | Verification |
 |---|---|---|
-| Bunny wakes up and comes out of his burrow | Pending | Not verified |
-| The bullies attack the butterfly | Pending | Not verified |
-| Bunny sets traps for the bullies | Pending | Not verified |
+| Bunny comes out of his burrow. | 00:45 (45 s) | User-supplied for this copy; saved 2026-11-10 |
+| The bullies attack the butterfly. | 03:05 (185 s) | User-supplied for this copy; saved 2026-11-10 |
+| Bunny starts setting traps. | 04:04 (244 s) | User-supplied for this copy; saved 2026-11-10 |
 
-Manager inspection attempt: authenticated metadata request to the configured
-Jellyfin returned HTTP 401, including after extracting the expected key format.
-The private delivery file was removed. No media was downloaded, no scene action
-was viewed, and no timestamps were guessed from another edition or test fixture.
-The user has been asked for the three action-start times in this exact copy.
-If a candidate is unclear, replace it only with a clearly verified moment and
-record the replacement here. All times in unit tests are synthetic fixtures.
+Marker save (2026-11-10 21:19 UTC, pinned `cb4b69d`, isolated Hermes v0.22.0):
+before saving, the only stored marker was the 60-second test marker, so nothing
+was duplicated. The three user-supplied markers were saved through
+`library_scene_save`; `library_scene_find` then returned exactly four markers
+with the 60-second marker intact. No aliases were saved: earlier draft aliases
+were not user-supplied, and one mirrored the planned paraphrase test. Evidence:
+[bbb-scene-markers-20261110.json](evidence/bbb-scene-markers-20261110.json).
+
+The earlier HTTP 401s came from the temporary acceptance bootstrap, which sent
+`X-Emby-Token`. This Jellyfin 12.2.0 server rejects that header and accepts the
+`Authorization: MediaBrowser ... Token=` header the plugin already uses. The
+agent viewed no media and inferred no times.
 
 After verification, save each description/start through `library_scene_save`
 into the existing profile-owned `scene_markers_v1:<scope>` collection. Exact
@@ -42,8 +47,7 @@ Live acceptance remains pending:
 3. Correlate tool result item/source to the single-item capability, then receiver
    PLAYING and measured position within the existing three-second-plus-elapsed
    tolerance. Reply with the scene and confirmed position. Verify pause as cleanup.
-4. Try “Play the scene with the bullies” (ambiguous across the butterfly/trap
-   scenes) and an unsupported action such as “Play the part where a car explodes.”
+4. Try a vague request that could match more than one scene and an unsupported action such as “Play the part where a car explodes.”
    Verify requests return choice/no-match and issue no playback command. Do not
    select a candidate in the ambiguous case. Record receiver/tool audit evidence.
 5. Release the media relay and confirm port closure before stopping forwarding.
@@ -76,5 +80,5 @@ Automated verification on **`cb4b69d73ec242cf8b76d673f2e8679fce46a8cb`**:
   pause and cleanup. This is mocked media/receiver evidence, not live Telegram.
 - Local logs: `/tmp/terebi-bbb-description-checks-3bltl0zq/{doctor,validate,smoke}.log`.
 
-Live Telegram and Den TV evidence: **not yet collected** for this feature. Three
-scene timestamps remain unverified. Keep the new PR draft; user owns merging.
+Live Telegram and Den TV evidence: **not yet collected** for this feature. The three
+scene markers are saved from user-supplied timestamps. Keep the new PR draft; user owns merging.

@@ -41,8 +41,8 @@ on PR #4 while that dependency remains unmerged. User owns merging this slice.
   bounded optional end time, Hermes description lookup and candidate wiring.
   Registered-tool tests cover paraphrase playback, unchanged legacy markers,
   changed-record revalidation, and lookup-only ambiguous/unmatched results.
-- [ ] Verify three scenes in the user's exact copy; store records separately
-  from the movie. Candidate actions: Bunny emerges, butterfly attacked, traps.
+- [x] Three user-supplied scenes saved for the exact copy (45 s, 185 s, 244 s),
+  separate from the movie; 60-second marker preserved, no duplicates, no aliases.
 - [ ] Telegram paraphrase → exact-edition PLAYING near selected saved start.
 - [ ] Ambiguous and unmatched descriptions do not initiate playback.
 - [x] Focused/full tests and Hermes checks on code `cb4b69d`: 817 tests,
@@ -51,10 +51,10 @@ on PR #4 while that dependency remains unmerged. User owns merging this slice.
 - [x] Opened draft PR #5, stacked on PR #4; scene-data/live acceptance blockers
   remain visible. User owns merging.
 
-**Scene-data blocker:** authenticated exact-copy metadata/stream inspection
-returned HTTP 401 with the newly supplied credential. No timestamps have been
-inferred from another edition. Need a working Jellyfin API key for inspection
-or the user's three verified action-start timestamps for this exact copy.
+**Scene data:** resolved 2026-11-10 21:19 UTC. The 401 came from the ad-hoc
+bootstrap's `X-Emby-Token` header; the plugin's `Authorization` header gets 200.
+Gateway for @terebitvbot runs pinned `cb4b69d` with the saved markers; Den TV
+`192.168.0.134` reachable. Remaining: user's live Telegram → Den TV test.
 
 ## Current slice: edition-specific scene playback (2026-11-10)
 

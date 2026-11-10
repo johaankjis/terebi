@@ -1,0 +1,85 @@
+{
+  "recorded_at": "2026-11-10T21:19:24.829618+00:00",
+  "plugin_sha": "cb4b69d73ec242cf8b76d673f2e8679fce46a8cb",
+  "runtime": "isolated Hermes v0.22.0 gateway, pinned checkout, tracked tree clean",
+  "jellyfin": {
+    "server_version": "12.2.0",
+    "auth": "Authorization: MediaBrowser Token header -> 200; X-Emby-Token and X-MediaBrowser-Token -> 401 on this server (earlier 401s came from the ad-hoc acceptance bootstrap header, not the plugin)"
+  },
+  "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+  "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+  "duplicate_check": "Before saving, the only stored marker was \"one-minute test scene\" (60 s); none of the three scene markers existed. Save loop skips any matching label or start time.",
+  "source_of_timestamps": "User-supplied for their exact Jellyfin copy of BigBuckBunny_320x180 (00:45, 03:05, 04:04). Not viewed or inferred by the agent.",
+  "aliases": "None saved. Earlier draft aliases were not user-supplied and one mirrored the planned paraphrase test, so they were dropped.",
+  "tool_calls": [
+    {
+      "tool": "library_status",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_find",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_save",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_save",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_save",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_find",
+      "ok": true
+    },
+    {
+      "tool": "library_scene_find",
+      "ok": true
+    }
+  ],
+  "markers_after_save": [
+    {
+      "label": "one-minute test scene",
+      "start_time_s": 60.0,
+      "description": null,
+      "marker_id": "cdb7ed85213fd0e7a9353882"
+    },
+    {
+      "label": "bunny-comes-out-of-burrow",
+      "start_time_s": 45.0,
+      "description": "Bunny comes out of his burrow.",
+      "marker_id": "3893219076eb4b13f5a8250c"
+    },
+    {
+      "label": "bullies-attack-butterfly",
+      "start_time_s": 185.0,
+      "description": "The bullies attack the butterfly.",
+      "marker_id": "001fb1e22d74fc8a7d310821"
+    },
+    {
+      "label": "bunny-starts-setting-traps",
+      "start_time_s": 244.0,
+      "description": "Bunny starts setting traps.",
+      "marker_id": "6429afd8d08ebda15c2b2df8"
+    }
+  ],
+  "den_tv": {
+    "host": "192.168.0.134",
+    "tcp_8008": "open",
+    "tcp_8009": "open",
+    "checked_at": "2026-11-10, shortly before gateway start at 21:19Z"
+  },
+  "offline_matcher_check_user_descriptions_only": {
+    "Play the part where Bunny gets up and goes outside": "ambiguous -> [bunny-comes-out-of-burrow] (asks to confirm)",
+    "the rabbit leaves his hole": "clear -> bunny-comes-out-of-burrow",
+    "when the rodents hurt the butterfly": "clear -> bullies-attack-butterfly",
+    "where the rabbit builds booby traps": "clear -> bunny-starts-setting-traps",
+    "Play the scene with the bullies": "clear -> bullies-attack-butterfly (trap description does not mention bullies)",
+    "Play the part where a car explodes": "none"
+  },
+  "live_telegram_den_tv_acceptance": "pending user test"
+}

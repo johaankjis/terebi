@@ -122,7 +122,26 @@ def test_status_and_commands_never_touch_another_app():
     assert exc.value.reason == "not_our_playback"
     with pytest.raises(CastError):
         session.load("http://x/cast/t/video.mp4", title="T", duration_s=1.0)
+    with pytest.raises(CastError):
+        session.seek(3, 60.0)
     assert cast.media_controller.sent == [] and cast.media_controller.loads == []
+
+
+def test_load_passes_current_time_only_for_an_explicit_start():
+    session = PyChromecastSession("192.0.2.50", 8009)
+    session.launch_receiver()  # load refuses to send while another app is open
+    controller = FakeChromecast.instances[0].media_controller
+    session.load("http://h:1/cast/tok/video.mp4", title="BBB", duration_s=596.459)
+    session.load(
+        "http://h:1/cast/tok2/video.mp4", title="BBB", duration_s=596.459, start_time_s=60.0
+    )
+    session.load(
+        "http://h:1/cast/tok3/video.mp4", title="BBB", duration_s=596.459, start_time_s=0.0
+    )
+    plain, timed, from_start = controller.loads
+    assert "current_time" not in plain[2]  # ordinary LOADs carry no new keyword
+    assert timed[2]["current_time"] == 60.0
+    assert from_start[2]["current_time"] == 0.0  # explicit zero (not None) is sent
 
 
 def test_launch_load_pause_play_wire_format():
@@ -143,6 +162,21 @@ def test_launch_load_pause_play_wire_format():
     assert sent == [{"type": "PAUSE", "mediaSessionId": 7}, {"type": "PLAY", "mediaSessionId": 7}]
     session.request_status()
     assert cast.media_controller.status_requests == 1
+
+
+def test_seek_sends_documented_seek_message():
+    session = PyChromecastSession("192.0.2.50", 8009)
+    cast = FakeChromecast.instances[0]
+    session.launch_receiver()  # _media_ready needs the Default Media Receiver
+    session.seek(7, 60.0)
+    ((data, kwargs),) = cast.media_controller.sent
+    assert data == {
+        "type": "SEEK",
+        "mediaSessionId": 7,
+        "currentTime": 60.0,
+        "resumeState": "PLAYBACK_START",
+    }
+    assert kwargs["inc_session_id"] is True and kwargs["callback_function"] is not None
 
 
 def test_recorder_turns_statuses_into_ordered_events():

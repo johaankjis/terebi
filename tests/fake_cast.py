@@ -46,14 +46,19 @@ class FakeReceiver:
         self.state: str | None = None
         self.idle_reason: str | None = None
         self.position = 0.0
-        self.on_load = "play"  # play | stall | error | load_failed | silent | other | reject
+        self.on_load = (  # play | from_zero | stall | error | load_failed | silent | other
+            "play"
+        )
         self.on_pause = "ok"  # ok | ignore | reject
         self.on_play = "ok"
+        self.on_seek = "ok"  # ok | stall | ignore | reject | ok_noposition
         self.unreachable = False
         self.launch_fails = False
         self.commands: list[tuple[Any, ...]] = []
         self.connections = 0
         self.open_sessions: list[FakeSession] = []
+        # start offset the last LOAD was told to honor (None: ordinary launch)
+        self.last_load_start_time_s: float | None = None
 
     def connect(self, host: str, port: int) -> FakeSession:
         self.commands.append(("connect", host, port))
@@ -125,8 +130,11 @@ class FakeSession:
             self.r.content_id = None
             self.r.state = None
 
-    def load(self, url: str, *, title: str, duration_s: float | None) -> None:
+    def load(
+        self, url: str, *, title: str, duration_s: float | None, start_time_s: float | None = None
+    ) -> None:
         self.r.commands.append(("LOAD", url, title))
+        self.r.last_load_start_time_s = start_time_s
         behavior = self.r.on_load
         if behavior == "reject":
             raise self.r.cast.CastError(
@@ -144,7 +152,8 @@ class FakeSession:
             return
         self.r.content_id = url
         self.r.session_id += 1
-        self.r.state, self.r.idle_reason, self.r.position = "IDLE", None, 0.0
+        start = float(start_time_s) if start_time_s is not None else 0.0
+        self.r.state, self.r.idle_reason, self.r.position = "IDLE", None, start
         self._push()
         if behavior == "stall":
             return
@@ -152,9 +161,37 @@ class FakeSession:
             self.r.idle_reason = "ERROR"
             self._push()
             return
+        if behavior == "from_zero":  # receiver ignored the sender-provided start
+            self.r.state, self.r.position = "PLAYING", 0.2
+            self._push()
+            return
         self.r.state = "BUFFERING"
         self._push()
-        self.r.state, self.r.position = "PLAYING", 0.2
+        self.r.state, self.r.position = "PLAYING", start + 0.2
+        self._push()
+
+    def seek(self, session_id: int, position_s: float) -> None:
+        self.r.commands.append(("SEEK", session_id, position_s))
+        behavior = self.r.on_seek
+        if behavior == "reject":
+            self._push("command_failed")
+            return
+        if behavior == "ignore" or session_id != self.r.session_id:
+            return  # a wrong media session learns nothing, like on hardware
+        if behavior == "ok_noposition":
+            self.r.state = "PLAYING"
+            self._push(position_s=None)
+            return
+        if behavior == "wrongpos":  # PLAYING acked, but the position never moves
+            self.r.state = "PLAYING"
+            self._push()
+            return
+        if behavior == "stall":
+            self.r.state = "BUFFERING"  # moved but never reports PLAYING
+            self.r.position = float(position_s)
+            self._push()
+            return
+        self.r.state, self.r.position = "PLAYING", float(position_s)
         self._push()
 
     def pause(self, session_id: int) -> None:

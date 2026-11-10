@@ -316,6 +316,16 @@ class CastPlaybackManager:
         if outcome.verified and outcome.event is not None:
             owned.session_id = outcome.event.session_id
             return self._success(owned, outcome.event, action=action)
+        if action != "started":
+            # Resume/re-check of media we already confirmed: it is still loaded, so
+            # keep its link (bounded by the TTL) and report without guessing.
+            return _error(
+                "playback_unverified",
+                "I asked the Chromecast to play but it did not confirm "
+                f"(last state: {outcome.last_state or 'unknown'}). Don't assume it is playing.",
+                evidence=outcome.failure or "timeout",
+                item=item,
+            )
         if outcome.failure is not None:
             self._drop()
             return _error(

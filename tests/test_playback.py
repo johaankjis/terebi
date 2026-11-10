@@ -107,6 +107,24 @@ def test_play_after_pause_resumes_same_session(manager, receiver, relay):
     assert ("PLAY", sid) in receiver.commands and len(loads(receiver)) == 1
 
 
+@pytest.mark.parametrize(
+    ("behavior", "evidence"), [("ignore", "timeout"), ("reject", "command_failed")]
+)
+def test_unconfirmed_resume_keeps_the_loaded_media_link(
+    manager, receiver, relay, behavior, evidence
+):
+    play(manager)
+    manager.pause()
+    cap = relay.current()
+    receiver.on_play = behavior
+    result = play(manager)
+    assert result["ok"] is False and result["reason"] == "playback_unverified"
+    assert result["evidence"] == evidence
+    assert relay.current() is cap and not cap.revoked and relay.running
+    assert len(loads(receiver)) == 1
+    assert manager.pause()["already_paused"] is True
+
+
 def test_repeat_after_media_ended_loads_with_new_capability(manager, receiver, relay):
     play(manager)
     first = relay.current()

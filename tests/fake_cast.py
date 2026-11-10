@@ -169,6 +169,9 @@ class FakeSession:
 
     def play(self, session_id: int) -> None:
         self.r.commands.append(("PLAY", session_id))
+        if self.r.on_play == "reject":
+            self._push("command_failed")
+            return
         if self.r.on_play == "ok" and session_id == self.r.session_id:
             self.r.state = "PLAYING"
             self._push()

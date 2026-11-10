@@ -68,3 +68,11 @@ or scene candidates require user selection, with visible titles and timestamps.
 All network requests have explicit timeouts; Jellyfin credentials remain in
 server-side headers. Existing relay expiry/redaction and Cast lifetime fixes stay.
 TV power, visual frame analysis and generated scene descriptions are outside scope.
+
+## Runtime scope compatibility
+
+The v0.22.0 tool dispatcher injects `session_id`, not `conversation_id`. Handlers
+prefer a trusted `conversation_id` if available and otherwise use the injected
+`session_id`. No ID from model arguments participates. Missing host identity fails
+closed; a session reset requires a new scene lookup. The actual ToolRegistry
+smoke covers the v0.22.0 dispatch path and cross-session rejection.

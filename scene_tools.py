@@ -110,7 +110,18 @@ class SceneTools:
                 if isinstance(connection, str):
                     return connection
                 scope = hashlib.sha256(json.dumps(connection[::2]).encode()).hexdigest()
-                who = conversation_id if isinstance(conversation_id, str) else "local"
+                who = (
+                    conversation_id
+                    if isinstance(conversation_id, str) and conversation_id
+                    else None
+                )
+                if method in {"find", "play"} and who is None:
+                    return json.dumps(
+                        _error(
+                            "scene_context_missing",
+                            "Use scene choices inside an active Hermes conversation or session.",
+                        )
+                    )
                 result = getattr(self, "_" + method)(args, connection, scope, who)
             except (ValueError, TypeError, OverflowError):
                 result = _error(

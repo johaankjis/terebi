@@ -190,6 +190,11 @@ def main() -> None:
         # Scene flow through the real namespaced loader, resolver and relay,
         # with a source-bound manual marker and measured fake-receiver seek.
         handlers = {tool["name"]: tool["handler"] for tool in first.tools}
+        from tools.registry import ToolRegistry
+
+        dispatcher = ToolRegistry()
+        for tool in first.tools:
+            dispatcher.register(**tool)
         token = set_secret_scope({"JELLYFIN_API_KEY": "cast-key"})
         try:
             saved = json.loads(
@@ -204,21 +209,23 @@ def main() -> None:
             )
             assert saved["ok"], saved
             found = json.loads(
-                handlers["library_scene_find"](
+                dispatcher.dispatch(
+                    "library_scene_find",
                     {
                         "item_id": BBB_ID,
                         "marker": "fixture scene",
                     },
-                    conversation_id="scene-smoke",
+                    session_id="scene-smoke",
                 )
             )
             assert found["ok"] and len(found["candidates"]) == 1, found
             scene = json.loads(
-                handlers["tv_scene_play"](
+                dispatcher.dispatch(
+                    "tv_scene_play",
                     {
                         "candidate_id": found["candidates"][0]["candidate_id"],
                     },
-                    conversation_id="scene-smoke",
+                    session_id="scene-smoke",
                 )
             )
             assert scene["ok"] and scene["verified"] and scene["action"] == "seeked", scene

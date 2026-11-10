@@ -93,7 +93,10 @@ def register(ctx: Any) -> None:
 
     def scene_handler(method: str) -> Any:
         def handler(args: dict, **kwargs: Any) -> str:
-            return scenes.call(method, args, kwargs.get("conversation_id"))
+            # Hermes v0.22.0 dispatches session_id; newer runtimes may also
+            # provide a stable conversation_id. Both come from the host, not args.
+            identity = kwargs.get("conversation_id") or kwargs.get("session_id")
+            return scenes.call(method, args, identity)
 
         return handler
 

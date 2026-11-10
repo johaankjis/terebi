@@ -234,3 +234,24 @@ def test_movie_must_be_identified_before_scene_search(scene_ctx, respx_mock):
     result = call(scene_ctx, "library_scene_find", {"query": "leaving"})
     assert result["reason"] == "movie_required"
     assert not respx_mock.calls
+
+
+def test_runtime_session_id_is_scoped_when_conversation_id_absent(scene_ctx, respx_mock):
+    routes(respx_mock)
+    find_handler = scene_ctx.tools["library_scene_find"]["handler"]
+    play_handler = scene_ctx.tools["tv_scene_play"]["handler"]
+    found = json.loads(
+        find_handler({"item_id": BBB_ID, "start_time_s": 60}, session_id="runtime-a")
+    )
+    args = {"candidate_id": found["candidates"][0]["candidate_id"]}
+    assert (
+        json.loads(play_handler(args, session_id="runtime-b"))["reason"] == "scene_choice_missing"
+    )
+    assert json.loads(play_handler(args, session_id="runtime-a"))["ok"]
+
+
+def test_scene_choices_fail_closed_without_host_identity(scene_ctx, respx_mock):
+    handler = scene_ctx.tools["library_scene_find"]["handler"]
+    result = json.loads(handler({"item_id": BBB_ID, "start_time_s": 60}))
+    assert result["reason"] == "scene_context_missing"
+    assert not respx_mock.calls

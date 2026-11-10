@@ -75,6 +75,14 @@ _ITEM_TYPES = ("Movie", "Series", "Season", "Episode", "Video")
 _DEFAULT_FIND_TYPES = ("Movie", "Series")
 _RESUME_TYPES = ("Movie", "Episode", "Video")
 
+# Chromecast direct play (Default Media Receiver): what this version accepts unchanged.
+CAST_ITEM_TYPES = ("Movie", "Episode", "Video")
+CAST_CONTAINERS = frozenset({"mp4", "m4v"})
+CAST_FILE_SUFFIXES = (".mp4", ".m4v")
+CAST_VIDEO_CODECS = frozenset({"h264"})
+CAST_AUDIO_CODECS = frozenset({"aac", "mp3"})
+CAST_MAX_HEIGHT = 1080
+
 _GUID_RE = re.compile(r"^[0-9a-f]{32}$")
 _DASHED_GUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _CONTROL_RE = re.compile(r"[\x00-\x20\x7f]")
@@ -521,6 +529,80 @@ class JellyfinClient:
             raise _bad_shape("item")
         return item
 
+    def get_cast_source(self, item_id: str) -> dict[str, Any]:
+        """Validate that ``item_id`` is one file the Chromecast can play as-is.
+
+        The item is read as the configured user (so the user must be able to see
+        it). Only a local MP4 with H.264 video (at most 1080p) and AAC/MP3 or no
+        audio is accepted; anything else raises ``unsupported_media`` rather than
+        pretending a transcode exists. Returns ``{"item_id", "title", "type",
+        "minutes", "duration_s", "media_source_id"}``; the file path is never
+        returned.
+        """
+        norm = _norm_id(item_id)
+        if norm is None:
+            raise JellyfinError("invalid_argument", "item_id must be a Jellyfin item id.")
+        user = self.resolve_user()
+        try:
+            data, _ = self._get(f"/Items/{norm}", {"userId": user["id"]})
+        except JellyfinError as exc:
+            if exc.reason == "not_found":
+                raise JellyfinError(
+                    "not_found",
+                    "Jellyfin has no item with that id for this user. Pick from the library again.",
+                ) from None
+            raise
+        item = _shape_item(data)
+        if item is None or item["item_id"] != norm:
+            raise _bad_shape("item")
+        if item["type"] not in CAST_ITEM_TYPES:
+            raise JellyfinError(
+                "unsupported_media",
+                f"That item is a {_safe_label(item['type'])}, not a single video. "
+                "Pick a movie, episode or video.",
+            )
+        sources = data.get("MediaSources")
+        if not isinstance(sources, list) or not sources:
+            raise JellyfinError(
+                "unsupported_media", "Jellyfin lists no playable file for this item."
+            )
+        dicts = [s for s in sources if isinstance(s, dict)]
+        source = next((s for s in dicts if _norm_id(s.get("Id")) == norm), None)
+        if source is None:
+            source = dicts[0] if dicts else None
+        problem = _cast_problem(source)
+        if problem is not None:
+            raise JellyfinError(
+                "unsupported_media",
+                f"This item can't play directly on the Chromecast: {problem}. Only MP4 files "
+                "with H.264 video (up to 1080p) and AAC or MP3 audio are supported; "
+                "transcoding is not.",
+            )
+        ticks = item["_ticks"]
+        return {
+            "item_id": norm,
+            "title": item["title"],
+            "type": item["type"],
+            "minutes": item["minutes"],
+            "duration_s": ticks / TICKS_PER_SECOND if ticks else None,
+            "media_source_id": _norm_id(source.get("Id")) if source else None,
+        }
+
+    def cast_stream_target(self, source: Mapping[str, Any]) -> tuple[str, str]:
+        """The pinned static-stream URL and ``Authorization`` value for a cast source.
+
+        ``source`` must come from :meth:`get_cast_source`. The URL is built only
+        from the configured base URL and validated hex ids (no caller-supplied
+        path or query); the API key stays in the returned header value and is
+        never placed in the URL.
+        """
+        item_id = _norm_id(source.get("item_id"))
+        source_id = _norm_id(source.get("media_source_id"))
+        if item_id is None or source_id is None:
+            raise JellyfinError("invalid_argument", "Not a validated cast source.")
+        url = f"{self._base_url}/Videos/{item_id}/stream?static=true&mediaSourceId={source_id}"
+        return url, self._auth_header()
+
     def find_items(
         self,
         query: str | None = None,
@@ -863,6 +945,55 @@ def _bad_shape(what: str) -> JellyfinError:
         f"Jellyfin sent {what} in a shape this plugin does not understand. "
         "The server version may be unsupported.",
     )
+
+
+def _safe_label(value: Any) -> str:
+    """A short server-supplied label reduced to harmless characters."""
+    text = value if isinstance(value, str) else ""
+    cleaned = "".join(c for c in text[:24] if c.isalnum() or c in "._-, ")
+    return cleaned or "unknown"
+
+
+def _cast_problem(source: Any) -> str | None:
+    """Why a raw ``MediaSourceInfo`` can't be cast directly, or ``None`` if it can."""
+    if not isinstance(source, dict):
+        return "Jellyfin lists no usable file"
+    if _norm_id(source.get("Id")) is None:
+        return "its media source has no valid id"
+    protocol = source.get("Protocol")
+    if protocol is not None and protocol != "File":
+        return "it is not a local file"
+    if source.get("IsRemote") is True:
+        return "it is a remote stream"
+    container = source.get("Container")
+    parts = set()
+    if isinstance(container, str):
+        parts = {part.strip().lower() for part in container.split(",")}
+    if not parts & CAST_CONTAINERS:
+        return f"its container is {_safe_label(container)}, not MP4"
+    path = source.get("Path")
+    if isinstance(path, str) and not path.lower().endswith(CAST_FILE_SUFFIXES):
+        return "its file is not an .mp4"
+    streams = source.get("MediaStreams")
+    streams = [s for s in streams if isinstance(s, dict)] if isinstance(streams, list) else []
+    videos = [s for s in streams if s.get("Type") == "Video"]
+    if not videos:
+        return "Jellyfin reports no video stream"
+    video = videos[0]
+    codec = video.get("Codec")
+    if not isinstance(codec, str) or codec.lower() not in CAST_VIDEO_CODECS:
+        return f"its video codec is {_safe_label(codec)}, not H.264"
+    height = video.get("Height")
+    if _is_int(height) and height > CAST_MAX_HEIGHT:
+        return "its video is larger than 1080p"
+    audios = [s for s in streams if s.get("Type") == "Audio"]
+    if audios:
+        wanted = source.get("DefaultAudioStreamIndex")
+        audio = next((s for s in audios if _is_int(wanted) and s.get("Index") == wanted), audios[0])
+        codec = audio.get("Codec")
+        if not isinstance(codec, str) or codec.lower() not in CAST_AUDIO_CODECS:
+            return f"its audio codec is {_safe_label(codec)}, not AAC or MP3"
+    return None
 
 
 def _parse_user(entry: Any) -> dict[str, str] | None:

@@ -265,3 +265,49 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   subsequently confirmed `PAUSED` at 14.462817s in the same media session; paused
   frame held for 15s before cleanup. Human-visible playback is confirmed; physical
   wake and human confirmation of pause remain unverified. Endpoint/copy removed.
+
+## Jellyfin cast-source and authenticated byte-range stream verification — 2026-11-10
+
+- **VERIFIED (live Jellyfin 12.2.0 + isolated Hermes v0.22.0 runtime):**
+  - `GET /Items/e5d6c471a8a4ea26e00a3694f91bf8d1?userId=682764864adc45bbb6b981837f790812`
+    returns `MediaSources[0]` with `Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`,
+    `Container: "mp4"`, `Protocol: "File"`, `IsRemote: false`, `Size: 64657027`,
+    `RunTimeTicks: 5964583330`, stream 0 `Video` (`Codec: "h264"`, `320x180`), and
+    stream 1 `Audio` (`Codec: "aac"`, 2ch, `48000` Hz).
+    `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` validates
+    and normalizes this record without exposing filesystem paths.
+  - `GET /Videos/e5d6c471a8a4ea26e00a3694f91bf8d1/stream?static=true&mediaSourceId=e5d6c471a8a4ea26e00a3694f91bf8d1`
+    with `Authorization: MediaBrowser ...` supports both `HEAD` (`200 OK`,
+    `content-type: video/mp4`, `accept-ranges: bytes`, `content-length: 64657027`)
+    and `Range: bytes=0-1023` (`206 Partial Content`,
+    `content-range: bytes 0-1023/64657027`, `content-length: 1024`, MP4 box signature
+    `ftypisom`).
+  - Official `hermes plugins validate --install-deps` on the 4-tool tree (`library_status`,
+    `library_pick`, `tv_play`, `tv_pause`) passes with `security scan — caution` for
+    `bind_all_interfaces` (`playback.py:77`, `plugin.yaml:50`, `relay.py:158`,
+    `relay.py:166`) because containerized deployments may bind `0.0.0.0:8765`.
+  - **VERIFIED (live Chromecast Gen 2 `192.168.0.134`, firmware `1.56.467165`, `2026-11-10`):**
+    1. **Sender disconnect vs receiver app lifetime (`CC1AD845`):** `pychromecast`'s
+       `SocketClient._cleanup()` sends `{"type": "CLOSE"}` on
+       `urn:x-cast:com.google.cast.tp.connection` for every channel in
+       `self._open_channels` (including `CC1AD845`'s `transport_id`). When `CC1AD845`
+       on Chromecast Gen 2 receives an explicit `CLOSE` message from its last connected
+       sender, it immediately exits (`app_id` becomes `None`). Clearing
+       `socket_client._open_channels` before `cast.disconnect(timeout=2.0)` closes the
+       TCP control socket cleanly without sending `CLOSE` to `transport_id`, keeping
+       `CC1AD845` playing across separate tool calls (`tv_play` -> `tv_pause`).
+    2. **Outgoing session `IDLE`/`INTERRUPTED` on `LOAD`:** When `LOAD` replaces an
+       existing media session on `CC1AD845`, the receiver first emits a `MEDIA_STATUS`
+       for the outgoing `mediaSessionId` with `playerState: "IDLE"`,
+       `idleReason: "INTERRUPTED"`, and `extendedStatus.media.contentId` already set to
+       the newly loaded capability URL, followed milliseconds later by `BUFFERING` and
+       `PLAYING` on the new `mediaSessionId`. Ignoring `IDLE`/`INTERRUPTED` before
+       `BUFFERING` or `PLAYING` is observed prevents false failure reports on `LOAD`.
+    3. **End-to-end Hermes `v0.22.0` live acceptance (`01:43:22Z–01:43:32Z` UTC):**
+       `library_status` -> `library_pick(max_minutes=20)` (`BigBuckBunny_320x180`,
+       `e5d6c471a8a4ea26e00a3694f91bf8d1`) -> `tv_play` (`verified: true`,
+       `state: "playing"`, `action: "started"`, `position_s: 0.0`,
+       `duration_s: 596.5`, `relay_expires_in_minutes: 25`) -> `tv_pause` after 5.0s
+       (`verified: true`, `state: "paused"`, `already_paused: false`,
+       `position_s: 4.7`) -> idempotent repeat `tv_pause` (`already_paused: true`,
+       `position_s: 4.7`) -> `on_unload` cleanup (`relay_port_8765_closed: true`).

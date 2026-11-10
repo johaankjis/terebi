@@ -180,3 +180,34 @@ Local evidence: `observed-repeat-result.json` and `human-observation.json` under
 `/tmp/terebi-cast-proof-20261110/`. The automatic runner's human-confirmation field
 is not chat-aware; the separate annotation records the actual user response.
 The earlier exact-URL log is preserved as `first-exact-url-result.json`.
+
+## Live Jellyfin cast-source preflight and Chromecast readiness check — 2026-11-10
+
+Executed in the isolated Hermes `v0.22.0` runtime (`/tmp/hermes-screen-hermes-venv/bin/python`) against live Jellyfin `12.2.0` (`http://192.168.0.126:8097`) on the integrated `feat/jellyfin-chromecast-playback` code (`de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493` / cherry-picked `da54f74`). `JELLYFIN_API_KEY` was requested via T3's one-time file secret card, read into memory, and immediately `unlink()`ed before any network call (`secret_file_unlinked: True`).
+
+1. **Live Jellyfin item metadata and `get_cast_source` verification (`e5d6c471a8a4ea26e00a3694f91bf8d1`):**
+   - `JellyfinClient.status()` returned `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"movies": 1, "series": 0, "episodes": 0}}`.
+   - Raw `GET /Items/e5d6c471a8a4ea26e00a3694f91bf8d1?userId=682764864adc45bbb6b981837f790812` `MediaSources[0]` reported:
+     - `Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `Container: "mp4"`, `Protocol: "File"`, `IsRemote: false`, `Size: 64657027`, `Bitrate: 867212`, `RunTimeTicks: 5964583330`, `SupportsDirectPlay: true`, `SupportsDirectStream: true`, `DefaultAudioStreamIndex: 1`.
+     - Stream 0 (`Video`): `Codec: "h264"`, `Profile: "Constrained Baseline"`, `Width: 320`, `Height: 180`.
+     - Stream 1 (`Audio`): `Codec: "aac"`, `Profile: "LC"`, `Channels: 2`, `SampleRate: 48000`.
+   - `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` returned:
+     `{"duration_s": 596.458333, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "minutes": 10, "title": "BigBuckBunny_320x180", "type": "Movie"}`.
+2. **Live authenticated upstream `HEAD` and byte-range `GET` (`cast_stream_target`):**
+   - Upstream URL: `http://192.168.0.126:8097/Videos/e5d6c471a8a4ea26e00a3694f91bf8d1/stream?static=true&mediaSourceId=e5d6c471a8a4ea26e00a3694f91bf8d1` with `Authorization: MediaBrowser ...` header.
+   - Authenticated `HEAD` returned HTTP `200` (`content-type: video/mp4`, `accept-ranges: bytes`, `content-length: 64657027`).
+   - Authenticated `GET` with `Range: bytes=0-1023` returned HTTP `206` (`content-type: video/mp4`, `accept-ranges: bytes`, `content-range: bytes 0-1023/64657027`, `content-length: 1024`, `bytes_read: 1024`, MP4 box signature `ftypisom`).
+3. **Live Hermes `v0.22.0` `library_pick` -> `tv_play` -> `tv_pause` acceptance on Chromecast Gen 2 (`192.168.0.134`, `t3-cast-8765` active) — PASS (2026-11-10):**
+   - **Initial live attempt (`01:31:29Z`) and two real-hardware fixes:**
+     1. In the first live run on `da54f74`, `tv_play` verified `PLAYING` (`01:31:34.003Z`), but `tv_pause` 4 seconds later (`01:31:38.003Z`) returned `not_our_playback` because `PyChromecastSession.close()` called `cast.disconnect()`, whose `SocketClient._cleanup()` sent a Cast `CLOSE` message on `urn:x-cast:com.google.cast.tp.connection` to `CC1AD845`'s `transport_id`. On Chromecast Gen 2 firmware `1.56.467165`, receiving an explicit `CLOSE` from the last connected sender causes `CC1AD845` to exit immediately (`app_id` becomes `None`). Clearing `socket_client._open_channels` before `cast.disconnect(timeout=2.0)` closes the local TLS socket without sending `CLOSE` to the running receiver app, keeping `CC1AD845` playing across separate tool calls.
+     2. When `LOAD` replaces an existing media session on `CC1AD845`, the receiver first emits a `MEDIA_STATUS` for the outgoing session with `playerState: "IDLE"`, `idleReason: "INTERRUPTED"`, and `extendedStatus.media.contentId` already set to the newly loaded URL before emitting `BUFFERING` and `PLAYING` on the new `mediaSessionId`. `CastPlaybackManager._await()` was updated to ignore that pre-buffering `IDLE`/`INTERRUPTED` transition when waiting for a fresh `LOAD`.
+   - **Verified live acceptance run (`01:43:22Z` UTC, isolated Hermes `v0.22.0` official loader + `agent.secret_scope`, one-time secret file unlinked immediately):**
+     - `library_status({})` (`01:43:22.260Z` -> `01:43:22.304Z`): `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"episodes": 0, "movies": 1, "series": 0}}`.
+     - `library_pick({"max_minutes": 20})` (`01:43:22.304Z` -> `01:43:22.354Z`): recommended `BigBuckBunny_320x180` (`item_id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `source: "resume"`, `minutes: 10`, `remaining_minutes: 2`, `complete: true`, `truncated: false`, `errors: []`).
+     - `tv_play({"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"})` (`01:43:22.355Z` -> `01:43:26.503Z`):
+       `{"ok": true, "verified": true, "state": "playing", "action": "started", "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 0.0, "duration_s": 596.5, "relay_expires_in_minutes": 25, "note": "The Chromecast reported this exact item playing. TV power and input were not checked. The stream link stops working after relay_expires_in_minutes."}`.
+     - `tv_pause({})` after 5.0s playback (`01:43:31.503Z` -> `01:43:31.898Z`):
+       `{"ok": true, "verified": true, "state": "paused", "already_paused": false, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`.
+     - Idempotent second `tv_pause({})` (`01:43:31.898Z` -> `01:43:32.115Z`):
+       `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`.
+     - `on_unload` cleanup (`01:43:32.416Z`): `relay_port_8765_closed: true`, `secret_file_unlinked: true`, and receiver quit back to idle.

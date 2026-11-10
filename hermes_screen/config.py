@@ -44,6 +44,16 @@ class Config:
     def is_jellyfin_configured(self) -> bool:
         return bool(self.jellyfin_url() and self.jellyfin_api_key())
 
+    # -- Chromecast -----------------------------------------------------------
+    def chromecast_host(self) -> str | None:
+        return self._clean(self.ctx.get_config("chromecast_host", default=None))
+
+    def cast_media_base_url(self) -> str | None:
+        return self._clean(self.ctx.get_config("cast_media_base_url", default=None))
+
+    def cast_relay_bind(self) -> str | None:
+        return self._clean(self.ctx.get_config("cast_relay_bind", default=None))
+
     # -- Roku ---------------------------------------------------------------
     def roku_ip(self) -> str | None:
         return self._clean(self.ctx.get_config("roku_ip", default=None))

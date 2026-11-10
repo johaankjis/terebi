@@ -55,3 +55,50 @@ LIBRARY_PICK = {
         "required": ["max_minutes"],
     },
 }
+
+TV_PLAY = {
+    "name": "tv_play",
+    "description": (
+        "Play one item from the user's Jellyfin library on the configured "
+        "Chromecast and confirm it is really playing. Pass the exact item_id "
+        "returned by library_pick (never a title, and never a guessed or "
+        "remembered id). Only MP4 files with H.264 video (up to 1080p) and "
+        "AAC/MP3 audio can play; others return reason 'unsupported_media' "
+        "(there is no transcoding). ok=true means the Chromecast itself reported "
+        "that exact item PLAYING. If ok is false, relay 'reason', 'evidence' and "
+        "'hint' honestly: for example 'app_opened' means the player opened but "
+        "the video was not confirmed, so never say it is playing. Calling it "
+        "again for the same item does not restart it (a paused item resumes). "
+        "It does not turn on the TV or switch inputs, and the temporary stream "
+        "link expires after 'relay_expires_in_minutes'."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "item_id": {
+                "type": "string",
+                "minLength": 32,
+                "maxLength": 36,
+                "description": "Exact Jellyfin item id from library_pick, e.g. 32 hex characters.",
+            },
+        },
+        "required": ["item_id"],
+    },
+}
+
+TV_PAUSE = {
+    "name": "tv_pause",
+    "description": (
+        "Pause what tv_play started on the Chromecast and confirm it paused. It "
+        "only pauses the exact stream and media session this plugin started; "
+        "anything else on the Chromecast is left alone and reported as "
+        "'not_our_playback'. Safe to call twice: if it is already paused it "
+        "returns ok with already_paused=true. If ok is false, say it is not "
+        "confirmed paused. Takes no arguments."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+}

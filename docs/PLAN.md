@@ -81,6 +81,38 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 - [x] Settings via `config_schema`, secret API key read the sanctioned way (`agent.secret_scope.get_secret`)
 - [x] Test harness with respx
 
+## Current slice: Jellyfin to Chromecast (authorized 2026-11-10)
+
+- Base verified clean at `c19b1f70fedf19c7ad608998026f1d6974f88fca`; origin/main
+  is `6b11f9711e1213c3a650c6ecb0095da4945b379b`. Draft PR #2 is open and docs-only.
+  Code has no dependency on its changes; this slice stacks on its branch to retain
+  verified hardware evidence and avoid duplicating it in the implementation PR.
+- [x] Reuse `library_pick`; add exact Jellyfin item play (`tv_play`) and explicit pause (`tv_pause`) tools.
+- [x] Serve an expiring, item-scoped LAN media capability; keep Jellyfin credentials
+  server-side, support bounded streaming/ranges, redact tokens, clean up on expiry.
+- [x] Verify exact URL and fresh PLAYING/PAUSED receiver states; keep TV wake out.
+- [x] One Claude Code worker owns implementation and focused mocked tests in a
+  separate tool-created worktree (`/home/node/.t3/worktrees/terebi/t3-8d379d55`,
+  branch `t3/jellyfin-chromecast-playback`, HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`).
+  Manager integrated onto `feat/jellyfin-chromecast-playback`, fixed two real-hardware
+  Cast behaviors discovered during live testing (suppressing `CLOSE` on `CC1AD845`'s
+  `transport_id` when closing per-call control sockets, and ignoring outgoing session
+  `IDLE`/`INTERRUPTED` transitions on `LOAD`), ran automated + Hermes `v0.22.0` checks
+  (553 pytest tests, Ruff, doctor 4 tools, validate with visible `bind_all_interfaces`
+  caution, `hermes_smoke.py`), and verified live Jellyfin `12.2.0` item metadata
+  (`get_cast_source`) + authenticated `HEAD` (`200`) and byte-range (`206`) streaming.
+- [x] Live acceptance (`2026-11-10T01:43:22Z–01:43:32Z`): `library_pick` recommended
+  Big Buck Bunny (`e5d6c471a8a4ea26e00a3694f91bf8d1`, `source: "resume"`, 2m left);
+  `tv_play` verified `state: "playing"` (`action: "started"`, `position_s: 0.0`,
+  `duration_s: 596.5`, `relay_expires_in_minutes: 25`) on Chromecast Gen 2
+  `192.168.0.134`, `tv_pause` verified `state: "paused"` (`already_paused: false`,
+  `position_s: 4.7`) and idempotent repeat (`already_paused: true`, `position_s: 4.7`),
+  and `on_unload` closed the relay (`relay_port_8765_closed: true`).
+
+This explicit user request supersedes the older exclusions of Chromecast workers
+and the historic worker-base instructions below. No Roku control, TV wake, new
+recommendation engine, watcher, automatic history writes or Telegram UI is included.
+
 ## Milestone 2: Core (Sun Nov 8 to Mon Nov 9)
 
 - [x] Jellyfin client: server info, user lookup, items search/filter, resume, Next Up, session identity — implementation, mocked tests, live `library_status` + `library_pick(max_minutes=20)`, and live Roku 3 `/Sessions` + `verify_playback` verified against Jellyfin `12.2.0` at `22d28304f787c339b20e137975193d91e88d8e89`
@@ -322,3 +354,49 @@ repeat validation on the final integration SHA after adopting worker documentati
   `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so programmatic launch
   and pause require Roku ECP on port `8060` (gated on the third-party ECP shipping
   restriction).
+
+## Jellyfin-to-Chromecast integration and live acceptance checkpoint — 2026-11-10
+
+- Worker checkout `/home/node/.t3/worktrees/terebi/t3-8d379d55` (`t3/jellyfin-chromecast-playback`,
+  HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`, verified clean) was cherry-picked
+  onto `feat/jellyfin-chromecast-playback` (`1a77c70..da54f74`) stacked on Draft PR #2
+  (`c19b1f70fedf19c7ad608998026f1d6974f88fca`).
+- Reviewed `hermes_screen/relay.py`, `hermes_screen/cast.py`, `hermes_screen/playback.py`,
+  `hermes_screen/jellyfin.py`, `plugin.yaml`, `__init__.py`, `schemas.py`, `tools.py`,
+  and `pyproject.toml`:
+  - `JELLYFIN_API_KEY` stays server-side in `Capability.auth_header` (`repr=False`) and is
+    sent only in the `Authorization` header to Jellyfin's static stream endpoint with
+    `follow_redirects=False`. Capability tokens are 256-bit `secrets.token_urlsafe(32)`
+    values redacted from `pychromecast` logs and never written by the HTTP server.
+  - Capability TTL is bounded to 15 min – 4 hours (`duration_s + 900s`), checked on every
+    request and every 64 KiB chunk. Expiry or replacement revokes the token, clears
+    `auth_header`, shuts down active sockets (`SHUT_RDWR`), closes upstream streams, and
+    closes the HTTP listener. `ctx.on_unload(manager.close)` cleans up on plugin unload.
+  - `hermes plugins validate --install-deps` passes with a visible `security scan — caution`
+    for `bind_all_interfaces` (`playback.py:77`, `plugin.yaml:50`, `relay.py:158`,
+    `relay.py:166`); kept visible without scanner suppression.
+- Two real-hardware fixes applied after live Chromecast Gen 2 (`192.168.0.134`, firmware
+  `1.56.467165`) testing:
+  1. `PyChromecastSession.close()` in `hermes_screen/cast.py` clears
+     `socket_client._open_channels` before calling `cast.disconnect(timeout=2.0)` so
+     disconnecting the per-call control socket does not send a Cast `CLOSE` message to
+     `CC1AD845`'s `transport_id` (which caused `CC1AD845` to exit between `tv_play` and
+     `tv_pause`).
+  2. `CastPlaybackManager._await()` in `hermes_screen/playback.py` ignores an outgoing
+     session's transitional `IDLE`/`INTERRUPTED` status when `session_id is None` and
+     `outcome.last_state` has not yet reached `"BUFFERING"` or `"PLAYING"`.
+- Automated checks: **553 pytest tests passed**, Ruff check/format clean (37 files),
+  `git diff --check` clean, `hermes plugins doctor --ci` passed (4 tools, 0 hooks),
+  `hermes plugins validate --install-deps` passed, and `tests/hermes_smoke.py` passed.
+- Live Jellyfin `12.2.0` preflight and Chromecast Gen 2 (`192.168.0.134`) acceptance in
+  the isolated Hermes `v0.22.0` runtime passed at `2026-11-10T01:43:22Z–01:43:32Z` UTC:
+  - `library_status({})`: `ok: true`, `terebi` `12.2.0`, user `homelab-hp`.
+  - `library_pick({"max_minutes": 20})`: `BigBuckBunny_320x180`
+    (`e5d6c471a8a4ea26e00a3694f91bf8d1`, `source: "resume"`, `remaining_minutes: 2`).
+  - `tv_play({"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"})`: `ok: true`,
+    `verified: true`, `state: "playing"`, `action: "started"`, `position_s: 0.0`,
+    `duration_s: 596.5`, `relay_expires_in_minutes: 25`.
+  - `tv_pause({})` after 5.0s: `ok: true`, `verified: true`, `state: "paused"`,
+    `already_paused: false`, `position_s: 4.7`, followed by idempotent repeat
+    `tv_pause({})` (`already_paused: true`, `position_s: 4.7`) and `on_unload` cleanup
+    (`relay_port_8765_closed: true`, receiver returned to idle Backdrop).

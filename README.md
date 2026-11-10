@@ -5,7 +5,7 @@ Work in progress for the November 2026 Hermes Agent Plugin Hackathon.
 
 ## Implemented today
 
-Two tools are registered:
+Four tools are registered:
 
 - **`library_status`** checks your configured Jellyfin server, resolves a user, and
   returns the server name/version and available library counts.
@@ -16,18 +16,29 @@ Two tools are registered:
   strictly within `max_minutes`; items with unknown runtime are never picked. Each
   pick carries a one-line reason drawn only from Jellyfin's watch state and metadata.
   It only reads the library: it does **not** start anything on the TV.
+- **`tv_play`** (`item_id`) validates that the exact Jellyfin item is a directly
+  playable local MP4/M4V file (H.264 video up to 1080p, AAC/MP3 or no audio), mints
+  an expiring single-item LAN capability URL (`/cast/<token>/video.mp4`), launches
+  the Chromecast Default Media Receiver (`CC1AD845`) at `chromecast_host`, and waits
+  until the receiver reports a fresh `PLAYING` status for that exact capability URL.
+  If that exact item is already `PAUSED` on the receiver with a valid capability,
+  calling `tv_play` with the same `item_id` resumes the session.
+- **`tv_pause`** (no arguments) pauses the active Hermes Screen media session on the
+  configured Chromecast and verifies that the receiver transitions to `PAUSED` on
+  the same capability URL and media session.
 
 Failures return a short reason and a hint. A failed Jellyfin lookup is reported as
 an error or a partial result, never as "nothing to watch".
 
-The Jellyfin client also implements library search and session playback verification
-(`verify_playback`); those methods are **not** exposed as tools yet. Both
-`library_status` and `library_pick`, as well as `JellyfinClient.verify_playback`
-against an active Roku 3 (`192.168.0.104`) playback session, have been verified
-against the live Jellyfin `12.2.0` server (`terebi`). Programmatic Roku
-playback/control (`tv_*`), Telegram pick/play/pause, `/watch`, YouTube and Friday
-voting are planned, not available. Roku ECP shipping restrictions remain
-unresolved; this build contains no TV control or discovery.
+The Jellyfin client also implements library search and Roku `/Sessions` playback
+verification (`verify_playback`); those methods are **not** exposed as tools yet.
+`library_status`, `library_pick`, `tv_play`, `tv_pause`, `JellyfinClient.get_cast_source`,
+authenticated `HEAD`/byte-range streaming, and `JellyfinClient.verify_playback`
+against an active Roku 3 (`192.168.0.104`) playback session have been verified
+live against the Jellyfin `12.2.0` server (`terebi`) and the user's Chromecast
+Gen 2 (`192.168.0.134`) in the isolated Hermes `v0.22.0` runtime.
+Programmatic Roku control, TV/CEC wake, Telegram pick/play/pause, `/watch`, YouTube,
+and Friday voting are not included in this slice.
 
 ## Install and configure
 
@@ -51,11 +62,13 @@ installing the wheel alone does not enable it in Hermes.
 In Hermes plugin settings, set `jellyfin_url` (including any server base path),
 optional `jellyfin_user` (exact, case-sensitive username or GUID), and the
 `JELLYFIN_API_KEY` secret (Jellyfin Dashboard > API Keys). If user is omitted, the
-server must have exactly one enabled user. Settings and secrets are read through
-Hermes on every tool call; the plugin does not read `.env` files.
+server must have exactly one enabled user. For Chromecast playback (`tv_play` /
+`tv_pause`), also set `chromecast_host`, `cast_media_base_url`, and
+`cast_relay_bind`. Settings and secrets are read through Hermes on every tool call;
+the plugin does not read `.env` files.
 
-Roku settings are not part of the public configuration yet because Roku control is
-not implemented.
+Roku settings are not part of the public configuration because Roku control is not
+implemented.
 
 ## Version compatibility
 
@@ -63,14 +76,18 @@ not implemented.
   later, the catalog entry).
 - The compatible source floor was checked against released Hermes **v0.22.0**
   (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`): official doctor, isolated
-  validate, mocked tool smoke, and live Jellyfin 12.2.0 tool calls passed.
+  validate, mocked tool smoke (`library_status`, `library_pick`, `tv_play`,
+  `tv_pause`), and live Jellyfin 12.2.0 + Chromecast Gen 2 `tv_play` / `tv_pause`
+  acceptance passed.
 - The installed ZimaOS Hermes is **v0.16.0**, below this plugin's declared
   minimum; testing uses a separate v0.22.0 runtime without upgrading that
   installation.
 - Jellyfin requests follow the upstream **12.4.0 OpenAPI** and have been verified
   live against **Jellyfin 12.2.0** (`terebi`) for `library_status`,
-  `library_pick(max_minutes=20)`, and Roku 3 `/Sessions` + `verify_playback`.
-- Python 3.11+; production dependency is `httpx` only.
+  `library_pick(max_minutes=20)`, `tv_play`, `tv_pause`, `get_cast_source`,
+  authenticated `HEAD`/`Range` streaming, and Roku 3 `/Sessions` + `verify_playback`.
+- Python 3.11+; production dependencies are `httpx>=0.27,<1` and
+  `pychromecast>=14,<15`.
 
 See [integration evidence](docs/INTEGRATION.md) for exact commands and revisions.
 
@@ -84,60 +101,75 @@ Public `config_schema` entries (settings via `ctx.get_config`, secrets via
   secret scope (`agent.secret_scope.get_secret`). Never from `.env` or
   `os.environ`.
 - `jellyfin_user` — string, optional (exact case-sensitive username or GUID).
+- `chromecast_host` — string, required for `tv_play` / `tv_pause` (Chromecast LAN IP
+  or hostname, e.g. `192.168.0.134`).
+- `cast_media_base_url` — string, required for `tv_play` / `tv_pause` (LAN `http://host:port`
+  URL the Chromecast fetches from, e.g. `http://192.168.0.126:8765`; never loopback
+  or `0.0.0.0`).
+- `cast_relay_bind` — string, required for `tv_play` / `tv_pause` (local `IP:port`
+  for the temporary media relay listener, e.g. `192.168.0.126:8765` on host or
+  `0.0.0.0:8765` inside a bridge-networked container with port `8765` published).
 
-Non-text settings are rejected. There are no shell commands, background
-processes, SSDP/Roku requests or third-party service calls at runtime in this
-build.
+Non-text settings are rejected.
 
 ## Validation
 
-Official Hermes v0.22.0 doctor, validate (security verdict **safe**), mocked
-loader smoke, and live Jellyfin 12.2.0 verification pass on the integrated tree;
-385 automated tests and Ruff pass. Details are in
+Official Hermes v0.22.0 doctor (`4 tool(s), 0 hook(s)`), validate, mocked loader
+smoke (`tests/hermes_smoke.py`), and live Jellyfin 12.2.0 + Chromecast Gen 2
+`tv_play` / `tv_pause` acceptance pass on the integrated tree; **553 automated tests**
+and Ruff pass. `hermes plugins validate --install-deps` passes with a visible
+`security scan — caution` (`bind_all_interfaces` on `playback.py:77`,
+`plugin.yaml:50`, `relay.py:158`, `relay.py:166`) because containerized setups can
+configure `cast_relay_bind` as `0.0.0.0:8765`. Details are in
 [integration evidence](docs/INTEGRATION.md). Catalog rules distinguish a
 validation failure from a caution finding requiring review.
 
 ## Publication gates (not yet met)
 
 - No catalog PR has been opened and no commit is pinned for publication.
-- Hardware control gate is open: Roku 3 Quick Connect sign-in, manual playback of
-  `BigBuckBunny_320x180`, and live `/Sessions` + `verify_playback` item identity
-  (`e5d6c471a8a4ea26e00a3694f91bf8d1`) are verified, but programmatic Hermes
-  launch, in-app play, pause, and wake have not been demonstrated.
-- Roku ECP third-party shipping restriction is unresolved (and live `/Sessions`
-  confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
-- `library_pick` is verified against live Jellyfin 12.2.0 in the isolated Hermes
+- Live `tv_play` and `tv_pause` through the integrated relay passed on Chromecast
+  Gen 2 (`192.168.0.134`) from the isolated Hermes `v0.22.0` runtime via the
+  temporary ZimaOS host forwarder (`192.168.0.126:8765` -> `172.23.0.2:8765`),
+  while the installed ZimaOS Hermes container remains on `v0.16.0` (below
+  `requires_hermes: ">=0.22.0"`).
+- Roku 3 programmatic control remains gated on Roku's third-party ECP restriction
+  (and live `/Sessions` confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
+- TV/CEC wake is out of scope and unverified.
+- `library_pick`, `tv_play`, and `tv_pause` are verified live in the isolated Hermes
   v0.22.0 runtime, but not yet from Telegram; `/watch` is not built.
-- No TMDB, Chromecast or watcher implementation exists. An authorized direct Cast
-  hardware test on Chromecast Gen 2 verified idle → exact-file playback → pause
-  using a temporary LAN MP4 endpoint. TV wake and Hermes integration remain unverified;
-  [test evidence and cleanup](docs/HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10)
-  are recorded before integration.
 
 ## Troubleshooting
 
-- Missing settings: set the URL and API-key secret in Hermes, then retry.
+- Missing settings: set `jellyfin_url`, `JELLYFIN_API_KEY`, and (for Chromecast)
+  `chromecast_host`, `cast_media_base_url`, and `cast_relay_bind` in Hermes, then retry.
 - Ambiguous user: set the exact username or GUID; the plugin never picks the first user.
 - Authentication failure: check the API key and user permissions.
-- Connection failure: check the URL, base path and server reachability from Hermes.
-- Secret-scope/configuration failure: check the active Hermes profile and plugin settings.
+- Connection failure: check the Jellyfin URL, Chromecast IP, and LAN reachability.
+- Chromecast stays `IDLE` on `tv_play`: verify `cast_media_base_url` uses the host's
+  LAN IP reachable from the Chromecast and that `cast_relay_bind` port is forwarded
+  to the Hermes runtime.
 
 ## Privacy and network use
 
-The implemented tools make HTTP requests only to the configured Jellyfin server,
-with explicit 8-second request timeouts. Redirects are not followed. API keys are
-sent in authentication headers, never query strings. There are no shell commands,
-background processes, SSDP, Roku requests or third-party service calls at runtime.
-Server/user names and library data returned in chat may be seen by your model provider.
-
-Session `verified` means matching item identity on a fresh target session, including
-paused sessions. `playing: true` separately reports active-play evidence;
-`playing: null` establishes neither play nor pause. This is not Roku verification.
+- `library_status` and `library_pick` make HTTP requests only to the configured
+  Jellyfin server with explicit 8-second timeouts (`follow_redirects=False`).
+- `tv_play` and `tv_pause` connect directly to the configured `chromecast_host` on
+  TCP port `8009` (no mDNS broadcast discovery is required when an IP is given) and
+  run a local `ThreadingHTTPServer` bound to `cast_relay_bind` while a capability is
+  active.
+- `JELLYFIN_API_KEY` is never placed in capability URLs or sent to the Chromecast;
+  the relay mints a single 256-bit random capability token (`/cast/<token>/video.mp4`)
+  with a bounded TTL (15 minutes to 4 hours, `duration_s + 900s`), forwards `GET`/`HEAD`
+  and byte-range requests to Jellyfin's static stream endpoint with `Authorization` in
+  the upstream header only, redacts capability paths from logs, and revokes the
+  capability + closes the listener on expiry or plugin unload (`ctx.on_unload`).
+- Server/user names and library data returned in chat may be seen by your model provider.
 
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md), [SOUL.md](SOUL.md) and [the plan](docs/PLAN.md).
-All automated HTTP tests use mocks; hardware verification remains open.
+All automated HTTP and Cast tests use mocks/fakes; live hardware verification is
+recorded in [docs/HARDWARE.md](docs/HARDWARE.md).
 
 ## License
 

@@ -2,11 +2,18 @@
 
 from typing import Any
 
-PROVIDES_TOOLS = ["library_status", "library_pick"]
+PROVIDES_TOOLS = ["library_status", "library_pick", "tv_play", "tv_pause"]
 
 
 def register(ctx: Any) -> None:
-    """Register a handler bound only to this plugin context."""
+    """Register handlers bound only to this plugin context.
+
+    Each context gets its own Chromecast playback manager (relay + what it
+    started); nothing is shared between contexts or profiles. The manager is
+    closed by ``ctx.on_unload`` (Hermes v0.22.0) when the plugin is unloaded.
+    The tv_* handlers expose ``close_cast_relay()`` to revoke the media link and
+    stop the relay early while keeping the tools usable.
+    """
     from . import schemas, tools
 
     def library_status(args: dict, **kwargs: Any) -> str:
@@ -27,4 +34,47 @@ def register(ctx: Any) -> None:
         toolset="hermes_screen",
         schema=schemas.LIBRARY_PICK,
         handler=library_pick,
+    )
+
+    manager: Any = None
+    try:
+        from .hermes_screen.playback import CastPlaybackManager
+
+        manager = CastPlaybackManager()  # no sockets or threads until tv_play
+    except Exception:
+        manager = None  # tv_* tools then report not_configured instead of failing the load
+
+    def close_cast_relay() -> None:
+        """Revoke the media link and stop the relay; the receiver is not touched."""
+        if manager is not None:
+            manager.release()
+
+    if manager is not None:
+        on_unload = getattr(ctx, "on_unload", None)
+        if callable(on_unload):
+            try:
+                on_unload(manager.close)
+            except Exception:
+                pass
+
+    def tv_play(args: dict, **kwargs: Any) -> str:
+        return tools.tv_play(args, ctx=ctx, manager=manager)
+
+    def tv_pause(args: dict, **kwargs: Any) -> str:
+        return tools.tv_pause(args, ctx=ctx, manager=manager)
+
+    tv_play.close_cast_relay = close_cast_relay  # type: ignore[attr-defined]
+    tv_pause.close_cast_relay = close_cast_relay  # type: ignore[attr-defined]
+
+    ctx.register_tool(
+        name="tv_play",
+        toolset="hermes_screen",
+        schema=schemas.TV_PLAY,
+        handler=tv_play,
+    )
+    ctx.register_tool(
+        name="tv_pause",
+        toolset="hermes_screen",
+        schema=schemas.TV_PAUSE,
+        handler=tv_pause,
     )

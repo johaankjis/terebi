@@ -154,3 +154,15 @@ became available. The proof is recorded before integration work.
 Why: Outbound Cast connectivity from a Docker bridge does not establish the
 receiver's ability to fetch an inbound media URL. Exposing only a disposable MP4
 avoids sending Jellyfin credentials or publishing a library directory.
+
+## D-015: Jellyfin-to-Chromecast `tv_play`/`tv_pause` via expiring item-scoped LAN relay
+Date: 2026-11-10 · Status: accepted
+Context: Integrating the Jellyfin-to-Chromecast slice (`de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`) after the direct Cast hardware proof on Chromecast Gen 2 (`192.168.0.134`).
+Decision:
+- Register `tv_play(item_id)` and `tv_pause()` alongside `library_status` and `library_pick` (4 tools, 0 hooks), adding `pychromecast>=14,<15` as a second production dependency in `pyproject.toml`.
+- Validate exact items before casting with `JellyfinClient.get_cast_source(item_id)`: only `Movie`, `Episode`, or `Video` items with a local `File` protocol MP4/M4V container, H.264 video (`<=1080p`), and AAC/MP3 (or no) audio are accepted; unsupported items fail with `unsupported_media` rather than attempting transcoding.
+- Keep `JELLYFIN_API_KEY` server-side in `MediaRelay`: mint one 256-bit capability URL (`/cast/<token>/video.mp4`) at a time with TTL bounded to `[15 min, 4 hours]` (`duration_s + 900s`, or `3600s` when runtime is unknown). Forward `GET`/`HEAD` and single `bytes=` ranges to Jellyfin's static stream endpoint with `follow_redirects=False` and `Authorization` in the upstream header only. On expiry, replacement, `close_cast_relay()`, or `ctx.on_unload`, revoke the capability, clear the stored auth header, shut down active client sockets (`SHUT_RDWR`), close upstream streams, and close the HTTP listener when idle.
+- Require fresh receiver media telemetry matching the exact capability URL (`content_id == capability_url`, `player_state == "PLAYING"` for `tv_play`, and `player_state == "PAUSED"` on the same session for `tv_pause`). Keep TV/CEC wake out of scope.
+- Clear `socket_client._open_channels` before `cast.disconnect(timeout=2.0)` in `PyChromecastSession.close()` so closing a per-call control connection does not send a Cast `CLOSE` message to `CC1AD845`'s `transport_id` (which terminates the Default Media Receiver on Chromecast Gen 2 when the last sender disconnects), and ignore the outgoing session's transitional `IDLE`/`INTERRUPTED` event when `LOAD` replaces an existing session on the receiver.
+- Keep the `hermes plugins validate` `security scan — caution` (`bind_all_interfaces` on `playback.py:77`, `plugin.yaml:50`, `relay.py:158`, `relay.py:166`) visible and documented rather than suppressing scanner rules or hiding the containerized `0.0.0.0:8765` bind option.
+Why: The Chromecast Default Media Receiver fetches media over plain HTTP from the LAN and cannot safely receive the user's Jellyfin API key in a query string. An expiring single-item capability relay bounds exposure to the selected item and duration while preserving strict receiver verification.

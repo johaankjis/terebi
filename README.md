@@ -108,8 +108,11 @@ validation failure from a caution finding requiring review.
   confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
 - `library_pick` is verified against live Jellyfin 12.2.0 in the isolated Hermes
   v0.22.0 runtime, but not yet from Telegram; `/watch` is not built.
-- No TMDB, Chromecast or watcher implementation exists or is planned for the
-  hackathon scope.
+- No TMDB, Chromecast or watcher implementation exists. An authorized direct Cast
+  hardware test on Chromecast Gen 2 verified idle → exact-file playback → pause
+  using a temporary LAN MP4 endpoint. TV wake and Hermes integration remain unverified;
+  [test evidence and cleanup](docs/HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10)
+  are recorded before integration.
 
 ## Troubleshooting
 

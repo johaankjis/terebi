@@ -81,3 +81,83 @@ Roku 3 is an external player: TV wake depends on the actual TV/CEC configuration
 which remains unknown. Test standby separately without assuming Roku TV power
 keys apply. Record exact title, wake and pause separately. Use 3s Roku and 8s Jellyfin request timeouts
 for new implementation (earlier diagnostics used 5s).
+
+## Chromecast Gen 2 direct Cast attempt — 2026-11-10
+
+**Result: PASS — from idle, exact-file PLAYING then PAUSED on the same media session.**
+Recorded before building integration. User explicitly authorized this device and
+credential-free temporary MP4 test; only this Chromecast received control commands.
+
+- Repository base: `6b11f9711e1213c3a650c6ecb0095da4945b379b`, clean `main` at start.
+- Execution: T3 Docker container `172.23.0.2`, gateway `172.23.0.1`, on ZimaOS
+  `192.168.0.126`. This is **not** the installed `hermes` container. No Docker socket
+  or host shell access; linked-environment tool unavailable. Host forwarding became
+  reachable during the test; user specified the final LAN URL below.
+- Target: user-identified Chromecast Gen 2 `192.168.0.134`, live name `Den TV`,
+  firmware `1.56.467165`, build `467165`. TCP 8009/8008 reachable; configured IP
+  used directly. mDNS discovery was not tested.
+- Runner: Python 3.14.10, `pychromecast` 14.1.1, in `/tmp/cast-test-venv` only.
+  No changes to project dependencies or integration code.
+- Source: copied the existing legal Big Buck Bunny item from Jellyfin's static MP4
+  endpoint into a temporary file. This particular GET succeeded without credentials;
+  no Jellyfin setting was changed. Item `e5d6c471a8a4ea26e00a3694f91bf8d1`.
+  Size **64,657,027 bytes**, SHA256
+  `f78f39603e6774907f2faafabf26a667f4a6fc31769ec304a8a8f7c62d280508`.
+- Server: temporary `ThreadingHTTPServer` bound to **`0.0.0.0:8765`**, exact path
+  **`/BigBuckBunny_320x180.mp4`** only, GET/HEAD and byte ranges, `video/mp4`,
+  no authentication, directory listing, credentials or other files. Handler rejects
+  other paths. The copy and HTTP endpoint were removed in `finally` after each test.
+- Cast media URL: **`http://192.168.0.126:8765/BigBuckBunny_320x180.mp4`**.
+  `play_media` used MIME `video/mp4`, stream type `BUFFERED`, then explicit `pause`.
+
+### Final exact-URL test (UTC, 2026-11-10)
+
+| Time | Evidence |
+|---|---|
+| 00:31:16.359 | Host LAN HEAD reached temporary server; 200, expected file length |
+| 00:31:16.440 | Fresh status: idle Backdrop `E8C28D3C`, `is_stand_by: true`, `is_active_input: null`; LOAD sent |
+| 00:31:19.019 | Media GET `Range: bytes=0-`, HTTP 206; later tail and continuation ranges also 206 |
+| 00:31:20.171 | `content_id` exactly matched test URL, `player_state: PLAYING`, media session `1`, duration `596.459` seconds |
+| 00:31:21.093 | After brief buffering, another `PLAYING` report at position `0.2115` seconds |
+| 00:31:23.171 | Explicit pause sent after observing playback |
+| 00:31:23.217 | Exact same URL and media session `1`, `player_state: PAUSED`, position `2.451218` seconds |
+| 00:31:23.218 | Receiver app `CC1AD845`, `Default Media Receiver`; active-input unknown, standby still true |
+| 00:31:23.362 | Quit test receiver and disconnect Cast client |
+| 00:31:23.489 | HTTP listener closed; temporary MP4 deleted |
+
+HTTP requests arrived through peer `172.23.0.3` (forwarding path). Exact receiver
+`content_id` plus fresh state transitions identify the file; the sender-provided
+title label alone is not used as proof. TV power/CEC wake and human screen
+confirmation remain **unknown**. Receiver standby is not evidence of physical TV
+power; it remained true during verified playback.
+
+### Earlier attempts and cleanup
+
+An initial harness attempt at 00:28:24 failed to serialize the CastStatus dataclass
+before sending LOAD; it cleaned up. The corrected attempt at 00:28:36 used the
+container URL `http://172.23.0.2:8765/BigBuckBunny.mp4`: receiver reported exact-URL
+`IDLE` but no HTTP fetch or `PLAYING` within 40 seconds. Pause was not sent; server
+and copy were removed, and receiver returned to Backdrop. Host port 8765 was not
+usable then. This failure motivated the published LAN endpoint.
+
+After host forwarding became reachable, a retry at 00:30:51 using the shorter
+`/BigBuckBunny.mp4` filename passed PLAYING then PAUSED and cleaned up. That retry
+had started just before the user's exact-filename instruction arrived. The final
+attempt above repeated from idle using the requested filename and observed position
+advance before pause. Both copies had the same SHA256.
+
+The disposable runner and event logs remain locally under
+`/tmp/terebi-cast-proof-20261110/`: `probe.py`, final `result.json`, and earlier
+`attempt-1.json` through `attempt-3.json`. No MP4 remains. After cleanup the local
+listener is closed; the host forwarder may accept TCP but serves no media response.
+The user-managed forwarding configuration itself was not changed by the runner.
+
+Network timeouts: HTTP 3s (source copy 8s), Cast socket 3s, connect wait 8s, play
+verification 40s, pause wait 12s, overall guard 100s. No background server remains.
+A successful direct Cast spike does not establish Hermes integration, compatibility
+inside the actual `hermes` container, Jellyfin session/history reporting, or TV wake.
+
+Checks on the unchanged plugin: **385 pytest tests passed**, Ruff lint/format
+passed (27 files), isolated official Hermes v0.22.0 doctor passed (2 tools, 0 hooks),
+and `hermes plugins validate --install-deps` passed with security scan **safe**.
+Validation logs: `/tmp/terebi-cast-proof-hermes-gt64kwx3/`.

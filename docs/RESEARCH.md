@@ -233,3 +233,29 @@ The integrated-tree validation result is recorded separately in INTEGRATION.md.
     (c) handling the distinction between Cast `media_controller.status` telemetry
     and Jellyfin `/Sessions` state if the Default Media Receiver is used instead of
     a full Jellyfin client session.
+
+## Chromecast Gen 2 direct Cast evidence — 2026-11-10
+
+- **VERIFIED (user + live device):** Authorized Gen 2 `192.168.0.134`, name `Den TV`,
+  Cast firmware `1.56.467165`, build `467165`; direct TCP 8009 and 8008 reachable
+  from T3 container `172.23.0.2`. Initial receiver was Backdrop (`E8C28D3C`),
+  `is_stand_by: true`, `is_active_input: null`. No multicast discovery was used.
+- **VERIFIED (failed first attempt):** A temporary MP4 at container IP `172.23.0.2`
+  yielded exact-URL `IDLE` but no `PLAYING` within 40s and no receiver HTTP fetch.
+  Outbound Cast connectivity alone did not establish inbound media reachability.
+- **VERIFIED (live retry after host forwarding):** Serving only the temporary MP4
+  on `0.0.0.0:8765`, with the user's exact LAN URL
+  `http://192.168.0.126:8765/BigBuckBunny_320x180.mp4`, yielded fresh `PLAYING`
+  at 00:31:20.171 UTC, then `PAUSED` at 00:31:23.217, position 2.451218 seconds.
+  Both reports matched the exact URL and media session `1`. Receiver app:
+  Default Media Receiver `CC1AD845`. HTTP range GETs returned 206; observed peer
+  `172.23.0.3` is the forwarding path, not the Chromecast's own IP.
+- **UNVERIFIED:** TV/CEC wake, human screen confirmation, mDNS discovery, execution
+  inside actual `hermes`, and Jellyfin history/session reporting through this receiver.
+  `is_stand_by` remained true during playback and cannot prove TV power state.
+- **VERIFIED (cleanup):** Test receiver quit; HTTP server stopped and local TCP 8765
+  refused connections; temporary MP4 deleted. Host forwarding may still accept TCP,
+  but its HTTP endpoint no longer serves the media. No library credentials or
+  directory listings were exposed. The plugin and its dependencies are unchanged.
+
+Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10).

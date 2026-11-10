@@ -6,6 +6,13 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
+- **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2
+  `192.168.0.134` reported `PLAYING` then `PAUSED` for the exact temporary LAN MP4
+  URL after host port 8765 became reachable. Server stopped and copy deleted.
+  This was run from T3, not the actual `hermes` container; TV/CEC wake and human
+  screen confirmation remain unverified. See [hardware evidence](HARDWARE.md#chromecast-gen-2-direct-cast-attempt--2026-11-10).
+  Record this proof before building the Cast integration; production stream/auth
+  handling and Hermes runtime reachability still need design and verification.
 - Actual runtime is ZimaOS `192.168.0.126`, Docker container `hermes` on
   `hermes_default`; installed Hermes is **v0.16.0** (user-confirmed 2026-11-09),
   below the plugin floor v0.22.0. A separate v0.22.0 runtime passed smoke checks;
@@ -30,19 +37,22 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   *"ECP commands may not be sent from 3rd-party platforms."* With no documented
   third-party exception, Roku 3 programmatic control remains blocked (no ECP
   commands sent).
-- **Chromecast candidate assessed (2026-11-09):** Direct Cast (`pychromecast` on TCP
-  `8009` to a configured LAN IP) can launch the Default Media Receiver from idle over
-  LAN HTTP and pause playback, whereas Jellyfin `/Sessions/{id}/Playing` only works
-  when a Cast/Android TV Jellyfin client session is already active (`SupportsMediaControl: true`),
-  and the official Jellyfin Cast Web Receiver requires HTTPS/DNS. Next step requires
-  user identification of the Chromecast LAN IP and model (classic Chromecast vs.
-  Chromecast with Google TV) or an explicit decision on the Roku ECP gate.
+- **Chromecast identified (2026-11-10):** User authorized Gen 2 at `192.168.0.134`
+  and a temporary credential-free Big Buck Bunny MP4 test. Direct Cast control
+  reaches the receiver; exact-URL playback and pause passed as recorded above. This explicit
+  hardware spike supersedes the earlier exclusion of Chromecast evaluation, but
+  does not add a Cast dependency or tool to the plugin.
 - No programmatic Hermes launch, pause, resume or TV wake evidence yet (manual
   playback and live `/Sessions` item verification succeeded on 2026-11-09). Roku 3
   is an external player, not a Roku TV; do not promise TV power control. See
   HARDWARE.md for carried-forward observations.
 
 ## Milestone 0: Setup + proof (Sun Nov 8, morning)
+
+- [x] Identify and probe authorized Chromecast Gen 2; record direct Cast attempts
+  and verify temporary endpoint/copy cleanup (2026-11-10).
+- [x] Repeat direct Cast from idle with a receiver-reachable temporary MP4 URL;
+  exact URL + `PLAYING`, then same media session + `PAUSED` verified (2026-11-10).
 
 - [x] Repo scaffold with agent docs
 - [x] Pivot docs to Jellyfin on Roku

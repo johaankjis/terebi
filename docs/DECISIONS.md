@@ -138,3 +138,19 @@ Why:
    Android TV / Google TV session (`SupportsMediaControl: true`). Selecting between
    those paths requires the user's Chromecast model and LAN IP (and dependency
    approval if `pychromecast` is added).
+
+## D-014: Gate Cast integration on a temporary, credential-free hardware proof
+Date: 2026-11-10 · Status: accepted
+Context: User identified Chromecast Gen 2 at `192.168.0.134` and requested a direct
+idle → MP4 playback → pause test before integration, with endpoint removal afterward.
+Decision: Use a disposable one-file HTTP server and `pychromecast` 14.1.1 in an
+existing temporary venv for the spike only. No production dependency is added.
+Require a fresh receiver `content_id` matching the exact test URL plus `PLAYING`,
+then `PAUSED` for the same media session. A title label supplied by the sender,
+accepted load, receiver launch or `IDLE` status is insufficient. Keep TV/CEC wake
+and human screen confirmation separate. Record the initial failed media-reachability
+attempt and subsequent successful exact-URL play/pause after host port forwarding
+became available. The proof is recorded before integration work.
+Why: Outbound Cast connectivity from a Docker bridge does not establish the
+receiver's ability to fetch an inbound media URL. Exposing only a disposable MP4
+avoids sending Jellyfin credentials or publishing a library directory.

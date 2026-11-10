@@ -180,3 +180,24 @@ Local evidence: `observed-repeat-result.json` and `human-observation.json` under
 `/tmp/terebi-cast-proof-20261110/`. The automatic runner's human-confirmation field
 is not chat-aware; the separate annotation records the actual user response.
 The earlier exact-URL log is preserved as `first-exact-url-result.json`.
+
+## Live Jellyfin cast-source preflight and Chromecast readiness check — 2026-11-10
+
+Executed in the isolated Hermes `v0.22.0` runtime (`/tmp/hermes-screen-hermes-venv/bin/python`) against live Jellyfin `12.2.0` (`http://192.168.0.126:8097`) on the integrated `feat/jellyfin-chromecast-playback` code (`de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493` / cherry-picked `da54f74`). `JELLYFIN_API_KEY` was requested via T3's one-time file secret card, read into memory, and immediately `unlink()`ed before any network call (`secret_file_unlinked: True`).
+
+1. **Live Jellyfin item metadata and `get_cast_source` verification (`e5d6c471a8a4ea26e00a3694f91bf8d1`):**
+   - `JellyfinClient.status()` returned `{"ok": true, "server": {"name": "terebi", "version": "12.2.0"}, "user": {"id": "682764864adc45bbb6b981837f790812", "name": "homelab-hp"}, "counts": {"movies": 1, "series": 0, "episodes": 0}}`.
+   - Raw `GET /Items/e5d6c471a8a4ea26e00a3694f91bf8d1?userId=682764864adc45bbb6b981837f790812` `MediaSources[0]` reported:
+     - `Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`, `Container: "mp4"`, `Protocol: "File"`, `IsRemote: false`, `Size: 64657027`, `Bitrate: 867212`, `RunTimeTicks: 5964583330`, `SupportsDirectPlay: true`, `SupportsDirectStream: true`, `DefaultAudioStreamIndex: 1`.
+     - Stream 0 (`Video`): `Codec: "h264"`, `Profile: "Constrained Baseline"`, `Width: 320`, `Height: 180`.
+     - Stream 1 (`Audio`): `Codec: "aac"`, `Profile: "LC"`, `Channels: 2`, `SampleRate: 48000`.
+   - `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` returned:
+     `{"duration_s": 596.458333, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "minutes": 10, "title": "BigBuckBunny_320x180", "type": "Movie"}`.
+2. **Live authenticated upstream `HEAD` and byte-range `GET` (`cast_stream_target`):**
+   - Upstream URL: `http://192.168.0.126:8097/Videos/e5d6c471a8a4ea26e00a3694f91bf8d1/stream?static=true&mediaSourceId=e5d6c471a8a4ea26e00a3694f91bf8d1` with `Authorization: MediaBrowser ...` header.
+   - Authenticated `HEAD` returned HTTP `200` (`content-type: video/mp4`, `accept-ranges: bytes`, `content-length: 64657027`).
+   - Authenticated `GET` with `Range: bytes=0-1023` returned HTTP `206` (`content-type: video/mp4`, `accept-ranges: bytes`, `content-range: bytes 0-1023/64657027`, `content-length: 1024`, `bytes_read: 1024`, MP4 box signature `ftypisom`).
+3. **Live Chromecast (`192.168.0.134`) and ZimaOS host forwarder (`192.168.0.126:8765`) readiness check (`2026-11-10T01:19:26Z`):**
+   - TCP connect to `192.168.0.134:8009` failed with `TimeoutError: timed out` / `OSError: [Errno 113] No route to host` (the Chromecast Gen 2 is currently powered off or asleep with the TV; TV wake is out of scope for this slice).
+   - HTTP probe to `http://192.168.0.126:8765/probe` while listening on container `0.0.0.0:8765` failed with `URLError: <urlopen error [Errno 111] Connection refused>` (the temporary ZimaOS port forwarder `192.168.0.126:8765` -> `172.23.0.2:8765` is currently stopped).
+   - Because `192.168.0.134:8009` was unreachable and the host forwarder on `192.168.0.126:8765` was stopped, live `tv_play` / `tv_pause` against the physical Chromecast could not be executed in this pass and remains gated on powering on the Chromecast and starting the temporary host port forwarder.

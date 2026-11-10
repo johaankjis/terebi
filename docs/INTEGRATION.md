@@ -330,3 +330,66 @@ immediately unlinked and never written to disk or Git).
 Remaining limits: ZimaOS Hermes `v0.16.0` was not upgraded. Programmatic Roku
 launch/pause (`tv_*` tools), Telegram gateway surface, `/watch`, and the Roku
 third-party ECP shipping restriction remain open.
+
+## Jellyfin-to-Chromecast (`tv_play` / `tv_pause`) integration — 2026-11-10
+
+- Worker checkout: `/home/node/.t3/worktrees/terebi/t3-8d379d55`, branch
+  `t3/jellyfin-chromecast-playback`, verified clean at HEAD
+  `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493` (`git status --short -b`).
+- Integrated onto branch `feat/jellyfin-chromecast-playback` in
+  `/home/node/projects/terebi` on top of `d82efc8bf91ce3238ff6866a22db2c3fa1ec3c80`
+  (stacked on `c19b1f70fedf19c7ad608998026f1d6974f88fca`, Draft PR #2) via five
+  ordered commits matching the worker series (`1a77c70`, `2890dea`, `a2c988b`,
+  `2c39fbc`, `da54f74`). `git diff de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493..da54f74`
+  contains only the manager's `docs/PLAN.md` scope note (`d82efc8`).
+
+### Security, LAN bind, expiry, and cleanup review
+
+1. **Credential handling (`hermes_screen/relay.py`, `hermes_screen/jellyfin.py`, `hermes_screen/cast.py`):**
+   - `JellyfinClient.cast_stream_target(source)` builds `/Videos/{item_id}/stream?static=true&mediaSourceId={source_id}` from validated 32-hex IDs only and returns the `Authorization: MediaBrowser ...` header separately; the Jellyfin API key is never placed in a URL.
+   - `MediaRelay.mint(...)` generates a 256-bit `secrets.token_urlsafe(32)` token (`/cast/<token>/video.mp4`) and stores `auth_header` in `Capability` with `repr=False`. Upstream requests use `httpx.Client(follow_redirects=False)` so credentials are never forwarded across redirects.
+   - `_Handler.log_message`, `_Handler.log_error`, and `_Server.handle_error` are no-ops so capability paths and errors are never written to stderr/logs. `hermes_screen/cast.py` installs a `_RedactCapabilities` `logging.Filter` across `pychromecast` loggers to scrub any `/cast/<token>/...` path from library log records.
+2. **LAN bind and visible scanner caution (`hermes_screen/relay.py`, `hermes_screen/playback.py`, `plugin.yaml`):**
+   - `parse_bind(value)` requires an explicit `IP:port` with an IPv4 address and unprivileged port `1024..65535` (or `:0` in local tests); `parse_base_url(value)` rejects loopback, `0.0.0.0`, credentials, queries, and fragments for the receiver-facing `cast_media_base_url`.
+   - Because bridge-networked containers bind `0.0.0.0:8765` while advertising the host's LAN IP in `cast_media_base_url`, `0.0.0.0:8765` appears in `plugin.yaml`, `playback.py`, and `relay.py`. Official `hermes plugins validate --install-deps` reports a non-blocking caution:
+     `⚠ security scan caution: bind_all_interfaces (playback.py:77), bind_all_interfaces (plugin.yaml:50), bind_all_interfaces (relay.py:158), bind_all_interfaces (relay.py:166)`.
+     This caution is kept visible without suppressing scanner rules.
+3. **Expiry and cleanup (`hermes_screen/relay.py`, `hermes_screen/playback.py`, `__init__.py`):**
+   - `ttl_for(duration_s)` bounds capability lifetime to `min(max(duration_s + 900, 900), 14400)` (15 minutes to 4 hours; 1 hour when duration is unknown), tracked via `time.monotonic`.
+   - Capability validity is checked before opening an upstream stream and before every 64 KiB chunk sent to the Chromecast.
+   - A daemon `threading.Timer` invokes `_on_timer` at expiry, revoking the capability, clearing `auth_header`, shutting down active client sockets (`socket.SHUT_RDWR`), closing upstream `httpx` responses, and shutting down/closing the `ThreadingHTTPServer` so the TCP port is released. Minting a new capability revokes any previous capability first.
+   - If `tv_play` fails after minting (or if `tv_pause` targets a different URL), the capability is revoked immediately; if a resume attempt on an already-paused session fails to confirm `PLAYING`, the existing capability stays valid so the loaded session is not broken (`da54f74`).
+   - `ctx.on_unload(manager.close)` is registered in `__init__.py`, and `tv_play.close_cast_relay()` / `tv_pause.close_cast_relay()` allow explicit early relay teardown.
+
+### Automated and official Hermes v0.22.0 checks
+
+```bash
+export PATH="/tmp/hermes-screen-hermes-venv/bin:/tmp/hermes-screen-integrator-bin:$PATH"
+pytest -q
+ruff check .
+ruff format --check .
+git diff --check
+HERMES_HOME=/tmp/terebi-validate-home hermes plugins doctor /home/node/projects/terebi --ci
+HERMES_HOME=/tmp/terebi-validate-home hermes plugins validate /home/node/projects/terebi --install-deps
+python tests/hermes_smoke.py /home/node/projects/terebi
+```
+
+- `pytest -q`: **552 passed**
+- `ruff check .` and `ruff format --check .`: pass (37 files formatted)
+- `git diff --check`: pass
+- `hermes plugins doctor /home/node/projects/terebi --ci`:
+  `OK: runtime discovery, manifest parsing, import, and registration passed` (`registrations: 4 tool(s), 0 hook(s)`)
+- `hermes plugins validate /home/node/projects/terebi --install-deps`:
+  `Validation passed.` (`2 requirements from pyproject`, `declared tools — matches registrations`, `security scan — caution` with the 4 `bind_all_interfaces` locations noted above)
+- `tests/hermes_smoke.py`:
+  `PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + tv_pause through real client + respx + local relay + fake Chromecast, scoped secret rotation, context isolation, on_unload cleanup`
+
+### Live Jellyfin 12.2.0 preflight and Chromecast readiness — 2026-11-10
+
+- Executed in `/tmp/hermes-screen-hermes-venv/bin/python` against live `http://192.168.0.126:8097` with `JELLYFIN_API_KEY` read into memory from a one-time secret file and immediately `unlink()`ed (`secret_file_unlinked: True`):
+  - `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` returned `{"duration_s": 596.458333, "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "minutes": 10, "title": "BigBuckBunny_320x180", "type": "Movie"}` (raw `MediaSources[0]`: `mp4`, `File`, `h264` `320x180`, `aac` 2ch `48000` Hz, `64657027` bytes).
+  - `JellyfinClient.cast_stream_target(source)` authenticated `HEAD` returned HTTP `200` (`video/mp4`, `Accept-Ranges: bytes`, `Content-Length: 64657027`) and authenticated `GET` (`Range: bytes=0-1023`) returned HTTP `206` (`Content-Range: bytes 0-1023/64657027`, `1024` bytes, MP4 box signature `ftypisom`).
+- Live hardware readiness at `2026-11-10T01:19:26Z`:
+  - Chromecast Gen 2 `192.168.0.134:8009` was unreachable (`TimeoutError: timed out` / `OSError: [Errno 113] No route to host` — powered off or asleep with the TV; TV wake is out of scope).
+  - ZimaOS host forwarder `192.168.0.126:8765` -> `172.23.0.2:8765` was not running (`ConnectionRefusedError: [Errno 111] Connection refused`).
+  - Live `tv_play` + `tv_pause` verification against `192.168.0.134` is ready to run as soon as the Chromecast is powered on and the temporary host forwarder on `192.168.0.126:8765` is started.

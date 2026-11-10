@@ -87,15 +87,24 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   is `6b11f9711e1213c3a650c6ecb0095da4945b379b`. Draft PR #2 is open and docs-only.
   Code has no dependency on its changes; this slice stacks on its branch to retain
   verified hardware evidence and avoid duplicating it in the implementation PR.
-- [ ] Reuse `library_pick`; add exact Jellyfin item play and explicit pause tools.
-- [ ] Serve an expiring, item-scoped LAN media capability; keep Jellyfin credentials
+- [x] Reuse `library_pick`; add exact Jellyfin item play (`tv_play`) and explicit pause (`tv_pause`) tools.
+- [x] Serve an expiring, item-scoped LAN media capability; keep Jellyfin credentials
   server-side, support bounded streaming/ranges, redact tokens, clean up on expiry.
-- [ ] Verify exact URL and fresh PLAYING/PAUSED receiver states; keep TV wake out.
-- [ ] One Claude Code worker owns implementation and focused mocked tests in a
-  separate tool-created worktree. Manager owns integration review, shared docs,
-  live Hermes v0.22.0 + Chromecast acceptance and one numbered draft PR.
+- [x] Verify exact URL and fresh PLAYING/PAUSED receiver states; keep TV wake out.
+- [x] One Claude Code worker owns implementation and focused mocked tests in a
+  separate tool-created worktree (`/home/node/.t3/worktrees/terebi/t3-8d379d55`,
+  branch `t3/jellyfin-chromecast-playback`, HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`).
+  Manager integrated onto `feat/jellyfin-chromecast-playback` (`da54f74`), reviewed
+  relay security/bind/expiry/cleanup, ran automated + Hermes `v0.22.0` checks (552
+  pytest tests, Ruff, doctor 4 tools, validate with visible `bind_all_interfaces`
+  caution, `hermes_smoke.py`), and verified live Jellyfin `12.2.0` item metadata
+  (`get_cast_source`) + authenticated `HEAD` (`200`) and byte-range (`206`) streaming.
 - [ ] Live acceptance: `library_pick` recommends Big Buck Bunny; explicitly select
-  its returned item ID, invoke play, then pause, and record exact receiver evidence.
+  its returned item ID, invoke play, then pause, and record exact receiver evidence
+  (live Jellyfin preflight passed; physical Chromecast `192.168.0.134:8009` was
+  powered off/unreachable and ZimaOS host forwarder `192.168.0.126:8765` was stopped
+  at `2026-11-10T01:19:26Z` — ready to run once Chromecast is powered on and
+  forwarder is active).
 
 This explicit user request supersedes the older exclusions of Chromecast workers
 and the historic worker-base instructions below. No Roku control, TV wake, new
@@ -342,3 +351,36 @@ repeat validation on the final integration SHA after adopting worker documentati
   `SupportsRemoteControl: false` on `Jellyfin Roku` `3.2.4`, so programmatic launch
   and pause require Roku ECP on port `8060` (gated on the third-party ECP shipping
   restriction).
+
+## Jellyfin-to-Chromecast integration and live preflight checkpoint — 2026-11-10
+
+- Worker checkout `/home/node/.t3/worktrees/terebi/t3-8d379d55` (`t3/jellyfin-chromecast-playback`,
+  HEAD `de5bf8d5ab33faec4fbf1b43bafaa9e269ae0493`, verified clean) was cherry-picked
+  onto `feat/jellyfin-chromecast-playback` (`1a77c70..da54f74`) stacked on Draft PR #2
+  (`c19b1f70fedf19c7ad608998026f1d6974f88fca`).
+- Reviewed `hermes_screen/relay.py`, `hermes_screen/cast.py`, `hermes_screen/playback.py`,
+  `hermes_screen/jellyfin.py`, `plugin.yaml`, `__init__.py`, `schemas.py`, `tools.py`,
+  and `pyproject.toml`:
+  - `JELLYFIN_API_KEY` stays server-side in `Capability.auth_header` (`repr=False`) and is
+    sent only in the `Authorization` header to Jellyfin's static stream endpoint with
+    `follow_redirects=False`. Capability tokens are 256-bit `secrets.token_urlsafe(32)`
+    values redacted from `pychromecast` logs and never written by the HTTP server.
+  - Capability TTL is bounded to 15 min – 4 hours (`duration_s + 900s`), checked on every
+    request and every 64 KiB chunk. Expiry or replacement revokes the token, clears
+    `auth_header`, shuts down active sockets (`SHUT_RDWR`), closes upstream streams, and
+    closes the HTTP listener. `ctx.on_unload(manager.close)` cleans up on plugin unload.
+  - `hermes plugins validate --install-deps` passes with a visible `security scan — caution`
+    for `bind_all_interfaces` (`playback.py:77`, `plugin.yaml:50`, `relay.py:158`,
+    `relay.py:166`); kept visible without scanner suppression.
+- Automated checks: **552 pytest tests passed**, Ruff check/format clean (37 files),
+  `git diff --check` clean, `hermes plugins doctor --ci` passed (4 tools, 0 hooks),
+  `hermes plugins validate --install-deps` passed, and `tests/hermes_smoke.py` passed.
+- Live Jellyfin `12.2.0` preflight in the isolated Hermes `v0.22.0` runtime passed for
+  `e5d6c471a8a4ea26e00a3694f91bf8d1` (`get_cast_source` validated local MP4 / H.264
+  `320x180` / AAC 2ch; authenticated `HEAD` returned `200 OK` `64657027` bytes;
+  authenticated `Range: bytes=0-1023` returned `206 Partial Content` `bytes 0-1023/64657027`
+  with MP4 signature `ftypisom`).
+- Live Chromecast hardware blocker at `2026-11-10T01:19:26Z`: Chromecast Gen 2
+  `192.168.0.134:8009` timed out / returned `[Errno 113] No route to host` (powered off
+  or asleep with the TV; TV wake is out of scope), and ZimaOS host forwarder
+  `192.168.0.126:8765` -> `172.23.0.2:8765` returned `[Errno 111] Connection refused`.

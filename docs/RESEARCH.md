@@ -265,3 +265,24 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   subsequently confirmed `PAUSED` at 14.462817s in the same media session; paused
   frame held for 15s before cleanup. Human-visible playback is confirmed; physical
   wake and human confirmation of pause remain unverified. Endpoint/copy removed.
+
+## Jellyfin cast-source and authenticated byte-range stream verification — 2026-11-10
+
+- **VERIFIED (live Jellyfin 12.2.0 + isolated Hermes v0.22.0 runtime):**
+  - `GET /Items/e5d6c471a8a4ea26e00a3694f91bf8d1?userId=682764864adc45bbb6b981837f790812`
+    returns `MediaSources[0]` with `Id: "e5d6c471a8a4ea26e00a3694f91bf8d1"`,
+    `Container: "mp4"`, `Protocol: "File"`, `IsRemote: false`, `Size: 64657027`,
+    `RunTimeTicks: 5964583330`, stream 0 `Video` (`Codec: "h264"`, `320x180`), and
+    stream 1 `Audio` (`Codec: "aac"`, 2ch, `48000` Hz).
+    `JellyfinClient.get_cast_source("e5d6c471a8a4ea26e00a3694f91bf8d1")` validates
+    and normalizes this record without exposing filesystem paths.
+  - `GET /Videos/e5d6c471a8a4ea26e00a3694f91bf8d1/stream?static=true&mediaSourceId=e5d6c471a8a4ea26e00a3694f91bf8d1`
+    with `Authorization: MediaBrowser ...` supports both `HEAD` (`200 OK`,
+    `content-type: video/mp4`, `accept-ranges: bytes`, `content-length: 64657027`)
+    and `Range: bytes=0-1023` (`206 Partial Content`,
+    `content-range: bytes 0-1023/64657027`, `content-length: 1024`, MP4 box signature
+    `ftypisom`).
+  - Official `hermes plugins validate --install-deps` on the 4-tool tree (`library_status`,
+    `library_pick`, `tv_play`, `tv_pause`) passes with `security scan — caution` for
+    `bind_all_interfaces` (`playback.py:77`, `plugin.yaml:50`, `relay.py:158`,
+    `relay.py:166`) because containerized deployments may bind `0.0.0.0:8765`.

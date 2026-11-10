@@ -342,6 +342,12 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   Missing, nonfinite or incorrect positions remain unverified. Explicit source
   selection cannot silently fall back to another file. Multi-edition sources
   without a source runtime cannot use another edition's item-level runtime.
-- **UNVERIFIED (live feature branch):** 60-second manual marker playback/seek
-  and pause from Telegram. Baseline Telegram pick/play/pause audit at `8e978d7`
-  is verified (03:01:18 UTC PLAYING, 03:02:11 PAUSED at 52.1 seconds).
+- **VERIFIED (live feature branch):** Telegram manual-marker fresh LOAD at 60.0s,
+  receiver-confirmed PLAYING then PAUSED at 73.071335s, same exact content/session,
+  runtime SHA `ff27aaf111f12c5a02e4b821d0b88276bc168367`. Existing-session SEEK
+  remains mocked-test verified only; live subtitle extraction remains unverified.
+- **VERIFIED (v0.22.0 source + live kwargs audit + dispatcher regression):** this
+  release injects `session_id`, not `conversation_id`, into registry handlers.
+  Final code prefers conversation ID when available, otherwise trusted session ID,
+  rejects missing host context, and invalidates choices across session changes.
+  This adapter correction was made after the recorded live hardware run.

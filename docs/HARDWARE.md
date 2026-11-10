@@ -212,30 +212,46 @@ Executed in the isolated Hermes `v0.22.0` runtime (`/tmp/hermes-screen-hermes-ve
        `{"ok": true, "verified": true, "state": "paused", "already_paused": true, "item": {"item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1", "title": "BigBuckBunny_320x180"}, "position_s": 4.7}`.
      - `on_unload` cleanup (`01:43:32.416Z`): `relay_port_8765_closed: true`, `secret_file_unlinked: true`, and receiver quit back to idle.
 
-## Scene marker acceptance — 2026-11-10 (pending)
+## Scene marker acceptance — 2026-11-10 (passed)
 
-Feature code tested with mocks at `1d25ec685026b65963f8f46d03e0600f1939dbcf`.
-Authorized target remains Chromecast Gen 2 / Den TV at `192.168.0.134`.
-User supplied manual marker **“one-minute test scene” at 00:01:00 (60 seconds)**
-for `BigBuckBunny_320x180`, item/source
-`e5d6c471a8a4ea26e00a3694f91bf8d1`. This is user evidence, not a caption or visual
-scene inference.
+**PASS through Telegram → isolated Hermes v0.22.0 → Jellyfin 12.2.0 → Den TV.**
+Live runtime-loaded SHA: **`ff27aaf111f12c5a02e4b821d0b88276bc168367`**.
+Target: Chromecast Gen 2 / Den TV, `192.168.0.134`.
+User-supplied manual marker: **“one-minute test scene”, 60 seconds**, for
+`BigBuckBunny_320x180`, item/source `e5d6c471a8a4ea26e00a3694f91bf8d1`.
+The label is user evidence, not a caption or generated visual-scene match.
 
-An isolated feature gateway profile is prepared at
-`/tmp/terebi-scenes-gateway-pzpm5mn8`, with the feature checkout symlinked as its
-plugin. The original demo checkout remains clean at `8e978d7`. A routing probe on
-`0.0.0.0:8765` returned HTTP 200 via `192.168.0.126:8765`; the probe was then stopped.
+| UTC time | Observed result |
+|---|---|
+| 09:13:11 | Actual Hermes `library_scene_save` persisted the exact-source marker and fingerprint |
+| 17:17:52.898 | Telegram `library_scene_find` returned its single candidate at 00:01:00.000 |
+| 17:17:57.763 | Receiver reported exact content `PLAYING`, media session `1`, position **60.0s** |
+| 17:17:57.767 | `tv_scene_play`: `ok:true`, `verified:true`, requested 60.0s, measured 60.0s |
+| 17:18:12.630 | Receiver reported same content/session `PAUSED`, position **73.071335s** |
+| 17:18:12.631 | Telegram `tv_pause`: `ok:true`, `verified:true`, measured 73.1s (display rounding) |
+| 17:21:24.380 | Test gateway shutdown released the relay; local TCP 8765 closed |
 
-Live marker start/seek and PAUSED have **not yet run**. The corrected bootstrap
-stopped the previous isolated test gateway and started the feature gateway (PID
-126556), with `✓ telegram connected` at **09:13:24.305 UTC**. Actual runtime-loaded
-feature SHA: `ff27aaf111f12c5a02e4b821d0b88276bc168367` (code identical to the
-automated-tested commit; its additional commit is documentation).
+Media range requests returned HTTP 206 through the configured LAN forwarder.
+The relay minted a capability for this item with TTL 1496.46s; receiver content
+identity was correlated using its URL's SHA256, without logging the bearer URL
+or API key. Sanitized durable evidence: [scene-marker-20261110.json](evidence/scene-marker-20261110.json).
+Full local audit: `/tmp/terebi-scenes-gateway-pzpm5mn8/acceptance.jsonl`.
+The user reported completing the two Telegram commands; no independent visual
+screen confirmation is claimed. TV power/CEC wake is excluded.
 
-Startup through the actual Hermes plugin manager confirmed `library_status` on
-Jellyfin 12.2.0 and saved the user's manual marker through `library_scene_save`,
-including exact item/source, start 60.0 and a source fingerprint. No key or media
-capability URL was logged or committed; one-time credential files were removed.
-The user can now send the saved-marker play request through Telegram, then pause.
-Record fresh receiver position near 60 seconds and pause separately. TV power/CEC
-wake remains outside this slice.
+The live audit revealed that v0.22.0 injects `session_id`, not `conversation_id`.
+After the live test, commit **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`** fixes
+selection isolation by preferring a trusted conversation ID, falling back to the
+trusted runtime session ID and failing closed when neither exists. The final
+adapter was verified through the actual Hermes ToolRegistry dispatcher and
+cross-session regression tests; the recorded hardware run used the earlier
+adapter. Cast timestamp, source-selection and pause code are unchanged by that fix.
+Resetting a Hermes session requires a fresh scene lookup.
+
+The final code passes **722 tests**, Ruff, official v0.22.0 doctor (7 tools),
+validation (visible `bind_all_interfaces` caution), and official-loader/dispatcher
+smoke. Live Jellyfin subtitle extraction and semantic-model quality remain
+unverified; no local embedding model is enabled. Existing-session seeks are
+covered by mocked tests; this live sequence verified a fresh 60-second LOAD and
+pause. The temporary feature gateway is stopped; original demo checkout remains
+clean and unchanged at `8e978d7`.

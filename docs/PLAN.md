@@ -6,9 +6,6 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 ## Blockers
 
-- Scene code passes automated/Hermes checks. Live Telegram scene acceptance is
-  awaiting the user’s Telegram saved-marker play and pause. The isolated feature
-  gateway is connected, marker saved, and LAN forwarding probe passed HTTP 200.
 
 - Scene slice: no local embedding model is approved; semantic ranking stays disabled.
   User approved OpenCode `opencode/glm-5.3-flash-free` after GLM 5.1 was unavailable.
@@ -33,8 +30,10 @@ Draft PR #3 has the same head; this new feature PR will target main independentl
 - [x] Manager: movie/edition ambiguity, scene candidates, saved edition markers,
   timestamp fallback, Hermes tools and focused integration tests.
 - [x] Dialogue query fixture; semantic paraphrase remains gated on an approved local model.
-- [ ] Live Telegram: manually saved Big Buck Bunny marker → verified start position
-  on Den TV → PAUSED, recording exact tested SHA and cleanup.
+- [x] Live Telegram: manually saved Big Buck Bunny marker → verified start position
+  on Den TV at 60.0s → PAUSED at 73.071335s, runtime SHA `ff27aaf`, relay closed.
+  Final session-context adapter fix `37582ae` verified separately through real
+  Hermes dispatch and cross-session tests; full suite 722 passed.
 - [x] Draft PR #4 opened; merge remains user-owned.
 
 - **Chromecast proof passed; integration pending (2026-11-10):** Authorized Gen 2

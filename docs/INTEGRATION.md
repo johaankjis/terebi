@@ -429,9 +429,10 @@ lifetime workaround, outgoing LOAD interruption handling and ordinary pause rema
 Unicode BOM/direction-mark handling uses readable escapes instead of invisible
 source literals; parser behavior remains covered by fixtures.
 
-Automated tested commit: **`1d25ec685026b65963f8f46d03e0600f1939dbcf`**.
+Automated tested final code: **`37582aea9f2a3bfba66c1ac116b78eb03f138be7`**.
+The initial 720-test tree was `1d25ec685026b65963f8f46d03e0600f1939dbcf`.
 
-- `/tmp/opencode/ts-pyvenv/bin/pytest -q`: **720 passed**, including real handler →
+- `/tmp/opencode/ts-pyvenv/bin/pytest -q`: **722 passed**, including real handler →
   resolver → mocked Jellyfin, dialogue cue timestamps, repeated matches,
   source/track refresh, marker/source isolation, expired choices, revalidation,
   registered marker → exact-source LOAD/SEEK → measured PLAYING → PAUSED.
@@ -451,11 +452,18 @@ No actual embedding model is approved or enabled. Fixture lexical/exact results
 are not semantic paraphrase validation. Live subtitle extraction on Jellyfin 12.2
 still needs a library item with a usable text track; Big Buck Bunny has no dialogue.
 
-Live scene acceptance is pending the user’s play/pause in the connected isolated
-feature Telegram gateway. Startup saved the user’s edition-specific marker through
-the real Hermes plugin manager. Runtime-loaded SHA is `ff27aaf111f12c5a02e4b821d0b88276bc168367`. A bounded
-probe verified host `192.168.0.126:8765` forwards to the T3 listener (HTTP 200), then
-stopped its temporary probe endpoint. No feature Cast commands have been sent yet.
-The user's manual marker is “one-minute test scene”, 60 seconds, exact item/source
-`e5d6c471a8a4ea26e00a3694f91bf8d1`. TV wake is excluded. See HARDWARE.md for the
-live evidence update once the Telegram play and pause have run.
+Live scene acceptance **passed** on runtime-loaded
+`ff27aaf111f12c5a02e4b821d0b88276bc168367`: Telegram resolved the user’s manual
+“one-minute test scene” marker, loaded the exact Big Buck Bunny source at 60.0s,
+then confirmed PAUSED at 73.071335s in the same receiver media session. HTTP ranges
+returned 206; cleanup released the relay and stopped the isolated test gateway.
+See [HARDWARE.md](HARDWARE.md#scene-marker-acceptance--2026-11-10-passed) and the
+sanitized [evidence JSON](evidence/scene-marker-20261110.json).
+
+The live audit exposed missing `conversation_id` kwargs on Hermes v0.22.0.
+Commit `37582aea9f2a3bfba66c1ac116b78eb03f138be7` corrects scene selection scope
+using its injected `session_id` as fallback and rejects calls missing host identity.
+The actual ToolRegistry dispatcher smoke now covers this path; cross-session
+rejection is tested. This adapter change was tested separately after the live run;
+Cast timestamp and pause code were unchanged. Final automated checks pass as above.
+No new hardware acceptance is claimed for existing-session SEEK or subtitle fetch.

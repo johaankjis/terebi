@@ -1,0 +1,124 @@
+{
+  "date": "2026-11-10",
+  "live_tested_sha": "ff27aaf111f12c5a02e4b821d0b88276bc168367",
+  "runtime": "Hermes v0.22.0",
+  "surface": "Telegram @terebitvbot",
+  "target": {
+    "name": "Den TV",
+    "model": "Chromecast Gen 2",
+    "ip": "192.168.0.134"
+  },
+  "item": {
+    "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+    "title": "BigBuckBunny_320x180",
+    "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+  },
+  "marker": {
+    "label": "one-minute test scene",
+    "start_time_s": 60.0,
+    "kind": "manual_user_supplied"
+  },
+  "receiver": [
+    {
+      "at": "2026-11-10T17:17:57.762601+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "98951d891dc8e738bf05eadf6fbda7a71f0e2f6d987c00e76faea53821edfa15",
+      "state": "PLAYING",
+      "session_id": 1,
+      "position_s": 60.0,
+      "idle_reason": null
+    },
+    {
+      "at": "2026-11-10T17:18:12.629912+00:00",
+      "kind": "receiver",
+      "event_kind": "status",
+      "content_sha256": "98951d891dc8e738bf05eadf6fbda7a71f0e2f6d987c00e76faea53821edfa15",
+      "state": "PAUSED",
+      "session_id": 1,
+      "position_s": 73.071335,
+      "idle_reason": null
+    }
+  ],
+  "tool_results": [
+    {
+      "at": "2026-11-10T17:17:57.766524+00:00",
+      "tool": "tv_scene_play",
+      "result": {
+        "ok": true,
+        "state": "playing",
+        "verified": true,
+        "action": "started",
+        "item": {
+          "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+          "title": "BigBuckBunny_320x180",
+          "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+        },
+        "position_s": 60.0,
+        "duration_s": 596.5,
+        "relay_expires_in_minutes": 25,
+        "requested_start_time_s": 60.0,
+        "position_tolerance_s": 3.0,
+        "note": "The Chromecast reported this exact item playing. TV power and input were not checked. The stream link stops working after relay_expires_in_minutes.",
+        "scene_evidence": {
+          "kind": "marker",
+          "method": "user_supplied",
+          "source_fingerprint": "0566d3557fd06c0d60fbfb9f9808291508c4c072105b8f9e5002e14ac2f5c7ad",
+          "marker_id": "cdb7ed85213fd0e7a9353882",
+          "label": "one-minute test scene"
+        }
+      }
+    },
+    {
+      "at": "2026-11-10T17:18:12.631381+00:00",
+      "tool": "tv_pause",
+      "result": {
+        "ok": true,
+        "state": "paused",
+        "verified": true,
+        "already_paused": false,
+        "item": {
+          "item_id": "e5d6c471a8a4ea26e00a3694f91bf8d1",
+          "title": "BigBuckBunny_320x180",
+          "media_source_id": "e5d6c471a8a4ea26e00a3694f91bf8d1"
+        },
+        "position_s": 73.1
+      }
+    }
+  ],
+  "relay_http": [
+    {
+      "at": "2026-11-10T17:17:56.900851+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=0-"
+    },
+    {
+      "at": "2026-11-10T17:17:57.072836+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=64290816-"
+    },
+    {
+      "at": "2026-11-10T17:17:58.900405+00:00",
+      "kind": "relay_http",
+      "method": "GET",
+      "status": 206,
+      "range": "bytes=6586368-"
+    }
+  ],
+  "limitations": [
+    "TV wake excluded.",
+    "Live subtitle extraction and actual semantic model quality unverified.",
+    "Initial live adapter did not receive conversation_id; subsequent fix uses trusted session_id fallback and fails closed without either. Verified separately through the real Hermes dispatcher and regression tests.",
+    "The user reported completing Telegram commands; no independent visual screen confirmation is claimed."
+  ],
+  "final_automated_tested_sha": "37582aea9f2a3bfba66c1ac116b78eb03f138be7",
+  "cleanup": {
+    "at": "2026-11-10T17:21:24.379936+00:00",
+    "feature_gateway_stopped": true,
+    "relay_listener_closed": true
+  }
+}

@@ -50,7 +50,8 @@ tracks and indexes stay in local profile state; only matching excerpts are retur
 in chat and may be seen by your model provider. Saved markers are user evidence,
 not generated scene descriptions. Changed editions invalidate saved markers.
 Pending scene choices expire after 15 minutes and belong to the requesting
-conversation. Playback rechecks the edition and caption evidence before acting.
+conversation (or trusted Hermes session on v0.22.0; resetting the session requires
+a fresh lookup). Playback rechecks the edition and caption evidence before acting.
 
 The offset must be finite, nonnegative, and below the selected source's runtime.
 The receiver's measured position must be within 3 seconds before the requested
@@ -148,7 +149,7 @@ Non-text settings are rejected.
 
 Official Hermes v0.22.0 doctor (`7 tool(s), 0 hook(s)`), validate, mocked loader
 smoke (`tests/hermes_smoke.py`), and live Jellyfin 12.2.0 + Chromecast Gen 2
-`tv_play` / `tv_pause` acceptance pass on the integrated tree; **720 automated tests**
+`tv_play` / `tv_pause` acceptance pass on the integrated tree; **722 automated tests**
 and Ruff pass. `hermes plugins validate --install-deps` passes with a visible
 `security scan — caution` (`bind_all_interfaces` on `playback.py:77`,
 `plugin.yaml:50`, `relay.py:158`, `relay.py:166`) because containerized setups can
@@ -168,7 +169,8 @@ validation failure from a caution finding requiring review.
   (and live `/Sessions` confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
 - TV/CEC wake is out of scope and unverified.
 - `library_pick`, `tv_play`, and `tv_pause` are verified from Telegram on the base
-  commit. Scene marker playback through Telegram is pending on this feature branch;
+  commit. Scene marker playback through Telegram is verified at 60.0 seconds, followed
+  by receiver-confirmed pause at 73.1 seconds;
   `/watch` is not built.
 
 ## Troubleshooting

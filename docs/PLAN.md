@@ -27,6 +27,29 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   Live marker: user-supplied “one-minute test scene”, 60 seconds, for
   `BigBuckBunny_320x180` and its exact media source.
 
+## Current slice: Big Buck Bunny saved-description demo (2026-11-10)
+
+User explicitly requests this demo instead of subtitle or frame analysis. Base:
+PR #4's verified open head `3cc3c1e7748dbd043ac98eab201a0adced9e3a78`.
+Manager branch `feat/bbb-scene-demo` uses a separate worktree; root demo and
+PR #4 checkout remain unchanged. This demo will have one new draft PR stacked
+on PR #4 while that dependency remains unmerged. User owns merging this slice.
+
+- [x] Verify upstream head and create isolated manager demo checkout.
+- [ ] Claude Code Opus 5.5: local saved-description lookup and focused tests.
+- [ ] Manager: descriptions/aliases in existing exact-edition marker state,
+  bounded optional end time, Hermes description lookup and candidate wiring.
+- [ ] Verify three scenes in the user's exact copy; store records separately
+  from the movie. Candidate actions: Bunny emerges, butterfly attacked, traps.
+- [ ] Telegram paraphrase → exact-edition PLAYING near selected saved start.
+- [ ] Ambiguous and unmatched descriptions do not initiate playback.
+- [ ] Focused/full tests, Ruff, Hermes checks, tested SHA and numbered draft PR.
+
+**Scene-data blocker:** authenticated exact-copy metadata/stream inspection
+returned HTTP 401 with the newly supplied credential. No timestamps have been
+inferred from another edition. Need a working Jellyfin API key for inspection
+or the user's three verified action-start timestamps for this exact copy.
+
 ## Current slice: edition-specific scene playback (2026-11-10)
 
 The user explicitly authorized this slice, superseding historic scope exclusions.

@@ -38,13 +38,21 @@ from .cast import (
 )
 from .relay import MediaRelay, RelayError, parse_bind, ttl_for
 
-__all__ = ["CastPlaybackManager", "CastSettings", "parse_cast_settings"]
+__all__ = ["CastPlaybackManager", "CastSettings", "parse_cast_settings", "POSITION_TOLERANCE_S"]
 
 PLAY_TIMEOUT_S = 25.0
 PAUSE_TIMEOUT_S = 8.0
 STATUS_TIMEOUT_S = 5.0
 LOCK_TIMEOUT_S = 60.0
 POLL_S = 1.0
+# Documented position check for an explicit start time (the 2-3 s of
+# docs/SCENE_CONTRACT.md): after a LOAD with currentTime or a SEEK, the receiver
+# must itself report PLAYING with a measured position no more than this far
+# behind the requested point, and no more than this far plus the time that has
+# passed since the command ahead of it (late status reports). A correct URL with
+# the wrong position, a missing or nonfinite position, or just an acknowledged
+# command never verifies. Ordinary play (no start_time_s) is not position-checked.
+POSITION_TOLERANCE_S = 3.0
 _FAILED_IDLE = frozenset({"ERROR", "CANCELLED", "INTERRUPTED", "FINISHED"})
 
 
@@ -124,6 +132,7 @@ class _Owned:
     port: int
     cap: Any
     duration_s: float | None
+    media_source_id: str | None = None
     session_id: int | None = None
 
 
@@ -135,6 +144,7 @@ class _Outcome:
     saw_ours: bool = False
     other_media: bool = False
     last_state: str | None = None
+    position_s: float | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
 
@@ -178,9 +188,25 @@ class CastPlaybackManager:
         source: dict[str, Any],
         upstream_url: str,
         auth_header: str,
+        start_time_s: float | None = None,
     ) -> dict[str, Any]:
-        """Cast one validated Jellyfin item and verify it is PLAYING."""
-        return self._serialized(lambda: self._play(settings, source, upstream_url, auth_header))
+        """Cast one validated Jellyfin item and verify it is playing.
+
+        Without ``start_time_s`` the behavior is exactly the ordinary one: the
+        same item/edition already playing or paused elsewhere on this device is
+        resumed, never restarted.
+
+        With an explicit ``start_time_s`` (seconds into the selected media
+        source): on a fresh load the receiver is told to start at that point; if
+        this exact media source is already loaded on the same device with a live
+        capability, an explicit SEEK is sent instead (also resuming a paused
+        session) and fresh receiver evidence of the measured position is
+        required. The offset is validated against the selected source's runtime
+        before anything is sent.
+        """
+        return self._serialized(
+            lambda: self._play(settings, source, upstream_url, auth_header, start_time_s)
+        )
 
     def pause(self) -> dict[str, Any]:
         """Pause what this context started, and verify PAUSED (idempotent)."""
@@ -240,17 +266,69 @@ class CastPlaybackManager:
         self._owned = None
         self._relay.revoke()
 
+    @staticmethod
+    def _check_offset(
+        source: dict[str, Any], start_time_s: Any
+    ) -> tuple[float | None, dict[str, Any] | None]:
+        """Validate an explicit play offset against the selected source's runtime.
+
+        Returns ``(offset, None)`` or ``(None, error)``. Booleans, text, NaN,
+        infinities, negatives and points at or past the runtime are refused
+        before anything is sent; an offset without a known runtime cannot be
+        checked and is refused instead of guessed. ``None`` keeps the ordinary
+        no-offset behavior. True integers are finite even above ``2**53``, so a
+        huge one simply fails the runtime check without a float conversion.
+        """
+        if start_time_s is None:
+            return None, None
+        if isinstance(start_time_s, bool) or not isinstance(start_time_s, (int, float)):
+            return None, _error(
+                "invalid_argument",
+                "start_time_s must be a number of seconds into the video (like 90 or 450.5).",
+            )
+        if isinstance(start_time_s, float) and not math.isfinite(start_time_s):
+            return None, _error(
+                "invalid_argument",
+                "start_time_s must be a finite number of seconds (not NaN or infinity).",
+            )
+        if start_time_s < 0:
+            return None, _error("invalid_argument", "start_time_s cannot be negative.")
+        duration = source.get("duration_s")
+        if (
+            isinstance(duration, bool)
+            or not isinstance(duration, (int, float))
+            or (isinstance(duration, float) and not math.isfinite(duration))
+            or duration <= 0
+        ):
+            return None, _error(
+                "unknown_runtime",
+                "start_time_s was given but the selected media source has no runtime, so "
+                "the point cannot be checked against it. Ask the user for an edition with "
+                "a known runtime, or play without an offset.",
+            )
+        if start_time_s >= float(duration):
+            return None, _error(
+                "start_time_beyond_runtime",
+                "That start point is at or past the end of this video "
+                f"(runtime {float(duration):g} seconds). Use a smaller start_time_s.",
+            )
+        return float(start_time_s), None
+
     def _play(
         self,
         settings: CastSettings,
         source: dict[str, Any],
         upstream_url: str,
         auth_header: str,
+        start_time_s: float | None = None,
     ) -> dict[str, Any]:
+        offset, failure = self._check_offset(source, start_time_s)
+        if failure is not None:
+            return failure
         item_id, title = source["item_id"], source["title"]
         session = self._connect(settings.host, settings.port)
         try:
-            repeat = self._repeat_play(session, settings, item_id)
+            repeat = self._repeat_play(session, settings, item_id, source, offset)
             if repeat is not None:
                 return repeat
             cap = self._relay.mint(
@@ -262,31 +340,65 @@ class CastPlaybackManager:
                 ttl_s=ttl_for(source.get("duration_s")),
             )
             owned = _Owned(
-                item_id, title, settings.host, settings.port, cap, source.get("duration_s")
+                item_id,
+                title,
+                settings.host,
+                settings.port,
+                cap,
+                source.get("duration_s"),
+                source.get("media_source_id"),
             )
             self._owned = owned
             try:
                 session.launch_receiver()
                 mark = session.mark()
-                session.load(cap.media_url, title=title, duration_s=owned.duration_s)
-                outcome = self._await(session, cap.media_url, mark, "PLAYING", None)
+                issued_at = self._clock()
+                if offset is None:
+                    session.load(cap.media_url, title=title, duration_s=owned.duration_s)
+                    outcome = self._await(session, cap.media_url, mark, "PLAYING", None)
+                else:
+                    session.load(
+                        cap.media_url,
+                        title=title,
+                        duration_s=owned.duration_s,
+                        start_time_s=offset,
+                    )
+                    outcome = self._await(
+                        session,
+                        cap.media_url,
+                        mark,
+                        "PLAYING",
+                        None,
+                        target=offset,
+                        issued_at=issued_at,
+                    )
             except BaseException:
                 self._drop()
                 raise
-            return self._play_result(session, owned, outcome, action="started")
+            return self._play_result(session, owned, outcome, action="started", requested=offset)
         finally:
             session.close()
 
     def _repeat_play(
-        self, session: CastSession, settings: CastSettings, item_id: str
+        self,
+        session: CastSession,
+        settings: CastSettings,
+        item_id: str,
+        source: dict[str, Any],
+        offset: float | None,
     ) -> dict[str, Any] | None:
-        """Same item, same device and our capability still live: don't restart it."""
+        """Same item, same edition, same device, live capability: don't reload it.
+
+        A different media_source_id is a different edition: it is freshly loaded
+        with a new capability, never overlaid on the running one.
+        """
         owned, cap = self._owned, self._relay.current()
         if (
             owned is None
             or cap is None
             or cap is not owned.cap
             or owned.item_id != item_id
+            or owned.media_source_id != source.get("media_source_id")
             or (owned.host, owned.port) != (settings.host, settings.port)
             or not cap.media_url.startswith(settings.advertised_base + "/")
             or self._relay.bound_to != settings.bind
@@ -296,35 +408,69 @@ class CastPlaybackManager:
         if event is None or not self._is_ours(event, owned):
             return None
         owned.session_id = event.session_id
-        if event.player_state == "PLAYING":
-            return self._success(owned, event, action="already_playing")
-        if event.player_state == "PAUSED" and event.session_id is not None:
-            mark = session.mark()
-            session.play(event.session_id)
-            outcome = self._await(session, cap.media_url, mark, "PLAYING", event.session_id)
-            return self._play_result(session, owned, outcome, action="resumed")
-        if event.player_state == "BUFFERING":
-            mark = session.mark()
-            outcome = self._await(session, cap.media_url, mark, "PLAYING", event.session_id)
-            return self._play_result(session, owned, outcome, action="already_playing")
-        return None  # IDLE/ended: load it again with a new capability
+        if event.player_state not in ("PLAYING", "PAUSED", "BUFFERING"):
+            return None  # IDLE/ended: load it again with a new capability
+        if offset is None:
+            if event.player_state == "PLAYING":
+                return self._success(owned, event, action="already_playing")
+            if event.player_state == "PAUSED" and event.session_id is not None:
+                mark = session.mark()
+                session.play(event.session_id)
+                outcome = self._await(session, cap.media_url, mark, "PLAYING", event.session_id)
+                return self._play_result(session, owned, outcome, action="resumed")
+            if event.player_state == "BUFFERING":
+                mark = session.mark()
+                outcome = self._await(session, cap.media_url, mark, "PLAYING", event.session_id)
+                return self._play_result(session, owned, outcome, action="already_playing")
+            return None  # odd receiver state without a media session: reload fresh
+        # An explicit offset on the running edition of this item: SEEK on the live
+        # media session (PLAYBACK_START also resumes a paused session) and verify
+        # the measured position, no reload and no play/pause toggles.
+        if event.session_id is None:
+            return None  # no media session to seek: fresh load from the target
+        mark = session.mark()
+        issued_at = self._clock()
+        session.seek(event.session_id, offset)
+        outcome = self._await(
+            session,
+            cap.media_url,
+            mark,
+            "PLAYING",
+            event.session_id,
+            target=offset,
+            issued_at=issued_at,
+        )
+        return self._play_result(session, owned, outcome, action="seeked", requested=offset)
 
     def _play_result(
-        self, session: CastSession, owned: _Owned, outcome: _Outcome, *, action: str
+        self,
+        session: CastSession,
+        owned: _Owned,
+        outcome: _Outcome,
+        *,
+        action: str,
+        requested: float | None = None,
     ) -> dict[str, Any]:
-        item = {"item_id": owned.item_id, "title": owned.title}
+        item = {
+            "item_id": owned.item_id,
+            "title": owned.title,
+            "media_source_id": owned.media_source_id,
+        }
         if outcome.verified and outcome.event is not None:
             owned.session_id = outcome.event.session_id
-            return self._success(owned, outcome.event, action=action)
+            return self._success(owned, outcome.event, action=action, requested=requested)
+        offset = self._offset_evidence(requested, outcome)
+        reason = "seek_unverified" if requested is not None else "playback_unverified"
         if action != "started":
-            # Resume/re-check of media we already confirmed: it is still loaded, so
-            # keep its link (bounded by the TTL) and report without guessing.
+            # Re-check of media we already confirmed: it is still loaded, so keep
+            # its link (bounded by the TTL) and report without guessing.
             return _error(
-                "playback_unverified",
-                "I asked the Chromecast to play but it did not confirm "
+                reason,
+                "I asked the Chromecast to play like that but it did not confirm "
                 f"(last state: {outcome.last_state or 'unknown'}). Don't assume it is playing.",
                 evidence=outcome.failure or "timeout",
                 item=item,
+                **offset,
             )
         if outcome.failure is not None:
             self._drop()
@@ -335,17 +481,25 @@ class CastPlaybackManager:
                 "cast_media_base_url from the Chromecast, then try again.",
                 evidence=outcome.failure,
                 item=item,
+                **offset,
             )
         if outcome.saw_ours:
-            # The receiver has our exact media but did not report PLAYING in time.
-            # Keep the capability (bounded by its TTL) so it can still start.
+            # The receiver has our exact media but did not report the wanted
+            # state in time. Keep the capability (bounded by its TTL) so it can
+            # still start or settle at the requested point.
             return _error(
-                "playback_unverified",
-                "The Chromecast loaded this video but did not confirm it is playing yet "
-                f"(last state: {outcome.last_state or 'unknown'}). Don't assume it is "
-                "playing; try tv_play again in a moment to re-check.",
+                reason,
+                "The Chromecast loaded this video but did not confirm it is playing at the "
+                "requested point yet (last state: "
+                f"{outcome.last_state or 'unknown'}). Don't assume it is playing"
+                + (
+                    "; try tv_play with the same start time again in a moment to re-check."
+                    if requested is not None
+                    else "; try tv_play again in a moment to re-check."
+                ),
                 evidence="loading",
                 item=item,
+                **offset,
             )
         self._drop()
         if outcome.other_media:
@@ -363,9 +517,27 @@ class CastPlaybackManager:
         else:
             evidence = "no_receiver_status"
             hint = "The Chromecast did not report any status for this video."
-        return _error("playback_unverified", hint, evidence=evidence, item=item)
+        return _error(reason, hint, evidence=evidence, item=item, **offset)
 
-    def _success(self, owned: _Owned, event: MediaEvent, *, action: str) -> dict[str, Any]:
+    @staticmethod
+    def _offset_evidence(requested: float | None, outcome: _Outcome) -> dict[str, Any]:
+        """Request/position fields to expose on results that acted on an offset."""
+        if requested is None:
+            return {}
+        return {
+            "requested_start_time_s": requested,
+            "position_s": _round(outcome.position_s),
+            "position_tolerance_s": POSITION_TOLERANCE_S,
+        }
+
+    def _success(
+        self,
+        owned: _Owned,
+        event: MediaEvent,
+        *,
+        action: str,
+        requested: float | None = None,
+    ) -> dict[str, Any]:
         cap = owned.cap
         remaining = max(cap.expires_at - self._clock(), 0.0)
         return {
@@ -373,10 +545,16 @@ class CastPlaybackManager:
             "state": "playing",
             "verified": True,
             "action": action,
-            "item": {"item_id": owned.item_id, "title": owned.title},
+            "item": {
+                "item_id": owned.item_id,
+                "title": owned.title,
+                "media_source_id": owned.media_source_id,
+            },
             "position_s": _round(event.position_s),
             "duration_s": _round(event.duration_s or owned.duration_s),
             "relay_expires_in_minutes": math.ceil(remaining / 60),
+            "requested_start_time_s": requested,
+            "position_tolerance_s": POSITION_TOLERANCE_S if requested is not None else None,
             "note": (
                 "The Chromecast reported this exact item playing. TV power and input "
                 "were not checked. The stream link stops working after "
@@ -412,7 +590,7 @@ class CastPlaybackManager:
                 return _error(
                     "playback_ended",
                     "That video is no longer playing on the Chromecast.",
-                    item={"item_id": owned.item_id, "title": owned.title},
+                    item=self._item(owned),
                 )
             mark = session.mark()
             session.pause(event.session_id)
@@ -424,7 +602,7 @@ class CastPlaybackManager:
                 "I asked the Chromecast to pause but it did not confirm "
                 f"(last state: {outcome.last_state or 'unknown'}). It may still be playing.",
                 evidence=outcome.failure or "timeout",
-                item={"item_id": owned.item_id, "title": owned.title},
+                item=self._item(owned),
             )
         finally:
             session.close()
@@ -435,8 +613,16 @@ class CastPlaybackManager:
             "state": "paused",
             "verified": True,
             "already_paused": already,
-            "item": {"item_id": owned.item_id, "title": owned.title},
+            "item": self._item(owned),
             "position_s": _round(event.position_s),
+        }
+
+    @staticmethod
+    def _item(owned: _Owned) -> dict[str, Any]:
+        return {
+            "item_id": owned.item_id,
+            "title": owned.title,
+            "media_source_id": owned.media_source_id,
         }
 
     @staticmethod
@@ -482,14 +668,25 @@ class CastPlaybackManager:
         after_seq: int,
         want: str,
         session_id: int | None,
+        *,
+        target: float | None = None,
+        issued_at: float | None = None,
     ) -> _Outcome:
-        """Wait for a fresh receiver status: our exact URL (and session) in ``want``."""
+        """Wait for a fresh receiver status: our exact URL (and session) in ``want``.
+
+        With ``target`` (an explicit start time), a PLAYING is only accepted when
+        the receiver's measured position is within the documented tolerance of
+        the target (plus any playback already elapsed since the command was
+        issued). Wrong, missing or nonfinite positions keep the wait going with
+        status polls; a deadline then reports what was seen.
+        """
         outcome = _Outcome()
         timeout = self._play_timeout if want == "PLAYING" else self._pause_timeout
         deadline = self._clock() + timeout
         seq, last_poll = after_seq, self._clock()
         while True:
-            remaining = deadline - self._clock()
+            now = self._clock()
+            remaining = deadline - now
             if remaining <= 0:
                 return outcome
             events = session.events_after(seq, min(self._poll, remaining))
@@ -512,11 +709,21 @@ class CastPlaybackManager:
                         continue
                     outcome.saw_ours = True
                     outcome.last_state = event.player_state
-                    if event.player_state == want:
-                        outcome.verified, outcome.event = True, event
-                        return outcome
                     if event.player_state == "IDLE" and event.idle_reason in _FAILED_IDLE:
                         outcome.failure = f"receiver_{event.idle_reason.lower()}"
+                        return outcome
+                    if target is not None:
+                        position = event.position_s
+                        if not isinstance(position, int | float) or not math.isfinite(position):
+                            continue  # position missing/nonfinite: keep waiting, no verify
+                        outcome.position_s = position
+                        elapsed = 0.0 if issued_at is None else max(self._clock() - issued_at, 0.0)
+                        lower = target - POSITION_TOLERANCE_S
+                        upper = target + elapsed + POSITION_TOLERANCE_S
+                        if not lower <= position <= upper:
+                            continue  # right media, not yet at the requested point
+                    if event.player_state == want:
+                        outcome.verified, outcome.event = True, event
                         return outcome
                 elif event.content_id is not None and event.player_state in (
                     "PLAYING",
@@ -533,4 +740,6 @@ class CastPlaybackManager:
 
 
 def _round(value: float | None) -> float | None:
-    return round(value, 1) if isinstance(value, int | float) else None
+    if isinstance(value, int | float) and math.isfinite(value):
+        return round(value, 1)
+    return None

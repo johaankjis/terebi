@@ -78,7 +78,11 @@ def test_play_from_idle_verifies_exact_url_playing(manager, receiver, relay):
     result = play(manager)
     assert result["ok"] is True and result["verified"] is True
     assert result["state"] == "playing" and result["action"] == "started"
-    assert result["item"] == {"item_id": BBB_ID, "title": "BigBuckBunny_320x180"}
+    assert result["item"] == {
+        "item_id": BBB_ID,
+        "title": "BigBuckBunny_320x180",
+        "media_source_id": BBB_ID,
+    }
     assert result["relay_expires_in_minutes"] == 25  # 596 s + 15 min margin
     cap = relay.current()
     assert cap is not None and cap.item_id == BBB_ID
@@ -249,7 +253,11 @@ def test_pause_verifies_same_session_then_is_idempotent(manager, receiver):
         "state": "paused",
         "verified": True,
         "already_paused": False,
-        "item": {"item_id": BBB_ID, "title": "BigBuckBunny_320x180"},
+        "item": {
+            "item_id": BBB_ID,
+            "title": "BigBuckBunny_320x180",
+            "media_source_id": BBB_ID,
+        },
         "position_s": 14.5,
     }
     assert ("PAUSE", sid) in receiver.commands

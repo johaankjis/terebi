@@ -27,6 +27,35 @@ Seven tools are registered:
   configured Chromecast and verifies that the receiver transitions to `PAUSED` on
   the same capability URL and media session.
 
+### Describe a saved scene
+
+Save a scene description with a timestamp verified against your exact Jellyfin
+edition, then ask for it in your own words. For example, a saved description
+“Bunny wakes up and comes out of his burrow” can match “Play the part where the
+rabbit gets up and goes outside.” Hermes looks up local descriptions and aliases,
+then uses the existing exact-source timestamp playback path. It reports the saved
+scene and the receiver-confirmed start position.
+
+Use `library_scene_save` with `item_id`, `media_source_id`, `label`, verified
+`start_time_s`, and `description`. Optional `aliases` teach additional phrasings;
+optional `end_time_s` is metadata and does not stop playback. Records stay in
+profile-local marker state, separately from the movie file. Existing label-only
+markers remain available and are not silently treated as scene descriptions.
+
+For requests in the user's own words, Hermes calls `library_scene_find` with
+`description`, rather than the subtitle `query` parameter. A clear match returns
+one candidate; ambiguous results require a user choice. An unmatched description
+offers an explicit timestamp and starts nothing. Lookup itself never starts
+playback. Choices are edition- and session-bound and expire after 15 minutes.
+Changed scene records or editions require a fresh lookup before playback.
+
+Matching uses a small local phrase/synonym vocabulary and saved aliases. It has no
+embedding model, subtitle indexing, or video/frame analysis in this path. Some
+paraphrases will not match; it does not understand arbitrary visual scenes.
+The planned three-scene Big Buck Bunny demo is **not yet verified live**: its
+exact-copy action-start timestamps are still awaiting inspection or user input.
+See [demo record status](docs/BBB_SCENE_DEMO.md).
+
 ### Play a scene from your edition
 
 Ask Hermes: “Find the line ‘keep the lamp burning’ in Lighthouse,” then choose

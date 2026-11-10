@@ -180,3 +180,15 @@ are scoped to trusted conversation context. Manual markers are local, idempotent
 by edition and label, and explicitly user supplied; they do not claim visual
 understanding. A user timestamp is an honest fallback for captionless scenes.
 The user approved OpenCode GLM 5.3 Flash after requested GLM 5.1 was unavailable.
+
+
+## D-018: Local lookup of verified saved scene descriptions (2026-11-10)
+
+Reuse exact-edition marker storage and timestamp playback. Optional description,
+aliases, and end metadata extend existing marker evidence without replacing other
+markers or altering movie files. A small deterministic phrase/synonym matcher
+returns clear, ambiguous, or none; no model, dependency, network lookup, subtitle
+indexing, or frame analysis is added. An ambiguous description requires choice;
+unmatched descriptions offer a timestamp. Revalidate the edition fingerprint and
+saved record before consuming a conversation-bound playback candidate. Scene
+start times must come from exact-copy inspection or explicit user verification.

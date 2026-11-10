@@ -204,6 +204,7 @@ def main() -> None:
                         "media_source_id": BBB_ID,
                         "label": "fixture scene",
                         "start_time_s": 60,
+                        "description": "Bunny wakes up and comes out of his burrow",
                     }
                 )
             )
@@ -213,12 +214,13 @@ def main() -> None:
                     "library_scene_find",
                     {
                         "item_id": BBB_ID,
-                        "marker": "fixture scene",
+                        "description": "the rabbit gets up and goes outside",
                     },
                     session_id="scene-smoke",
                 )
             )
-            assert found["ok"] and len(found["candidates"]) == 1, found
+            assert found["ok"] and found["match"] == "clear", found
+            assert len(found["candidates"]) == 1, found
             scene = json.loads(
                 dispatcher.dispatch(
                     "tv_scene_play",
@@ -246,7 +248,7 @@ def main() -> None:
     print(
         "PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + "
         "tv_pause through real client + respx + local relay + fake Chromecast, scoped "
-        "secret rotation, context isolation, scene marker seek + measured position, "
+        "secret rotation, context isolation, description paraphrase, seek + measured position, "
         "on_unload cleanup"
     )
 

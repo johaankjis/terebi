@@ -360,3 +360,17 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   Relay served HTTP 206 and was released after verified pause; TCP 8765 closed.
   This closes the final adapter's prior live-code gap. Evidence:
   [scene-marker-37582ae-20261110.json](evidence/scene-marker-37582ae-20261110.json).
+
+
+## Saved-description demo (2026-11-10)
+
+- **VERIFIED (worker fixtures):** pure local description lookup scopes records to
+  exact item, media source and fingerprint, preserves inputs, and distinguishes
+  supported paraphrases, ambiguous descriptions, and no match. This is lexical
+  normalization with a fixed vocabulary and aliases, not semantic-model quality.
+- **BLOCKED (live scene data):** manager's new Jellyfin metadata request for
+  `BigBuckBunny_320x180` returned HTTP 401. No action-start timestamps were viewed
+  or inferred. The user was asked for three verified times for this exact copy.
+- **UNVERIFIED (live Telegram):** paraphrase to described marker to exact-edition
+  receiver PLAYING, and ambiguous/unmatched agent requests causing no playback.
+  Previous marker acceptance on PR #4 is not evidence for this new demo flow.

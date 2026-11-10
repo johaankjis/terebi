@@ -17,6 +17,7 @@ from collections.abc import MutableMapping
 from typing import Any
 
 from . import tools
+from .hermes_screen.saved_scene_lookup import lookup_saved_scenes
 from .hermes_screen.scene_search import SubtitleSceneResolver
 
 CHOICE_TTL_S = 900
@@ -225,6 +226,7 @@ class SceneTools:
                 "item_id",
                 "media_source_id",
                 "query",
+                "description",
                 "marker",
                 "start_time_s",
                 "language",
@@ -238,7 +240,9 @@ class SceneTools:
         item_id, error = self._movie(args, connection)
         if error:
             return error
-        selectors = [key for key in ("query", "marker", "start_time_s") if key in args]
+        selectors = [
+            key for key in ("query", "description", "marker", "start_time_s") if key in args
+        ]
         if len(selectors) > 1:
             raise ValueError("selector")
         with self._resolver(connection) as resolver:
@@ -256,11 +260,25 @@ class SceneTools:
                         for m in self._markers(scope)
                         if m["item_id"] == item_id and m["media_source_id"] == source_id
                     ],
-                    "hint": "Give dialogue, a saved marker label, or start_time_s.",
+                    "hint": "Describe a saved scene, give dialogue, a marker, or start_time_s.",
                 }
             selector = selectors[0]
             lookup = None
-            if selector == "query":
+            if selector == "description":
+                description = _text(args["description"])
+                result = lookup_saved_scenes(
+                    self._markers(scope),
+                    item_id,
+                    source_id,
+                    description,
+                    source_fingerprint=edition["fingerprint"],
+                )
+                if not result["ok"]:
+                    return result
+                candidates = result["candidates"]
+                result["no_match"] = not candidates
+                lookup = {"kind": "saved_description", "query": description}
+            elif selector == "query":
                 query = _text(args["query"])
                 result = resolver.search(
                     item_id, source_id, query, args.get("language"), args.get("track_index")
@@ -307,16 +325,29 @@ class SceneTools:
                 ]
                 result = {"ok": True, "method": "user_supplied", "no_match": False}
             result["candidates"] = self._offer(candidates, scope, who, lookup)
-            result["needs_choice"] = len(candidates) > 1
+            result["needs_choice"] = len(candidates) > 1 or result.get("match") == "ambiguous"
             result["choice_expires_in_s"] = CHOICE_TTL_S
             if not candidates:
                 result["hint"] = (
-                    "No scene matched. Give exact dialogue, save a marker, or supply a timestamp."
+                    "No saved scene matched. Supply a timestamp to play or save a new scene."
+                    if selector == "description"
+                    else "No scene matched. Give dialogue, save a marker, or supply a timestamp."
                 )
             return result
 
     def _save(self, args: Any, connection: tuple, scope: str, who: str) -> dict:
-        args = _args(args, {"item_id", "media_source_id", "label", "start_time_s"})
+        args = _args(
+            args,
+            {
+                "item_id",
+                "media_source_id",
+                "label",
+                "start_time_s",
+                "description",
+                "aliases",
+                "end_time_s",
+            },
+        )
         item_id, label = _id(args.get("item_id")), _text(args.get("label"), 80)
         if self.state is None:
             return _error(
@@ -350,6 +381,28 @@ class SceneTools:
                 "label": label,
             },
         }
+        # Preserve optional metadata when an existing marker is saved unchanged.
+        # A different edition fingerprint or start requires explicit new evidence.
+        if (
+            matches
+            and matches[0]["start_time_s"] == seconds
+            and (matches[0]["evidence"].get("source_fingerprint") == edition["fingerprint"])
+        ):
+            for key in ("description", "aliases", "end_time_s"):
+                if key in matches[0]["evidence"]:
+                    marker["evidence"][key] = copy.deepcopy(matches[0]["evidence"][key])
+        if "description" in args:
+            marker["evidence"]["description"] = _text(args["description"], 500)
+        if "aliases" in args:
+            aliases = args["aliases"]
+            if not isinstance(aliases, list) or len(aliases) > 8:
+                raise ValueError("aliases")
+            marker["evidence"]["aliases"] = [_text(alias, 120) for alias in aliases]
+        if "end_time_s" in args:
+            end = _offset(args["end_time_s"], edition["duration_s"] + 0.001)
+            if end <= seconds or end > edition["duration_s"]:
+                raise ValueError("end_time_s")
+            marker["evidence"]["end_time_s"] = end
         markers = [m for m in markers if m not in matches]
         if len(markers) >= MAX_MARKERS:
             return _error(
@@ -380,8 +433,20 @@ class SceneTools:
                 return _error(
                     "scene_changed", "The edition changed. Find and choose the scene again."
                 )
-            if choice["lookup"]:
-                lookup = choice["lookup"]
+            lookup = choice["lookup"]
+            if lookup and lookup.get("kind") == "saved_description":
+                fresh = lookup_saved_scenes(
+                    self._markers(scope),
+                    candidate["item_id"],
+                    candidate["media_source_id"],
+                    lookup["query"],
+                    source_fingerprint=edition["fingerprint"],
+                )
+                if not fresh["ok"] or candidate not in fresh["candidates"]:
+                    return _error(
+                        "scene_changed", "The saved scene changed. Find and choose it again."
+                    )
+            elif lookup:
                 fresh = resolver.search(
                     candidate["item_id"],
                     candidate["media_source_id"],

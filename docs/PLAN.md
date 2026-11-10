@@ -36,9 +36,11 @@ PR #4 checkout remain unchanged. This demo will have one new draft PR stacked
 on PR #4 while that dependency remains unmerged. User owns merging this slice.
 
 - [x] Verify upstream head and create isolated manager demo checkout.
-- [ ] Claude Code Opus 5.5: local saved-description lookup and focused tests.
-- [ ] Manager: descriptions/aliases in existing exact-edition marker state,
+- [x] Claude Code Opus 5.5: local saved-description lookup and 80 focused tests.
+- [x] Manager: descriptions/aliases in existing exact-edition marker state,
   bounded optional end time, Hermes description lookup and candidate wiring.
+  Registered-tool tests cover paraphrase playback, unchanged legacy markers,
+  changed-record revalidation, and lookup-only ambiguous/unmatched results.
 - [ ] Verify three scenes in the user's exact copy; store records separately
   from the movie. Candidate actions: Bunny emerges, butterfly attacked, traps.
 - [ ] Telegram paraphrase → exact-edition PLAYING near selected saved start.

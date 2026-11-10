@@ -148,23 +148,24 @@ class CastPlaybackManager:
     def __init__(
         self,
         *,
-        connector: CastConnector = connect_chromecast,
+        connector: CastConnector | None = None,
         relay: MediaRelay | None = None,
         clock: Callable[[], float] = time.monotonic,
-        play_timeout_s: float = PLAY_TIMEOUT_S,
-        pause_timeout_s: float = PAUSE_TIMEOUT_S,
-        status_timeout_s: float = STATUS_TIMEOUT_S,
-        lock_timeout_s: float = LOCK_TIMEOUT_S,
-        poll_s: float = POLL_S,
+        play_timeout_s: float | None = None,
+        pause_timeout_s: float | None = None,
+        status_timeout_s: float | None = None,
+        lock_timeout_s: float | None = None,
+        poll_s: float | None = None,
     ) -> None:
-        self._connector = connector
+        # None means the module default, read now (tests may shorten them).
+        self._connector = connector  # None: connect_chromecast, looked up per call
         self._relay = relay if relay is not None else MediaRelay()
         self._clock = clock
-        self._play_timeout = play_timeout_s
-        self._pause_timeout = pause_timeout_s
-        self._status_timeout = status_timeout_s
-        self._lock_timeout = lock_timeout_s
-        self._poll = poll_s
+        self._play_timeout = PLAY_TIMEOUT_S if play_timeout_s is None else play_timeout_s
+        self._pause_timeout = PAUSE_TIMEOUT_S if pause_timeout_s is None else pause_timeout_s
+        self._status_timeout = STATUS_TIMEOUT_S if status_timeout_s is None else status_timeout_s
+        self._lock_timeout = LOCK_TIMEOUT_S if lock_timeout_s is None else lock_timeout_s
+        self._poll = POLL_S if poll_s is None else poll_s
         self._lock = threading.Lock()
         self._owned: _Owned | None = None
         self._closed = False
@@ -185,14 +186,26 @@ class CastPlaybackManager:
         """Pause what this context started, and verify PAUSED (idempotent)."""
         return self._serialized(self._pause)
 
-    def close(self) -> None:
-        """Revoke the capability and stop the relay. Does not touch the receiver.
+    def release(self) -> None:
+        """Revoke the media link and stop the relay now; the tools stay usable.
 
-        Safe to call more than once; used by ``ctx.on_unload`` and tests.
+        Does not touch the receiver (whatever is buffered may play on briefly).
         """
+        self._shutdown(disable=False)
+
+    def close(self) -> None:
+        """Like :meth:`release`, then refuse further calls. Used by ``ctx.on_unload``.
+
+        Safe to call more than once. Bounded: waits at most 5 s for a running call,
+        then revokes anyway (the relay is thread-safe).
+        """
+        self._shutdown(disable=True)
+
+    def _shutdown(self, *, disable: bool) -> None:
         acquired = self._lock.acquire(timeout=5.0)
         try:
-            self._closed = True
+            if disable:
+                self._closed = True
             self._owned = None
             self._relay.revoke()
         finally:
@@ -219,6 +232,10 @@ class CastPlaybackManager:
         finally:
             self._lock.release()
 
+    def _connect(self, host: str, port: int) -> CastSession:
+        connector = self._connector or connect_chromecast
+        return connector(host, port)
+
     def _drop(self) -> None:
         self._owned = None
         self._relay.revoke()
@@ -231,7 +248,7 @@ class CastPlaybackManager:
         auth_header: str,
     ) -> dict[str, Any]:
         item_id, title = source["item_id"], source["title"]
-        session = self._connector(settings.host, settings.port)
+        session = self._connect(settings.host, settings.port)
         try:
             repeat = self._repeat_play(session, settings, item_id)
             if repeat is not None:
@@ -366,7 +383,7 @@ class CastPlaybackManager:
                 "Nothing I started is playing on the Chromecast, so there is nothing for me "
                 "to pause. I only pause what tv_play started.",
             )
-        session = self._connector(owned.host, owned.port)
+        session = self._connect(owned.host, owned.port)
         try:
             if session.app_id() != APP_DEFAULT_MEDIA_RECEIVER:
                 return self._not_ours()

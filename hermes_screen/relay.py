@@ -362,7 +362,7 @@ class MediaRelay:
         )
         thread = threading.Thread(
             target=server.serve_forever,
-            kwargs={"poll_interval": 0.2},
+            kwargs={"poll_interval": 0.05},
             name="hermes-screen-relay",
             daemon=True,
         )

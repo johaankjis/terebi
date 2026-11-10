@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -10,6 +11,9 @@ from .hermes_screen.config import Config
 from .hermes_screen.errors import error_payload
 
 _PICK_ARGUMENTS = frozenset({"max_minutes", "limit"})
+_ITEM_ID_RE = re.compile(
+    r"^(?:[0-9a-fA-F]{32}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+)
 _DEFAULT_PICK_LIMIT = 3
 
 
@@ -130,3 +134,116 @@ def library_pick(
             "jellyfin_unreachable",
             "Could not pick titles from Jellyfin. Check the server and settings.",
         )
+
+
+def _parse_object(args: Any) -> dict | str:
+    """Hermes may hand over a dict or its JSON text; anything else is an error string."""
+    if isinstance(args, str):
+        try:
+            args = json.loads(args) if args.strip() else {}
+        except ValueError:
+            return _error("invalid_argument", "Arguments must be a JSON object.")
+    if args is None:
+        args = {}
+    if not isinstance(args, dict):
+        return _error("invalid_argument", "Arguments must be a JSON object.")
+    return args
+
+
+def _parse_play_args(args: Any) -> str | dict:
+    """Return ``{"item_id": ...}`` (format-checked, not resolved), or a JSON error string."""
+    parsed = _parse_object(args)
+    if isinstance(parsed, str):
+        return parsed
+    unknown = sorted(str(key) for key in parsed if key != "item_id")
+    if unknown:
+        return _error(
+            "invalid_argument",
+            "Unsupported argument(s): " + ", ".join(unknown)[:100] + ". Use only item_id.",
+        )
+    item_id = parsed.get("item_id")
+    if not isinstance(item_id, str) or not _ITEM_ID_RE.match(item_id.strip()):
+        return _error(
+            "invalid_argument",
+            "item_id must be the exact Jellyfin item id returned by library_pick, "
+            "not a title. Call library_pick first.",
+        )
+    return {"item_id": item_id.strip()}
+
+
+def _read_cast_settings(ctx: Any) -> Any:
+    """Validated Cast settings, or a JSON error string."""
+    try:
+        from .hermes_screen.cast import CastError
+        from .hermes_screen.playback import parse_cast_settings
+    except Exception:
+        return _error(
+            "cast_unavailable", "Reinstall Hermes Screen with its Chromecast dependencies."
+        )
+    try:
+        config = Config(ctx)
+        raw = (config.chromecast_host(), config.cast_media_base_url(), config.cast_relay_bind())
+    except Exception:
+        return _error("cast_config", "Could not read the Chromecast settings. Check them.")
+    try:
+        return parse_cast_settings(*raw)
+    except CastError as exc:
+        return json.dumps(exc.to_dict())
+
+
+def tv_play(
+    args: Any,
+    *,
+    ctx: Any = None,
+    manager: Any = None,
+    secret_reader: Callable[[str], str | None] | None = None,
+) -> str:
+    """Validate an exact Jellyfin item, cast it, and report receiver-verified state."""
+    parsed = _parse_play_args(args)
+    if isinstance(parsed, str):
+        return parsed
+    if ctx is None or manager is None:
+        return _error("not_configured", "Reload the Hermes Screen plugin.")
+    settings = _read_cast_settings(ctx)
+    if isinstance(settings, str):
+        return settings
+    connection = _read_connection(ctx, secret_reader)
+    if isinstance(connection, str):
+        return connection
+    base_url, api_key, user_id = connection
+    try:
+        from .hermes_screen.jellyfin import JellyfinClient, JellyfinError
+    except Exception:
+        return _error(
+            "jellyfin_client_unavailable", "Reinstall Hermes Screen with its httpx dependency."
+        )
+    try:
+        with JellyfinClient(base_url, api_key, user_id=user_id) as client:
+            source = client.get_cast_source(parsed["item_id"])
+            upstream_url, auth_header = client.cast_stream_target(source)
+    except JellyfinError as exc:
+        return json.dumps(exc.to_dict())
+    except Exception:
+        return _error(
+            "jellyfin_unreachable",
+            "Could not check that item in Jellyfin. Check the server and settings.",
+        )
+    try:
+        return json.dumps(manager.play(settings, source, upstream_url, auth_header))
+    except Exception:
+        return _error("cast_failed", "Something went wrong talking to the Chromecast. Try again.")
+
+
+def tv_pause(args: Any, *, ctx: Any = None, manager: Any = None) -> str:
+    """Pause only what this context started, and report receiver-verified state."""
+    parsed = _parse_object(args)
+    if isinstance(parsed, str):
+        return parsed
+    if parsed:
+        return _error("invalid_argument", "tv_pause takes no arguments.")
+    if ctx is None or manager is None:
+        return _error("not_configured", "Reload the Hermes Screen plugin.")
+    try:
+        return json.dumps(manager.pause())
+    except Exception:
+        return _error("cast_failed", "Something went wrong talking to the Chromecast. Try again.")

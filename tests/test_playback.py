@@ -282,6 +282,15 @@ def test_close_revokes_without_touching_receiver(manager, receiver, relay):
     assert manager.pause()["reason"] == "not_configured"
 
 
+def test_release_revokes_but_keeps_tools_usable(manager, receiver, relay):
+    play(manager)
+    cap = relay.current()
+    manager.release()
+    assert cap.revoked and not relay.running
+    assert manager.pause()["reason"] == "nothing_playing"
+    assert play(manager)["ok"] is True
+
+
 def test_contexts_are_isolated(receiver, clock):
     a = CastPlaybackManager(connector=receiver.connect, relay=MediaRelay(clock=clock), clock=clock)
     b = CastPlaybackManager(connector=receiver.connect, relay=MediaRelay(clock=clock), clock=clock)

@@ -1,9 +1,11 @@
 name: hermes-screen
 version: "0.1.0"
-description: "Check your Jellyfin server and pick what to watch from your own library, using real watch history."
+description: "Pick what to watch from your own Jellyfin library using real watch history, then play and pause it on your Chromecast with receiver-verified status."
 provides_tools:
   - library_status
   - library_pick
+  - tv_play
+  - tv_pause
 provides_hooks: []
 manifest_version: 2
 api_version: 1
@@ -13,6 +15,7 @@ tags:
   - tv
   - jellyfin
   - roku
+  - chromecast
   - media
 config_schema:
   jellyfin_url:
@@ -30,3 +33,18 @@ config_schema:
     default: ""
     label: "Jellyfin user"
     description: "Jellyfin username or user id (optional)"
+  chromecast_host:
+    type: str
+    default: ""
+    label: "Chromecast IP"
+    description: "LAN IP address of the Chromecast to play on (connects directly on port 8009; no discovery)"
+  cast_media_base_url:
+    type: str
+    default: ""
+    label: "Media URL for the Chromecast"
+    description: "http://IP:port where the Chromecast can reach this host's temporary media link (e.g. http://192.168.1.20:8765). No path."
+  cast_relay_bind:
+    type: str
+    default: ""
+    label: "Media link listen address"
+    description: "Local IP:port the temporary media link listens on while something plays (e.g. 0.0.0.0:8765). Links are random, single-item and expire."

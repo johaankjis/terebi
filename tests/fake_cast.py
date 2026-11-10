@@ -8,11 +8,17 @@ be told to misbehave. Nothing touches the network.
 from __future__ import annotations
 
 import threading
+import time
 from typing import Any
 
-from hermes_screen.cast import APP_DEFAULT_MEDIA_RECEIVER, CastError, MediaEvent
-
 BACKDROP = "E8C28D3C"
+APP_DEFAULT_MEDIA_RECEIVER = "CC1AD845"
+
+
+def _cast_module() -> Any:
+    from hermes_screen import cast
+
+    return cast
 
 
 class FakeClock:
@@ -30,7 +36,9 @@ class FakeClock:
 
 
 class FakeReceiver:
-    def __init__(self, clock: FakeClock) -> None:
+    def __init__(self, clock: FakeClock, cast_module: Any = None) -> None:
+        # cast_module: the plugin's own hermes_screen.cast (differs under a namespaced loader)
+        self.cast = cast_module if cast_module is not None else _cast_module()
         self.clock = clock
         self.app_id: str | None = BACKDROP
         self.content_id: str | None = None
@@ -50,7 +58,7 @@ class FakeReceiver:
     def connect(self, host: str, port: int) -> FakeSession:
         self.commands.append(("connect", host, port))
         if self.unreachable:
-            raise CastError("cast_unreachable", "Couldn't reach the Chromecast.")
+            raise self.cast.CastError("cast_unreachable", "Couldn't reach the Chromecast.")
         self.connections += 1
         session = FakeSession(self)
         self.open_sessions.append(session)
@@ -66,7 +74,7 @@ class FakeReceiver:
 class FakeSession:
     def __init__(self, receiver: FakeReceiver) -> None:
         self.r = receiver
-        self.events: list[MediaEvent] = []
+        self.events: list[Any] = []
         self.closed = False
         if receiver.app_id == APP_DEFAULT_MEDIA_RECEIVER and receiver.state is not None:
             self._push()  # media channel connect triggers a status, like pychromecast
@@ -84,7 +92,8 @@ class FakeSession:
         if kind != "status":
             fields = {}
         fields.update(override)
-        self.events.append(MediaEvent(seq=len(self.events) + 1, kind=kind, **fields))
+        event = self.r.cast.MediaEvent(seq=len(self.events) + 1, kind=kind, **fields)
+        self.events.append(event)
 
     # CastSession protocol
     def app_id(self) -> str | None:
@@ -93,10 +102,11 @@ class FakeSession:
     def mark(self) -> int:
         return len(self.events)
 
-    def events_after(self, seq: int, timeout: float) -> list[MediaEvent]:
+    def events_after(self, seq: int, timeout: float) -> list[Any]:
         fresh = [e for e in self.events if e.seq > seq]
         if not fresh:
             self.r.clock.advance(timeout)
+            time.sleep(0.001)  # yield like a real wait when the caller uses a real clock
         return fresh
 
     def request_status(self) -> None:
@@ -107,7 +117,9 @@ class FakeSession:
     def launch_receiver(self) -> None:
         self.r.commands.append(("LAUNCH",))
         if self.r.launch_fails:
-            raise CastError("cast_launch_failed", "The Chromecast didn't open its media player.")
+            raise self.r.cast.CastError(
+                "cast_launch_failed", "The Chromecast didn't open its media player."
+            )
         if self.r.app_id != APP_DEFAULT_MEDIA_RECEIVER:
             self.r.app_id = APP_DEFAULT_MEDIA_RECEIVER
             self.r.content_id = None
@@ -117,7 +129,9 @@ class FakeSession:
         self.r.commands.append(("LOAD", url, title))
         behavior = self.r.on_load
         if behavior == "reject":
-            raise CastError("cast_command_failed", "The Chromecast didn't accept the video.")
+            raise self.r.cast.CastError(
+                "cast_command_failed", "The Chromecast didn't accept the video."
+            )
         if behavior == "silent":
             return
         if behavior == "load_failed":

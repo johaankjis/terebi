@@ -485,8 +485,8 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   showed was not recorded for that run.
 - VERIFIED (deployed tunnel origin, 2026-11-11 ~16:10Z): every display, receiver
   and phone file served matched `7cf12ac` byte for byte.
-- VERIFIED (T3 → LAN, 2026-11-11 16:10Z–16:55Z): `192.168.0.134` ports 8008, 8009
-  and 9222 closed and no other host answered on 8009, while `192.168.0.126` was
+- VERIFIED (T3 → LAN, 2026-11-11 16:10Z–16:55Z): `[LAN IP redacted]` ports 8008, 8009
+  and 9222 closed and no other host answered on 8009, while `[LAN IP redacted]` was
   reachable. The Chromecast was off, so nothing in this pass was profiled on it.
 - VERIFIED (headless Chrome 156, software GL, traced): reveal-start stall is a GPU
   task (`GLContextEGL::MakeCurrent`) of 0.6–3 s on the first WebGL frame after

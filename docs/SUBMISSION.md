@@ -1,130 +1,212 @@
 # SUBMISSION CHECKLIST
 
-Due **Wed Nov 11, 2026, 5PM EST**. Aim to submit by noon.
+Catalog submission readiness for `hermes-screen`. This document states exactly
+what was verified where; it is the disclosure and evidence summary a catalog
+reviewer needs alongside the PR description.
 
-This document tracks catalog submission readiness. It is not a claim that the
-plugin is catalog-ready or playback-ready; see the publication gates below.
+## Current state (as of 2026-11-11, candidate main `cd6d54d`)
 
-## Current state (as of 2026-11-10)
-
-- Registered tools: `library_status`, `library_pick`, `tv_play`, and `tv_pause` (4 tools, 0 hooks). No `/watch` or Roku control exists.
-- Hermes floor verified: `>=0.22.0` against upstream
-  `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
-- Installed ZimaOS Hermes is `v0.16.0`, below the declared minimum; a separate
-  v0.22.0 runtime is used for verification.
-- Jellyfin upstream OpenAPI `12.4.0`; live server `terebi` `12.2.0` at
-  `http://192.168.0.126:8097` verified live for `library_status`,
-  `library_pick(max_minutes=20)` (`BigBuckBunny_320x180` /
-  `e5d6c471a8a4ea26e00a3694f91bf8d1`), Roku 3 `/Sessions` +
-  `JellyfinClient.verify_playback` (`verified: true`, `playing: true`,
-  `paused: false`), and Chromecast direct-play preflight (`get_cast_source`,
-  authenticated `HEAD` `200`, and `Range: bytes=0-1023` `206` `ftypisom`).
-- Historical checks at integration SHA `4362ed1ecdb2a3606695925e24a79b3949063414`:
-  220 tests passed, Ruff check/format passed, `git diff --check` passed, doctor
-  and validate passed, mocked Hermes smoke passed.
-- Historical independent review of `4362ed1` reported zero blocking findings.
-- The prior published `9320c3638d9f7d8579326e1a622a205523b395d1` differs from
-  that reviewed integration by docs only.
-- Combined picker integration tree: 328 tests, Ruff, diff check, official doctor,
-  validate (security verdict **safe**) and mocked loader smoke passed with the picker
-  still internal.
-- Prior tree with `library_pick` registered (`22d28304f787c339b20e137975193d91e88d8e89`):
-  385 tests, Ruff, diff check, official doctor (2 tools, 0 hooks), validate
-  (security verdict **safe**), mocked loader smoke, and live Jellyfin 12.2.0
-  `library_status` + `library_pick` + Roku 3 `/Sessions` verification pass.
-- Current Jellyfin-to-Chromecast branch (`feat/jellyfin-chromecast-playback`):
-  **553 tests**, Ruff check/format (37 files), `git diff --check`, official doctor
-  (`4 tool(s), 0 hook(s)`), validate (`2 requirements from pyproject`, `security scan — caution`
-  with visible `bind_all_interfaces` findings), `tests/hermes_smoke.py`, live
-  Jellyfin `12.2.0` cast-source + authenticated `HEAD`/`Range` preflight, and live
-  end-to-end `library_status` -> `library_pick` -> `tv_play` (`verified: true`,
-  `state: "playing"`) -> `tv_pause` (`verified: true`, `state: "paused"`,
-  `position_s: 4.7`, plus idempotent repeat `already_paused: true`) on Chromecast
-  Gen 2 (`192.168.0.134`) all pass in the isolated Hermes `v0.22.0` runtime. See
-  INTEGRATION.md and HARDWARE.md.
-
-## Plugin quality
-
-- [x] `hermes plugins doctor . --ci` passes
-- [ ] `hermes plugins validate . --install-deps` passes at the exact publication commit
-  (publication commit not selected; integration validation recorded below)
-- [x] `provides_tools` / hooks / `requires_env` match what `register()` registers
-  (`library_status`, `library_pick`, `tv_play`, `tv_pause`)
-- [x] `requires_hermes` SemVer floor in `plugin.yaml` (`>=0.22.0`)
-- [x] No secrets in repo; secrets read only through Hermes
-- [x] All tests pass; lint clean (553 tests, Ruff)
-- [ ] README: what it does, GIF, requirements, install, config, troubleshooting,
-  disclosures (GIF pending; live `tv_play`/`tv_pause` hardware step passed on Chromecast Gen 2)
-- [x] LICENSE present; `version` in `plugin.yaml` matches the manifest (`0.1.0`; publication pin pending)
+- Registered at the candidate tree: **12 tools, 0 hooks** — `library_status`,
+  `library_pick`, `tv_play`, `tv_pause`, `library_scene_find`,
+  `library_scene_save`, `tv_scene_play`, `tv_game_start`, `tv_game_stop`,
+  `tv_youtube_play`, `tv_youtube_pause`, `library_youtube_search`
+  (toolset `hermes_screen`).
+- Hermes floor: `requires_hermes: ">=0.22.0"` in `plugin.yaml` and the catalog
+  entry; verified against upstream `v0.22.0`
+  (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`). The plugin uses `ctx.on_unload`,
+  session/conversation identity injection and secret-scope reads, all on the
+  v0.22.0 public surface.
+- Candidate checks at `cd6d54d`: **943 Python tests**, **73 camera JS tests**,
+  Ruff check/format clean, `hermes plugins doctor . --ci` (12 tools / 0 hooks),
+  `hermes plugins validate . --install-deps` **passes**.
+- Live verification runs in an isolated Hermes v0.22.0 gateway; the installed
+  ZimaOS Hermes container is v0.16.0 and is not touched by this work.
 
 ## Security scan state
 
-On the 4-tool Jellyfin-to-Chromecast tree, `hermes plugins validate --install-deps`
-exits 0 with `✓ security scan — caution`:
-`⚠ security scan caution: bind_all_interfaces (playback.py:77), bind_all_interfaces (plugin.yaml:50), bind_all_interfaces (relay.py:158), bind_all_interfaces (relay.py:166)`.
-This caution is triggered by the `0.0.0.0:8765` bind address documented and supported
-for containerized Hermes setups where the relay listens inside a bridge-networked
-container while the Chromecast connects to the host's LAN IP (`cast_media_base_url`).
-No scanner suppression is used, and the caution is kept visible for review.
+`hermes plugins validate --install-deps` exits 0 with
+`✓ security scan — caution`:
 
-Catalog rule 7 treats `dangerous` as a failure and `caution` as requiring review;
-a zero-caution result is not a separate catalog requirement.
+```
+bind_all_interfaces (playback.py:85)
+bind_all_interfaces (plugin.yaml:58)
+bind_all_interfaces (relay.py:158)
+bind_all_interfaces (relay.py:166)
+tunnel_service (games/deploy/compose.yaml:22)
+```
 
-## Catalog PR
+All five are deliberate, documented behavior: the movie relay may bind
+`0.0.0.0:8765` inside a bridge-networked Hermes container (the Chromecast then
+connects to the host's LAN IP via `cast_media_base_url`), and the game deploy
+runs a Cloudflare tunnel sidecar (`tunnel_service`) because the phone camera
+needs a trusted HTTPS origin. No scanner suppression is used; the cautions stay
+visible for review. No `dangerous` findings.
 
-- [ ] Fork `NousResearch/hermes-agent`
-- [ ] Add exactly one file: `plugin-catalog/hermes-screen.yaml` (check name is free)
-- [ ] Fields: `name`, `title`, `repo` (https), `sha` (full 40 chars), `description`
-  (with disclosure lines), `maintainer`, `tier: community`, `category: tools`,
-  `requires_hermes`, `docs_url` (README at the SHA), `version` (quoted),
-  `platforms`, `capabilities`
-- [ ] `capabilities.provides_tools` must list exactly `library_status` and `library_pick`
-  until more tools are registered and verified.
-- [ ] PR description: what it does, Hermes surfaces used, disclosures, screenshots
-- [ ] Wait for catalog CI to go green; respond to reviewer
+## Credentials
 
-## Entry steps
+- All secrets read via `agent.secret_scope.get_secret` through declared
+  `config_schema` secret entries: `JELLYFIN_API_KEY`, `TEREBI_GAMES_API_KEY`,
+  `YOUTUBE_API_KEY` (optional). Never `.env`, never `os.environ`, never other
+  credential stores.
+- No OAuth flows. No subscription sign-ins. No tokens written to disk by the
+  plugin. The game admin token is generated host-side by the standalone service
+  and never committed or printed.
+- Capability URLs are random, single-item/single-session and expire (movie
+  relay: bounded TTL; game pairing: one-use/3 minutes; viewer capabilities
+  expire with the session).
 
-1. [ ] Catalog PR open: http://hermes-agent.nousresearch.com/docs/developer-guide/plugins/catalog-submission
-2. [ ] Demo video (under 90s) on X, tag @NousResearch
-3. [ ] Both links in the form: http://form.typeform.com/to/FwJLvOln
+## Disclosure summary (rule 13)
 
-## Historical source provenance (select a new publication pin)
+- **Network calls:** configured Jellyfin server; configured Chromecast on TCP
+  8009 (Cast protocol); YouTube served by YouTube on the TV; `www.gstatic.com`
+  (CAF SDK, receiver page only); the user's own game service origin; optional
+  YouTube Data API v3; optional Cloudflare Quick Tunnel exposure.
+- **Listeners/background:** temporary HTTP relay bound only while a movie
+  plays (revoked on expiry/unload); the game service is a separate two-container
+  Docker Compose deployment the user opts into (loopback-published port +
+  tunnel sidecar).
+- **Local data:** scene markers, subtitle indexes, game session records in
+  Hermes per-profile plugin state and the service's private config. Nothing
+  syncs or phones home.
+- **Reads outside plugin data:** only the configured Jellyfin server and the
+  user's own game service.
+- **Telemetry:** none, opt-in or otherwise.
+- **Shell commands:** none executed on the user's machine by the plugin; the
+  game deploy scripts run only on the host the user chooses.
+- **Bundled assets:** the game background track `games/display/hydrate.mp3`
+  (see provenance below).
 
-- Tested `library_pick` registration tree: `22d28304f787c339b20e137975193d91e88d8e89`.
-- Prior published plugin tree: `9320c3638d9f7d8579326e1a622a205523b395d1`.
-- Integration review SHA: `4362ed1ecdb2a3606695925e24a79b3949063414`.
-- Jellyfin client worker: `c4c6c83e171a646b830b418cda79b6e420ecdf77`.
-- Native skeleton worker: `4ebcb722500fffea9f1af65f909298a1b294d888`.
-- Hermes upstream verified: `v0.22.0` /
-  `e06df9c2eae6901f4c88f464e0ae6e753c0428b8`.
-- Jellyfin OpenAPI: `12.4.0`, SHA256
-  `02a6064916b7e08f1f1d8d7ffc1fb1c7623df0e378729fcd7fd353766868036e`.
-- Jellyfin server: `terebi` `12.2.0` at `http://192.168.0.126:8097` (live
-  `library_status`, `library_pick`, and `/Sessions` verified).
-- Roku: model 4200X at `192.168.0.104` (Quick Connect sign-in, manual playback of
-  `BigBuckBunny_320x180`, and live `/Sessions` item verification completed;
-  programmatic ECP launch/pause pending).
+## Public tree and history scan
 
-## Publication gates (must all be true before submitting)
+Full scan of all commits/refs and the candidate tree found **no credentials**:
+no API keys, bot tokens, OAuth/SSH secrets, `.env`/key files, or committed
+test-credential lookalikes beyond fixtures. Findings worth disclosure:
 
-- [ ] Hardware gate closed: Roku app signed in and manual playback + exact
-  target-session item ID (`e5d6c471a8a4ea26e00a3694f91bf8d1`) verified; programmatic
-  launch/in-app play/pause and wake test still pending.
-- [ ] Roku ECP third-party shipping restriction resolved or explicitly accepted.
-- [x] Authenticated Jellyfin compatibility verified against the live server
-  (`12.2.0`, `library_status`, `library_pick`, `/Sessions`, `verify_playback`).
-- [ ] Review scan verdict at the publication SHA; document any caution findings.
-- [x] Deterministic picker integrated internally.
-- [x] `library_pick` registered and verified against live Jellyfin 12.2.0 in the
-  isolated Hermes v0.22.0 runtime.
-- [ ] Verify Telegram pick/play/pause; `/watch` follows.
-- [x] Independent review of `library_pick` registration SHA
-  (`22d28304f787c339b20e137975193d91e88d8e89`).
-- [ ] Catalog PR CI green at the pinned SHA.
-- [ ] Demo video under 90s recorded and posted.
+- A Cloudflare Quick Tunnel hostname and LAN IPs exist in **pushed history
+  only** (evidence file later redacted at main). Tunnel hostnames rotate on
+  restart, so the residual risk is low; noted here for the reviewer.
+- LAN IPs, Jellyfin server name/user, and item/user IDs remain in internal
+  dev-record docs (`docs/HARDWARE.md`, `docs/PLAN.md`,
+  `docs/INTEGRATION.md`, `docs/RESEARCH.md`, evidence JSONs). These are
+  infrastructure details, not credentials; the user-facing docs (README,
+  SETUP, SUBMISSION) use placeholders only.
+- `.DS_Store` was tracked; untracked in this PR.
+- Screenshots reviewed: no pairing URLs/tokens visible (phone screenshot shows
+  only a truncated proof hash). The two evidence MP4s still need a manual
+  frame review before any catalog use.
 
-## After submitting
+## Bundled asset provenance
 
-- [ ] Nous Research Discord (http://discord.gg/nousresearch): watch for the entry thread
-- [ ] Any SHA bump is a new PR
+- Camera WASM/model assets are **not committed**: they are built at Docker
+  image build time from pinned npm sources with checksum validation
+  (`games/camera/scripts/build.mjs`, `games/camera/assets.manifest.json`). No
+  `.wasm`/`.task`/`.pyc`/binaries are committed; the tree is scanner-readable.
+- **Release blocker to resolve before pinning:** the game background track
+  `games/display/hydrate.mp3` (39.5 MB, 192 kbps MP3, user-supplied
+  "frutiger aero" playlist mix) has **no documented redistribution license**.
+  Options before the catalog PR pins a SHA: (a) confirm the track is
+  self-made/public-domain/CC0 and record it here, (b) replace it with a
+  known-license track, or (c) drop the music feature. Shipping it as-is without
+  provenance is not acceptable for redistribution.
+
+## Screenshots / media review
+
+- `docs/evidence/rps-aero/` PNGs: reviewed — the TV screenshots contain no
+  URLs or tokens; the phone screenshot shows only a truncated proof hash
+  (`proof 1addc90370...`, already truncated by the UI) and no pairing link.
+- `docs/evidence/rps-aero/*.mp4` (2 files): **frame-by-frame review pending** —
+  they are screen recordings of the phone/TV flow and could contain a pairing
+  URL if captured during pairing. Review before any catalog screenshot uses
+  them; the catalog entry below uses static PNGs only.
+- Catalog `image`/`screenshots` must be `raw.githubusercontent.com` URLs pinned
+  to the entry SHA.
+
+## Draft catalog entry (`plugin-catalog/hermes-screen.yaml`)
+
+Pin `<PUBLISHED_SHA>` to the final public 40-character commit of this
+repository after this PR merges, and re-run
+`hermes plugins validate <checkout> --install-deps` on that exact tree before
+opening the upstream PR.
+
+```yaml
+name: hermes-screen
+repo: https://github.com/johaankjis/terebi
+sha: <PUBLISHED_SHA>
+description: >-
+  Pick what to watch from your own Jellyfin library using real watch history,
+  play movies and saved scenes on your Chromecast with receiver-verified
+  status, send YouTube links to the TV, and play camera rock-paper-scissors
+  against Hermes. Network calls: your Jellyfin server, your Chromecast
+  (Cast protocol, TCP 8009), YouTube on the TV, www.gstatic.com (receiver
+  SDK), your own optional game service, and optional YouTube Data API.
+  Listeners: a temporary expiring movie relay while something plays, and an
+  opt-in two-container game service you deploy yourself. No telemetry.
+  Secrets only via Hermes; no .env reads. Camera frames never leave the phone.
+maintainer: Johaan Jis
+tier: community
+category: tools
+requires_hermes: ">=0.22.0"
+version: "0.1.0"
+title: Hermes Screen
+platforms: []                 # plugin itself is platform-neutral; the game service needs a Linux host with Docker
+screenshots:
+  - https://raw.githubusercontent.com/johaankjis/terebi/<PUBLISHED_SHA>/docs/evidence/rps-aero/tv-reveal.png
+  - https://raw.githubusercontent.com/johaankjis/terebi/<PUBLISHED_SHA>/docs/evidence/rps-aero/tv-ready.png
+  - https://raw.githubusercontent.com/johaankjis/terebi/<PUBLISHED_SHA>/docs/evidence/rps-aero/phone-controller.png
+capabilities:
+  provides_tools:
+    - library_status
+    - library_pick
+    - tv_play
+    - tv_pause
+    - library_scene_find
+    - library_scene_save
+    - tv_scene_play
+    - tv_game_start
+    - tv_game_stop
+    - tv_youtube_play
+    - tv_youtube_pause
+    - library_youtube_search
+  provides_hooks: []
+  provides_middleware: []
+  requires_env: []
+```
+
+Slug availability: no `plugin-catalog/hermes-screen.yaml` exists upstream
+(checked `NousResearch/hermes-agent` on 2026-11-11); the `name` matches
+`plugin.yaml`'s manifest name. Category `tools` (home-theater control tools).
+
+## Verified on hardware vs mocked
+
+| Feature | Verified on real hardware | Mocked/browser only |
+|---|---|---|
+| `library_status` / `library_pick` | Jellyfin 12.2.0 live | — |
+| `tv_play` / `tv_pause` (movie) | Chromecast Gen 2, receiver-confirmed PLAYING/PAUSED, Telegram | — |
+| Scene save/find/play | Telegram end-to-end, receiver-confirmed seek positions | paraphrase vocabulary coverage |
+| `tv_game_start` (Custom Receiver) | Den TV receiver launch + render acknowledgement | Cast transport mocks |
+| `tv_game_start` (manual mirroring) | Den TV via Chrome cast tab | — |
+| Camera rounds / practice / Retry | iPhone Safari, real hand poses | frame-injection unit tests |
+| `tv_game_stop` | Telegram + phone camera release + receiver exit | — |
+| Game music on TV | ZimaOS deploy verified via tunnel (served files); audible playback check pending on TV | audio element logic (vm tests) |
+| `tv_youtube_play` / `tv_youtube_pause` | Chromecast Gen 2, exact video ID + PLAYING/PAUSED evidence, Telegram link request | — |
+| `library_youtube_search` | — | mocked official API (key unconfigured) |
+| TV wake / HDMI switching | separate manual checks, not claimed by tools | — |
+
+Unverifiable-from-here fresh-device steps: Google Cast developer registration
+(user account), tunnel hostname stability, other Jellyfin versions/servers,
+other Chromecast models/generations.
+
+## Catalog PR steps
+
+1. [ ] Resolve the game-music provenance blocker (above).
+2. [ ] Frame-review the two `.mp4` evidence files (or exclude them from the PR).
+3. [ ] Land this PR; record the final public SHA below.
+4. [ ] Validate that exact tree from a fresh clone + empty Hermes profile
+       (doctor + `validate --install-deps`).
+5. [ ] Fork `NousResearch/hermes-agent`, add exactly
+       `plugin-catalog/hermes-screen.yaml` with the pinned SHA.
+6. [ ] PR description: what it does, Hermes surfaces used, disclosure lines,
+       screenshots.
+7. [ ] Wait for catalog CI green; respond to review.
+
+Final public SHA: _to be recorded after this PR lands_.

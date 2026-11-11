@@ -1,6 +1,6 @@
 name: hermes-screen
 version: "0.1.0"
-description: "Pick what to watch from your own Jellyfin library using real watch history, then play and pause it on your Chromecast with receiver-verified status."
+description: "Pick what to watch from your own Jellyfin library, play movies and saved scenes on your Chromecast, send YouTube to the TV, and play camera rock-paper-scissors against Hermes — every action receiver-verified."
 provides_tools:
   - library_status
   - library_pick
@@ -22,8 +22,8 @@ license: MIT
 tags:
   - tv
   - jellyfin
-  - roku
   - chromecast
+  - cast
   - media
 config_schema:
   jellyfin_url:

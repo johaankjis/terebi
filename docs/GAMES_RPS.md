@@ -17,6 +17,14 @@ the attempt ID while keeping the same logical round and locked Hermes move.
 
 ## Chosen TV path and first live gate
 
+> **Status (2026-11-11):** this section is the historical decision record.
+> The current path is the **registered Custom Receiver** (`tv_game_start`
+> launches the game on the Chromecast with a session-verified render
+> acknowledgement); manual Chrome mirroring below remains the built-in
+> fallback when `games_receiver_app_id` is unset or launch fails. The TV
+> gate and camera acceptance have passed — see `docs/GAMES_STOP.md`,
+> `docs/evidence/` and `docs/SUBMISSION.md` for the current record.
+
 Manual Mac Chrome tab mirroring to **Den TV, Chromecast Gen 2, 192.168.0.134**.
 The user has no Custom Web Receiver app ID or registered test device. Google
 requires both for unpublished Custom Receiver testing; the default media receiver

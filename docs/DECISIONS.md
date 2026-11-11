@@ -293,11 +293,11 @@ supported in this slice.
   `hands.js` draws the hands. The Cast receiver and the manual display import the
   same files. No three.js, no model or image files: the receiver CSP and the static
   file whitelist stay exactly as they were.
-- **Hands are a pose table, not assets.** Each move is a rig of spheres and capsules
-  drawn by ~100 lines of WebGL 1 (two contexts, about 60 primitives each). WebGL
-  renders only during the 0.76 s reveal turn and then stops; idle motion is CSS.
-  The same rig is painted with Canvas 2D when WebGL is unavailable or its context
-  is lost, so the fallback cannot drift from the 3D moves.
+- **Hands are a pose table, baked into meshes.** Each move is a rig of spheres and
+  capsules. (Superseded in part by the polish pass below: the rig is now blended into
+  one smooth mesh per move at build time.) The same rig is painted with Canvas 2D
+  when WebGL is unavailable or its context is lost, so the fallback cannot drift
+  from the 3D moves.
 - **Cheap animation only.** Ambient loops animate `transform`/`opacity` on a handful
   of layers; no `backdrop-filter` on the TV (glass is gradients and rims). Loop
   periods are mutually staggered (7.3/8.9 s floats, 11/13 s glints, 19–41 s bubbles,
@@ -323,3 +323,70 @@ supported in this slice.
   the two-panel reference. Camera vs tap rounds stay labelled there.
 - **Phone is a CSS-only restyle.** Controller, camera, recognizer and markup IDs are
   untouched, so the 71 camera tests cover the same behaviour.
+
+## RPS motion and rendering polish — 2026-11-11
+
+Den TV feedback on `7cf12ac`: it works, but the animations and 3D hands look rough.
+The Chromecast was powered off while this pass was written (ports 8008/8009/9222
+closed from T3), so the diagnosis below comes from reading the code and tracing
+headless Chrome with a software GPU, not from the device. The build now measures
+itself on the device and reports the result (last bullet).
+
+What was rough, by cause:
+
+- **Hand geometry.** Each hand was about 60 separate spheres and capsules: thin
+  fingers, visible joints and seams, about 120 draw calls and fresh arrays per frame
+  for the pair. Now `games/tools/build-hands.mjs` blends each rig into one smooth
+  surface (signed distance field, surface nets), bakes normals and soft occlusion
+  per vertex and writes `games/display/hands.json` (about 5,000–6,500 vertices per
+  move, 490 KB for all three, served as `.json` so no new file type). One draw call
+  per hand, no per-frame allocation. Shading is a wrapped key light, cool shadows,
+  sky tint on grazing edges, baked crease occlusion and one soft highlight.
+  Rebuild after changing a pose: `node games/tools/build-hands.mjs`.
+- **Transitions.** Several were rough at any frame rate: the center badge animated
+  `width`/`height`/`left`/`top` (layout and repaint every frame); text was swapped in
+  place; the score and result changed before the hands appeared; the lake shimmer
+  was a ping-pong loop with visible turnarounds. Now every state of the center is
+  its own fixed-size badge that crossfades with a scale; banner lines crossfade
+  between two stacked layers; outcome colors are tint layers; the shimmer is a
+  periodic strip that slides by exactly one period. Only `transform` and `opacity`
+  animate.
+- **Countdown timing.** Beats were detected by a 100 ms tick and every poll
+  re-anchored the clock, so a beat could land up to about 100 ms late and shift
+  with network jitter. Now the server clock offset comes from the poll with the
+  shortest round trip, a countdown freezes the offset it started with, and a timer
+  fires on each beat boundary. Each digit is its own layer with a one-second
+  animation, so a beat is one attribute change with no forced reflow.
+- **Frame timing around the reveal.** In the trace, the first WebGL frame after the
+  canvases had been idle blocked the GPU process for 0.6–3 s (software GL; the size
+  on the Chromecast is unknown, the mechanism is not specific to software). The
+  hands now (1) draw one unseen frame every 400 ms between rounds, (2) draw unseen
+  frames continuously from the middle of the “2” beat until the reveal, (3) start
+  the turn's clock on the first presented frame, and (4) advance at most 40 ms per
+  frame, so a late frame stretches the turn instead of making the hand jump.
+
+Decisions:
+
+- **Reveal order is enforced, not timed.** The hands report when they have landed;
+  only then do the move names, banner, score and winner appear. A slow turn delays
+  the outcome instead of being overtaken by it.
+- **Three levels before the static scene.** Full → lite (lake shimmer, sparkles,
+  bubbles, rim glints, two clouds off) when ambient frames average over 30 ms or
+  more than 15% exceed 50 ms → still when lite still averages over 55 ms. Separately,
+  a WebGL turn that averages over 36 ms a frame or stalls over 120 ms (measured in
+  a hidden rehearsal at load and on every real turn) hands hand motion to the
+  compositor: the finished hand is painted once and swung in with a CSS transform.
+  Background effects go first, hand motion and the countdown last. Levels never
+  climb back within a page.
+- **The TV reports what it measured.** `POST /v1/sessions/{id}/profile`, display or
+  player credential, numbers and three enumerated strings only (strict keys, bounded
+  integers, 32 per session), recorded as a `display_profile` audit row. It cannot
+  change game state. This is same-origin, first-party and contains no camera data;
+  it is the only way to see what an unattended Chromecast actually did. The footer
+  shows the same result (`3D · 58 fps`, `3D lite · 31 fps`, `Static`).
+- **Polling.** Still 400 ms, except 200 ms in Ready/Next round (for at most 90 s)
+  and 150 ms from Shoot until the round resolves (at most 12 s), so a round start
+  and a result reach the TV sooner. Server timing is unchanged.
+- **“Keep ambient loops running” still holds.** During Countdown, Shoot and the turn
+  the lake effects and bubbles fade to zero opacity and keep running underneath;
+  clouds and the floating spheres never stop.

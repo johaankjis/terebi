@@ -314,3 +314,24 @@ Deploy exactly as for earlier builds (upload the archive, `host.sh build`, recre
 only the `games` container); the tunnel hostname and Cast registration are unchanged.
 First check on Den TV: open a game, watch the Waiting screen for ten seconds and
 read the footer mode.
+
+
+### Motion polish and on-device profile (2026-11-11)
+
+- The 3D hands are baked meshes (`games/display/hands.json`, built by
+  `node games/tools/build-hands.mjs` from the pose table in `hands.js`).
+- Reveal order: both hands turn in together and settle; then the move names, the
+  result banner, the score and the Winner tag arrive.
+- The footer's last line is what the TV is doing: `3D · 58 fps` (full scene, live
+  WebGL turn), `3D lite · 31 fps` (lake and glass effects dropped), or `Static`.
+- After the Waiting scene, after pairing and after each round the TV posts its own
+  frame timings to the game service. Read them on the host:
+
+```sh
+sh games/deploy/host.sh evidence | grep display_profile | tail -3
+```
+
+  `ambient`, `pairing`, `countdown`, `reveal` are `[frames, mean ms, worst ms,
+  frames over 50 ms]`; `hand` is the WebGL turn `[frames, mean ms, worst ms]`;
+  `turn` is `gl` (redrawn every frame) or `css` (painted once, swung in by the
+  compositor); `tier` is `full`, `lite` or `still`.

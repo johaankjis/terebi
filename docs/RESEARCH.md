@@ -477,3 +477,27 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   not been loaded on the device with this build.
 - **UNVERIFIED (real iPhone Safari):** the restyled controller's look and tap
   targets on the device; camera behaviour is unchanged code but not re-observed.
+
+## RPS polish pass — 2026-11-11
+
+- VERIFIED (user, Den TV, commit `7cf12ac`): the redesign runs on the Chromecast
+  Gen 2 receiver; animations and 3D hands looked rough. Which render mode the TV
+  showed was not recorded for that run.
+- VERIFIED (deployed tunnel origin, 2026-11-11 ~16:10Z): every display, receiver
+  and phone file served matched `7cf12ac` byte for byte.
+- VERIFIED (T3 → LAN, 2026-11-11 16:10Z–16:55Z): `192.168.0.134` ports 8008, 8009
+  and 9222 closed and no other host answered on 8009, while `192.168.0.126` was
+  reachable. The Chromecast was off, so nothing in this pass was profiled on it.
+- VERIFIED (headless Chrome 156, software GL, traced): reveal-start stall is a GPU
+  task (`GLContextEGL::MakeCurrent`) of 0.6–3 s on the first WebGL frame after
+  idling; with a 400 ms keep-alive frame and pre-reveal priming the first real turn
+  measured 34 frames, mean 37 ms, worst 112 ms. Ambient, pairing and countdown
+  windows held 17 ms frames. Software GL timings do not predict the Chromecast.
+- VERIFIED (same, frame-stepped capture of the real page against the real service
+  with a controlled clock): Waiting → Phone connected → Ready → 3-2-1-Shoot →
+  Reveal renders in the intended order at every frame. Clips in
+  `docs/evidence/rps-aero/`.
+- **UNVERIFIED (Den TV Chromecast Gen 2):** everything about this pass on the
+  device: frame timing per phase, which level and turn style it settles on, whether
+  the cold-start stall exists there, hand antialiasing, and a real camera round.
+  Read it from the footer and from `display_profile` rows after a round.

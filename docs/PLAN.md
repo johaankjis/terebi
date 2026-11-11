@@ -4,7 +4,34 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: Frutiger Aero redesign of the RPS game (TV + iPhone)
+## Current slice: RPS motion and rendering polish (PR #10)
+
+User tested `7cf12ac` on Den TV: works, but animations and 3D hands look rough.
+Polish in the existing draft PR #10; keep server-driven pairing, countdown, scoring,
+phone controls and music.
+
+- [x] Smooth baked hand meshes with soft shading; one draw call per hand.
+- [x] Waiting: faster cloud drift, seamless two-layer lake shimmer, sparkles, larger
+  staggered sphere float, drifting glass reflection, breathing phone icon with rings.
+- [x] Phone connected as one transition: ripple from the phone badge, phone → glass
+  check, spheres and panels ease in, “Phone connected” crossfades to “Ready”. Once
+  per pairing, still triggered only by the server's paired snapshot.
+- [x] Countdown: locally timed beats exactly 1 s apart, one clean pulse per beat.
+- [x] Reveal: moves hidden until resolved; both hands turn in together with a soft
+  bounce; banner, names, score and winner arrive after they land.
+- [x] Levels: full → lite → still by measured frame timing; compositor hand motion
+  when a WebGL turn is slow; static fallback kept.
+- [x] On-device profile: footer mode + fps, `display_profile` audit rows.
+- [x] Checks: **928 Python tests**, **71 camera JS tests**, **22 receiver/display JS
+  tests**, Ruff clean, Hermes doctor (11 tools, 0 hooks).
+- [x] Before/after clip of Waiting → Phone connected → Countdown → Reveal
+  ([evidence/rps-aero](evidence/rps-aero/)), frame-stepped in headless Chrome.
+- [ ] **Profile on Den TV: not done.** The Chromecast was off (no Cast ports open)
+  for the whole pass. Needs: redeploy this branch, start a game, read the footer
+  and the `display_profile` rows.
+- [ ] Verify the improvement on a real camera round on Den TV; record render mode.
+
+## Previous slice: Frutiger Aero redesign of the RPS game (TV + iPhone)
 
 User-authorized branch `feat/rps-frutiger-aero`, separate worktree, based on
 `feat/game-music` `721a328` (music PR #9 still open and absent from main), so the

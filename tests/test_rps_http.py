@@ -111,6 +111,18 @@ def test_receiver_is_static_reuses_display_and_has_scoped_sdk_policy(server):
     assert server.get("/receiver/?token=forbidden").status_code == 400
 
 
+def test_cast_and_manual_display_share_one_tv_renderer(server):
+    display, receiver = server.get("/display/"), server.get("/receiver/")
+    for page in (display, receiver):
+        # The receiver policy is style-src 'self': the scene may not rely on inline styles.
+        assert 'id="tv"' in page.text and "style=" not in page.text
+    assert "/display/display.js" in server.get("/receiver/receiver.js").text
+    for module in ("display.js", "scene.js", "view.js", "hands.js", "style.css"):
+        assert server.get(f"/display/{module}").status_code == 200
+    scene = server.get("/display/scene.js").text
+    assert "style=" not in scene and "http" not in scene.replace("http://www.w3.org", "")
+
+
 def test_tv_background_music_serves_from_display_origin(server):
     with server.stream("GET", "/display/hydrate.mp3") as r:
         assert r.status_code == 200

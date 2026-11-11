@@ -1,4 +1,5 @@
-const el = id => document.getElementById(id);
+import {bootView, countdownBeat, endedView, present} from './view.js';
+import {getScene} from './scene.js';
 
 // TV background music: one looping player shared by every TV display page.
 // Starts as soon as the TV version opens; retries handle autoplay-blocked starts.
@@ -15,57 +16,85 @@ export function startMusic() {
 }
 export function pauseMusic() { music?.pause(); }
 
-// Both manual mirroring and the Custom Receiver use this exact renderer.
-export function startDisplay(credentials, {onRendered = () => {}, onFailure = () => {}} = {}) {
-let state = null, anchored = 0, request = null, timer = null, stopped = false;
-startMusic(); // every TV display open starts (or resumes) the shared background music
-const labels = {rock:'✊ Rock', paper:'✋ Paper', scissors:'✌ Scissors'};
-function render() {
-  if (!state) return;
-  const now = state.server_time_ms + performance.now() - anchored;
-  if (now >= state.expires_at_ms) {stop(); el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Ask Hermes for a new game.';onFailure('session_ended');return;}
-  document.body.dataset.phase = state.phase;
-  el('round').textContent = state.round_number ? `· ROUND ${state.round_number}` : '';
-  const titles = {waiting_for_player:'Waiting for you',ready:'Ready',reveal:'Reveal!',score:'The score',next_round:'Play again?'};
-  const hints = {waiting_for_player:'Open the pairing link on your phone.',ready:'Position your hand, then start on your phone.',reveal:'Moves are locked.',score:'One round. One result.',next_round:'Tap Next round on your phone.'};
-  if (state.phase === 'countdown') {
-    const left = Math.ceil((state.countdown_ends_at_ms-now)/1000);
-    el('headline').textContent = left>0 ? String(Math.min(3,left)) : 'Shoot!';
-    el('guidance').textContent = left>0 ? 'Rock, paper, scissors…' : 'Hold your gesture. Unclear? Retry on your phone.';
-  } else {el('headline').textContent=titles[state.phase]||'Waiting';el('guidance').textContent=hints[state.phase]||'';}
-  const show = ['reveal','score','next_round'].includes(state.phase) && state.result;
-  el('moves').hidden=!show;
-  el('result').textContent=show ? {player:'You win!',hermes:'Hermes wins!',tie:'It’s a tie!'}[state.result.outcome] : '';
-  el('input').textContent=show ? (state.result.input==='tap'?'Tap-to-play fallback round':'Camera round') : '';
-  if(show){el('player-move').textContent=labels[state.result.player_move];el('hermes-move').textContent=labels[state.result.hermes_move];}
-  el('player-score').textContent=state.score.player;el('hermes-score').textContent=state.score.hermes;el('ties').textContent=state.score.ties;
-  el('completed').textContent=`${state.score.rounds} rounds played`;
-}
-async function poll(){
-  if(stopped||!credentials)return;
-  request=new AbortController(); const timeout=setTimeout(()=>request?.abort(),4000);
-  let delay=400;
-  try{
-    const r=await fetch(`/v1/sessions/${encodeURIComponent(credentials.id)}`,{headers:{Authorization:`Bearer ${credentials.token}`},cache:'no-store',signal:request.signal});
-    const data=await r.json();
-    if(stopped)return;
-    if(!r.ok||!data.ok){if([401,404,410].includes(r.status)){stop();el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Open a fresh display link from Hermes.';onFailure('session_ended');return;}throw Error('connection');}
-    if(data.state?.session_id!==credentials.id)throw Error('session_mismatch');
-    if(!state||data.state.revision>=state.revision){state=data.state;anchored=performance.now();render();if(!stopped)onRendered(state);}
-    if(stopped)return;
-    el('status').textContent=state.phase==='waiting_for_player'
-      ? 'Live · Waiting for a phone to pair'
-      : 'Live · Your paired phone controls the game';
-  }catch{if(stopped)return;el('status').textContent='Connection interrupted — reconnecting…';onFailure('display_unavailable');delay=2000;}
-  finally{clearTimeout(timeout);request=null;if(!stopped)timer=setTimeout(poll,delay);}
-}
-function stop(){stopped=true;pauseMusic();clearTimeout(timer);clearInterval(renderTimer);request?.abort();window.removeEventListener('pagehide',stop);}
-el('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{el('status').textContent='Use Chrome’s fullscreen menu, then cast this tab.';}};
-window.addEventListener('pagehide',stop);
-const renderTimer=setInterval(render,100);
-if(credentials?.id&&credentials?.token)poll();
-return stop;
+const CONNECTED_MS = 2600; // how long "Phone connected" holds before settling on Ready
 
+// Both manual mirroring and the Custom Receiver use this exact renderer.
+export function startDisplay(credentials, {onRendered = () => {}, onFailure = () => {}, scene = getScene()} = {}) {
+  let state = null, anchored = 0, request = null, timer = null, stopped = false;
+  let painted = false, celebrateUntil = 0, beatFor = null, beat = 3;
+  startMusic(); // every TV display open starts (or resumes) the shared background music
+  scene.render(bootView(credentials ? 'Connecting to your game…' : 'Open the display link Hermes sent you.'), {instant: true});
+  scene.connection('connecting', 'Connecting to the game service…');
+
+  function end(sub) {
+    stop();
+    scene.render(endedView(sub, state));
+    scene.connection('ended', 'Session ended');
+    onFailure('session_ended');
+  }
+  function render() {
+    if (!state || stopped) return;
+    const now = state.server_time_ms + performance.now() - anchored;
+    if (now >= state.expires_at_ms) return end('Ask Hermes for a new game.');
+    let shown = null;
+    if (state.phase === 'countdown') {
+      // Polls re-anchor the clock; a beat already shown never comes back.
+      const key = `${state.round_id}|${state.countdown_ends_at_ms}`;
+      if (beatFor !== key) { beatFor = key; beat = 3; }
+      shown = beat = Math.min(beat, countdownBeat(state, now));
+    }
+    // The first snapshot paints as-is: a reconnect to a paired session never replays a transition.
+    scene.render(present(state, now, {celebrating: performance.now() < celebrateUntil, beat: shown}), {instant: !painted});
+    painted = true;
+  }
+  async function poll() {
+    if (stopped || !credentials) return;
+    request = new AbortController();
+    const timeout = setTimeout(() => request?.abort(), 4000);
+    let delay = 400;
+    try {
+      const r = await fetch(`/v1/sessions/${encodeURIComponent(credentials.id)}`, {headers: {Authorization: `Bearer ${credentials.token}`}, cache: 'no-store', signal: request.signal});
+      const data = await r.json();
+      if (stopped) return;
+      if (!r.ok || !data.ok) {
+        if ([401, 404, 410].includes(r.status)) return end('Open a fresh display link from Hermes.');
+        throw Error('connection');
+      }
+      if (data.state?.session_id !== credentials.id) throw Error('session_mismatch');
+      if (!state || data.state.revision >= state.revision) {
+        // The server confirming the pairing is the only trigger, so it plays once per pairing.
+        if (state?.phase === 'waiting_for_player' && data.state.phase !== 'waiting_for_player') {
+          celebrateUntil = performance.now() + CONNECTED_MS;
+          scene.celebrate();
+        }
+        state = data.state; anchored = performance.now();
+        render();
+        if (!stopped) onRendered(state);
+      }
+      if (stopped) return;
+      // This label only ever reports a poll that just succeeded.
+      scene.connection('live', state.phase === 'waiting_for_player'
+        ? 'Live · Waiting for a phone to pair'
+        : 'Live · Phone paired');
+    } catch {
+      if (stopped) return;
+      scene.connection('retrying', 'Reconnecting to the game service…');
+      onFailure('display_unavailable');
+      delay = 2000;
+    } finally {
+      clearTimeout(timeout); request = null;
+      if (!stopped) timer = setTimeout(poll, delay);
+    }
+  }
+  function stop() {
+    stopped = true; pauseMusic();
+    clearTimeout(timer); clearInterval(renderTimer); request?.abort();
+    window.removeEventListener('pagehide', stop);
+  }
+  window.addEventListener('pagehide', stop);
+  const renderTimer = setInterval(render, 100);
+  if (credentials?.id && credentials?.token) poll();
+  return stop;
 }
 
 // The receiver supplies its credential in memory, never via a URL or storage.
@@ -78,6 +107,8 @@ if (location.pathname.startsWith('/display/')) {
       sessionStorage.setItem('terebi-display', JSON.stringify(credentials));
     } else credentials = JSON.parse(sessionStorage.getItem('terebi-display'));
   } catch { credentials = null; }
+  // Optional #motion=still|full pins the still or animated scene for checks on a real screen.
+  if (fragment.has('motion')) getScene().setMotion(fragment.get('motion'));
   history.replaceState(null, '', location.pathname);
   startDisplay(credentials);
 }

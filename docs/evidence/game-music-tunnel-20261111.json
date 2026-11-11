@@ -1,8 +1,8 @@
 {
   "at": "2026-11-11T05:18Z-05:22Z",
   "commit": "119a0dc49f0ba6aa6ee9ff323f2c94768d93966a",
-  "deployment": "ZimaOS 192.168.0.126, terebi-games-rps image rebuilt and recreated (loopback bind + cloudflared tunnel)",
-  "origin": "https://graham-instructional-talked-sara.trycloudflare.com (the exact origin the Chromecast receiver loads)",
+  "deployment": "ZimaOS [LAN IP redacted], terebi-games-rps image rebuilt and recreated (loopback bind + cloudflared tunnel)",
+  "origin": "[HTTPS tunnel hostname redacted] (the exact origin the Chromecast receiver loads)",
   "checks": {
     "health": {"ok": true, "configured": true},
     "receiver.js_contains_startMusic": true,

@@ -460,3 +460,20 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   `type=video`, `maxResults`, `q`, `safeSearch` and returns video IDs/title/channel.
   https://developers.google.com/youtube/v3/docs/search/list . Search is optional;
   video availability/age/region restrictions remain a receiver/live observation.
+
+## RPS Frutiger Aero renderer — 2026-11-11
+
+- VERIFIED (headless Chrome 156, SwiftShader, 1280×720, real local game service):
+  Waiting, Phone connected, Ready, 3-2-1, Shoot, Try again, Reveal and Next round
+  render from live API state; no CSP violations under the receiver's
+  `style-src 'self'` policy model (no inline styles); WebGL hands report `3D`;
+  `#motion=still` reports `Static` with the same text, moves and scores.
+  Screenshots and a recording: `docs/evidence/rps-aero/`.
+- VERIFIED (same harness): the restyled phone page pairs, starts the camera with a
+  fake device, loads the on-device recognizer and shows practice status.
+- **UNVERIFIED (Den TV Chromecast Gen 2):** frame rate of the ambient loops, WebGL 1
+  availability and antialiasing, whether the 20 fps probe trips to the still scene,
+  font rendering, and audio continuity alongside the animation. The receiver has
+  not been loaded on the device with this build.
+- **UNVERIFIED (real iPhone Safari):** the restyled controller's look and tap
+  targets on the device; camera behaviour is unchanged code but not re-observed.

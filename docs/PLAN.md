@@ -4,7 +4,39 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: TV background music for the RPS game
+## Current slice: Frutiger Aero redesign of the RPS game (TV + iPhone)
+
+User-authorized branch `feat/rps-frutiger-aero`, separate worktree, based on
+`feat/game-music` `721a328` (music PR #9 still open and absent from main), so the
+soundtrack is included. Draft PR, leave unmerged.
+
+- [x] One layered TV renderer for the Cast receiver and the manual display:
+  `view.js` (pure phase → view rules), `scene.js` (sky, clouds, hills, lake, bubbles,
+  glass spheres, score panels, banner), `hands.js` (procedural 3D glove hands),
+  `style.css`. No new dependency, no asset files, no new served file types.
+- [x] Ambient loops (clouds, lake shimmer, bubbles, sphere float, glass glint) with
+  staggered periods; calmed during Countdown/Shoot/Reveal; paused when the page is
+  hidden; still scene for reduced motion and slow devices.
+- [x] Waiting → Phone connected (once per pairing) → Ready → 3, 2, 1, Shoot →
+  Reveal/score → Try again / Next round. Server timing, scoring and pairing unchanged.
+- [x] Static fallback: same moves, labels, countdown and scores; Canvas 2D hands when
+  WebGL is missing. Footer shows `3D` or `Static` so the TV reports which one ran.
+- [x] iPhone controller restyled (CSS only; camera, recognition, tap fallback and
+  controller logic untouched).
+- [x] Checks: **926 Python tests**, **71 camera JS tests**, **15 receiver/display JS
+  tests**, Ruff clean, Hermes doctor (11 tools, 0 hooks). Headless Chrome 156 run
+  against the real local service for screenshots/recording in
+  [evidence/rps-aero](evidence/rps-aero/).
+- [ ] Deploy this branch's game container on ZimaOS (user-run; T3 has no host shell).
+- [ ] Early Den TV Chromecast Gen 2 check: does it hold the ambient loops, and does
+  the footer say `3D` or `Static`? **Not tested: nothing in this slice has run on
+  the real Chromecast yet.**
+- [ ] Live acceptance from Telegram with the Mac closed: animated Waiting before
+  pairing, connection animation exactly once, camera round with smooth countdown,
+  both hands together, one score update, music continuous. Record tested commit and
+  3D/static.
+
+## Previous slice: TV background music for the RPS game
 
 User-authorized branch `feat/game-music`, from origin/main
 `e80cea5075de9d1f0a6eed005ec95917943d8af7` (YouTube PR #8 merged).

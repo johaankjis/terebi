@@ -287,3 +287,30 @@ on Shoot for each of rock, paper and scissors on the real iPhone Safari, then
 an uncertain gesture and Retry. Unit tests model transitions, flicker, low
 confidence, missing/stale/sparse frames, deadline, server clock offset and a
 single submission. Actual iPhone timing acceptance remains pending deployment.
+
+
+## Frutiger Aero TV scene (2026-11-11)
+
+The TV shows a sky, drifting clouds, hills and a lake behind two glass spheres,
+separate You and Hermes score panels and a wide banner. The Cast receiver and the
+manual display page load the same renderer from `/display/`.
+
+| Server state | TV |
+| --- | --- |
+| `waiting_for_player` | “Waiting for you — Open the pairing link on your phone.” Empty floating spheres, pulsing phone icon. Music starts when the page opens. |
+| paired (seen live) | Lake ripple, phone turns into a checkmark, spheres and score panels glide in, “Phone connected”, then “Ready — Start the round on your phone.” Once per pairing; a reload of a paired session shows Ready at once. |
+| `countdown` | 3, 2, 1, then Shoot! in the center, one glass pulse per beat. Spheres stay empty. |
+| `countdown`, 2 s after Shoot | “Try again — Tap Retry on your phone.” |
+| `reveal`, `score` | Both 3D hands turn in on the same frame; move names, “You win! / Hermes wins! / It’s a tie!”, the reason, the score, a Winner tag and a hop for the winner. |
+| `next_round` | Hands stay; “Tap Next round on your phone.” Ambient motion returns. |
+
+The footer shows the real connection (`Connecting`, `Live`, `Reconnecting`,
+`Session ended`), the round and ties, and `3D` or `Static`. Static means the still
+scene: reduced motion is requested, the device measured under 20 fps, or the
+manual display link ended in `&motion=still`. `&motion=full` pins the animated
+scene. Without WebGL the hands are drawn flat with the same poses.
+
+Deploy exactly as for earlier builds (upload the archive, `host.sh build`, recreate
+only the `games` container); the tunnel hostname and Cast registration are unchanged.
+First check on Den TV: open a game, watch the Waiting screen for ten seconds and
+read the footer mode.

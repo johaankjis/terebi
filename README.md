@@ -29,6 +29,8 @@ Seven tools are registered:
 
 ### Play rock-paper-scissors with Hermes
 
+![The TV reveal: two glass spheres with 3D hands, scores and the result banner](docs/evidence/rps-aero/tv-reveal.png)
+
 Say “Let's play rock-paper-scissors.” Hermes returns an expiring phone pairing
 link and a display link. Open the camera page in iPhone Safari; mirror the display
 from Mac Chrome to Den TV. Hold a fist, open palm, or V through the shared

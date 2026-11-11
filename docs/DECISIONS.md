@@ -285,3 +285,41 @@ screen/session capabilities. Optional `library_youtube_search` uses the official
 Data API with a Hermes-scoped key in a request header, never a logged URL. Search
 results are choices, not proof of TV availability. Playlists and offsets are not
 supported in this slice.
+
+## RPS Frutiger Aero redesign — 2026-11-11
+
+- **One TV renderer, three small modules, no dependency.** `games/display/view.js`
+  maps a server snapshot to what the TV shows, `scene.js` builds the layers once,
+  `hands.js` draws the hands. The Cast receiver and the manual display import the
+  same files. No three.js, no model or image files: the receiver CSP and the static
+  file whitelist stay exactly as they were.
+- **Hands are a pose table, not assets.** Each move is a rig of spheres and capsules
+  drawn by ~100 lines of WebGL 1 (two contexts, about 60 primitives each). WebGL
+  renders only during the 0.76 s reveal turn and then stops; idle motion is CSS.
+  The same rig is painted with Canvas 2D when WebGL is unavailable or its context
+  is lost, so the fallback cannot drift from the 3D moves.
+- **Cheap animation only.** Ambient loops animate `transform`/`opacity` on a handful
+  of layers; no `backdrop-filter` on the TV (glass is gradients and rims). Loop
+  periods are mutually staggered (7.3/8.9 s floats, 11/13 s glints, 19–41 s bubbles,
+  173–263 s clouds). Countdown, Shoot and Reveal fade bubbles, shimmer and glints
+  down without stopping the loops, so the scene stays continuous across phases.
+- **Still scene triggers.** `prefers-reduced-motion`, a measured frame rate under
+  20 fps during the first seconds, or `#motion=still` on the manual display link
+  switch to a still scene with the same text, moves, countdown and scores. The
+  footer shows `3D` or `Static`; that is how the real Chromecast's mode is reported.
+- **Pairing animation is client-observed, server-confirmed.** It plays only when
+  this page saw `waiting_for_player` and then a paired snapshot. A page that first
+  sees a paired session paints it instantly. No server or wire-contract change.
+- **“Try again” is derived, not a new phase.** The server stays in `countdown`
+  after Shoot until a move or Retry. The TV shows Shoot for 2 s (phone window of
+  900 ms plus a round trip and one poll), then “Try again — Tap Retry on your
+  phone.” A slow tap-fallback player may see that prompt before tapping; the move
+  still counts within the server's 10 s window.
+- **Countdown beats are monotonic per attempt.** Polls re-anchor the clock; a beat
+  already shown is never shown again, so 3-2-1 cannot stutter backwards.
+- **Connection label reports polls only:** Connecting → Live (after a successful
+  poll) → Reconnecting (after a failed one) → Session ended.
+- **Ties moved from a third score panel to the footer** (`Round N · Ties N`) to match
+  the two-panel reference. Camera vs tap rounds stay labelled there.
+- **Phone is a CSS-only restyle.** Controller, camera, recognizer and markup IDs are
+  untouched, so the 71 camera tests cover the same behaviour.

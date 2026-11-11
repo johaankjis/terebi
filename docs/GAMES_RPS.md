@@ -133,23 +133,34 @@ Pairing once lasts across rounds/reloads in the same Safari tab. Expired session
 require a new Telegram game. Display tokens cannot play moves. Stop/retry/next are
 controlled only by the paired device.
 
-## TV background music
+## TV background music (optional, silent by default)
 
-The TV display (Custom Receiver and the manual display page) starts a looping
-background track — `games/display/hydrate.mp3` (user-supplied "hydrate! • a
-frutiger aero playlist") — as soon as the TV version opens, before the session
-handshake completes. Implementation details:
+The game runs **silent by default**: no audio file is bundled and the TV
+display, gameplay, transitions and scores are identical without one. To add
+your own background music:
+
+1. Place an MP3 at `games/display/music.mp3` in your deployed source tree
+   (the filename is fixed; any MP3 the browser can play works).
+2. Rebuild the image so it is copied into the container:
+   `sh games/deploy/host.sh build && docker compose -f games/deploy/compose.yaml up -d --no-deps games`.
+   Removing the file and rebuilding returns the game to silent.
+3. You are responsible for the track's license — use audio you own or that is
+   licensed for this use; nothing is bundled.
+
+Implementation details (when a track is present):
 
 - One shared `<audio>` player per page (`startMusic` in
   `games/display/display.js`): `loop`, volume `0.5`, served same-origin at
-  `/display/hydrate.mp3` under the receiver's `default-src 'self'` CSP.
-- The receiver starts music at page open; the manual display page starts it via
-  `startDisplay`. Autoplay-blocked starts silently retry on the next call.
+  `/display/music.mp3` under the receiver's `default-src 'self'` CSP.
+- The receiver checks for the track at page open; the manual display page does
+  the same via `startDisplay`. A missing file (404) is handled once and the
+  page stays silent for its lifetime — no repeated load attempts, no gameplay
+  impact. Autoplay-blocked starts silently retry on the next call.
 - Music pauses when the session ends (`stop()`), the page hides, or the receiver
   is stopped by Hermes; a session restart resumes it.
 - The iPhone camera player page never loads the audio — the phone keeps silent so
   its microphone pipeline is unaffected.
-- The service whitelist gained `.mp3` for the `/display/` prefix only; traversal
+- The service whitelist allows `.mp3` for the `/display/` prefix only; traversal
   and extension bounds stay covered by `tests/test_rps_http.py`.
 
 ## Acceptance evidence to capture

@@ -16,8 +16,10 @@ reviewer needs alongside the PR description.
   (`e06df9c2eae6901f4c88f464e0ae6e753c0428b8`). The plugin uses `ctx.on_unload`,
   session/conversation identity injection and secret-scope reads, all on the
   v0.22.0 public surface.
-- Candidate checks at `cd6d54d`: **943 Python tests**, **73 camera JS tests**,
-  Ruff check/format clean, `hermes plugins doctor . --ci` (12 tools / 0 hooks),
+- Candidate checks at this branch's head (exact SHA in the PR description;
+  parent `cd6d54d` on main): **943 Python tests**, **73 camera JS tests**,
+  **28 receiver/display JS tests**, Ruff check/format clean,
+  `hermes plugins doctor . --ci` (12 tools / 0 hooks),
   `hermes plugins validate . --install-deps` **passes**.
 - Live verification runs in an isolated Hermes v0.22.0 gateway; the installed
   ZimaOS Hermes container is v0.16.0 and is not touched by this work.
@@ -73,8 +75,10 @@ visible for review. No `dangerous` findings.
 - **Telemetry:** none, opt-in or otherwise.
 - **Shell commands:** none executed on the user's machine by the plugin; the
   game deploy scripts run only on the host the user chooses.
-- **Bundled assets:** the game background track `games/display/hydrate.mp3`
-  (see provenance below).
+- **Bundled assets:** none. No binaries, models or audio ship in the tree; the
+  camera WASM/model assets are built at image build time from pinned sources,
+  and background music is only what a user optionally adds to their own
+  deployment.
 
 ## Public tree and history scan
 
@@ -91,9 +95,8 @@ test-credential lookalikes beyond fixtures. Findings worth disclosure:
   infrastructure details, not credentials; the user-facing docs (README,
   SETUP, SUBMISSION) use placeholders only.
 - `.DS_Store` was tracked; untracked in this PR.
-- Screenshots reviewed: no pairing URLs/tokens visible (phone screenshot shows
-  only a truncated proof hash). The two evidence MP4s still need a manual
-  frame review before any catalog use.
+- The two evidence MP4s were frame-reviewed (ffmpeg, 12 frames each): TV UI
+  only, no pairing links, tokens or settings.
 
 ## Bundled asset provenance
 
@@ -101,23 +104,25 @@ test-credential lookalikes beyond fixtures. Findings worth disclosure:
   image build time from pinned npm sources with checksum validation
   (`games/camera/scripts/build.mjs`, `games/camera/assets.manifest.json`). No
   `.wasm`/`.task`/`.pyc`/binaries are committed; the tree is scanner-readable.
-- **Release blocker to resolve before pinning:** the game background track
-  `games/display/hydrate.mp3` (39.5 MB, 192 kbps MP3, user-supplied
-  "frutiger aero" playlist mix) has **no documented redistribution license**.
-  Options before the catalog PR pins a SHA: (a) confirm the track is
-  self-made/public-domain/CC0 and record it here, (b) replace it with a
-  known-license track, or (c) drop the music feature. Shipping it as-is without
-  provenance is not acceptable for redistribution.
+- The previously bundled background track `hydrate.mp3` was **removed from the
+  release tree** (PR #11). The game is silent by default; a user may add their
+  own `games/display/music.mp3` to their own deployment and rebuild
+  ([SETUP.md](SETUP.md), [GAMES_RPS.md](GAMES_RPS.md)). The user is responsible
+  for the license of any track they add; the plugin bundles none.
+- Note for the reviewer: the removed track remains in **git history** (merged
+  commits before this PR); the pinned catalog SHA does not include it, and
+  catalog installs check out exactly the pinned tree.
 
 ## Screenshots / media review
 
 - `docs/evidence/rps-aero/` PNGs: reviewed — the TV screenshots contain no
   URLs or tokens; the phone screenshot shows only a truncated proof hash
   (`proof 1addc90370...`, already truncated by the UI) and no pairing link.
-- `docs/evidence/rps-aero/*.mp4` (2 files): **frame-by-frame review pending** —
-  they are screen recordings of the phone/TV flow and could contain a pairing
-  URL if captured during pairing. Review before any catalog screenshot uses
-  them; the catalog entry below uses static PNGs only.
+- `docs/evidence/rps-aero/*.mp4` (2 files): **reviewed via frame extraction**
+  (ffmpeg, 12 sampled frames each) — both are TV-display recordings only
+  (Waiting / Ready / countdown / reveal UI). No phone screens, no pairing
+  URLs, no display tokens, no private settings. Both are safe for catalog
+  use; the catalog entry still uses static PNGs.
 - Catalog `image`/`screenshots` must be `raw.githubusercontent.com` URLs pinned
   to the entry SHA.
 
@@ -187,7 +192,7 @@ Slug availability: no `plugin-catalog/hermes-screen.yaml` exists upstream
 | `tv_game_start` (manual mirroring) | Den TV via Chrome cast tab | — |
 | Camera rounds / practice / Retry | iPhone Safari, real hand poses | frame-injection unit tests |
 | `tv_game_stop` | Telegram + phone camera release + receiver exit | — |
-| Game music on TV | ZimaOS deploy verified via tunnel (served files); audible playback check pending on TV | audio element logic (vm tests) |
+| Game music on TV | Silent-by-default verified: the TV flow passed with no audio configured; optional user track documented | audio element loop/error logic (vm tests) |
 | `tv_youtube_play` / `tv_youtube_pause` | Chromecast Gen 2, exact video ID + PLAYING/PAUSED evidence, Telegram link request | — |
 | `library_youtube_search` | — | mocked official API (key unconfigured) |
 | TV wake / HDMI switching | separate manual checks, not claimed by tools | — |
@@ -198,8 +203,10 @@ other Chromecast models/generations.
 
 ## Catalog PR steps
 
-1. [ ] Resolve the game-music provenance blocker (above).
-2. [ ] Frame-review the two `.mp4` evidence files (or exclude them from the PR).
+1. [x] Game-music provenance blocker resolved: `hydrate.mp3` removed from the
+       release tree; the game is silent by default with an opt-in local track.
+2. [x] Both evidence MP4s frame-reviewed — TV UI only, no pairing links,
+       tokens or settings.
 3. [ ] Land this PR; record the final public SHA below.
 4. [ ] Validate that exact tree from a fresh clone + empty Hermes profile
        (doctor + `validate --install-deps`).

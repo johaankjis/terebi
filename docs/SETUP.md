@@ -181,6 +181,13 @@ restart. Your own domain + reverse proxy works too.
    it in chat) into the `TEREBI_GAMES_API_KEY` **secret** in Hermes secret
    settings.
 
+**Optional background music.** The game is silent by default and fully playable
+without audio. To add your own track: place an MP3 at
+`games/display/music.mp3` in your deployed source tree before (or after) step 1,
+then rebuild (`sh games/deploy/host.sh build` and `up -d --no-deps games`).
+Use audio you own or that is licensed for this use — nothing is bundled with
+the plugin. Removing the file and rebuilding returns the game to silent.
+
 **Play [Hardware]**: in Telegram say **"Let's play rock-paper-scissors."** You
 get a single-use phone pairing link (valid 3 minutes) plus a display path.
 Open the pairing link in iPhone Safari, allow **Camera** (microphone is never
@@ -251,7 +258,9 @@ available as the fallback.
 - **Setup downloads:** the game image build pulls pinned base images and the
   npm runtime/model packages with checksum validation; the camera WASM/model
   assets are built at image build time from those pinned sources, never
-  committed.
+  committed. No audio is bundled; background music is only what a user
+  optionally provides at their own deployment (license responsibility is the
+  user's).
 - **Credentials:** only via Hermes (`config_schema` + secrets). The game admin
   token is generated on the host and read there; movie links use short-lived
   random capability tokens; game pairing is one-use with expiring capabilities.

@@ -42,10 +42,10 @@ The TV display and camera flow are **verified live on hardware**: Den TV
 (Chromecast Gen 2), iPhone Safari camera rounds, gesture practice, and
 "Stop the game" all passed in the isolated Telegram gateway. With a registered
 Custom Receiver the TV launches the game automatically; without one, manual
-Chrome mirroring is the fallback. The TV plays a looping background track
-(user-supplied) while a game is open. See
-[setup, pairing and receiver registration](docs/GAMES_RPS.md) and the
-[fresh-device setup path](docs/SETUP.md).
+Chrome mirroring is the fallback. The TV display is **silent by default** —
+you can add your own background track when deploying the game service (see
+[fresh-device setup](docs/SETUP.md)). See
+[setup, pairing and receiver registration](docs/GAMES_RPS.md).
 
 ### Describe a saved scene
 

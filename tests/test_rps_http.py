@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 import httpx
 import pytest
 
-from games.service import GameServer
+from games.service import ROOT, GameServer
 
 KEY = "test-admin-token-" * 3
 
@@ -123,13 +123,19 @@ def test_cast_and_manual_display_share_one_tv_renderer(server):
     assert "style=" not in scene and "http" not in scene.replace("http://www.w3.org", "")
 
 
-def test_tv_background_music_serves_from_display_origin(server):
-    with server.stream("GET", "/display/hydrate.mp3") as r:
-        assert r.status_code == 200
-        assert r.headers["content-type"] == "audio/mpeg"
-        assert int(r.headers["content-length"]) > 1_000_000
-        assert "no-store" in r.headers["cache-control"]
-    assert server.get("/display/hydrate.mp4").status_code == 404
+def test_display_music_serves_optional_local_track_only(server):
+    # Silent by default: no bundled track, so the audio URL is simply absent.
+    assert server.get("/display/music.mp3").status_code == 404
+    track = ROOT / "display" / "music.mp3"
+    track.write_bytes(b"ID3\x04\x00\x00\x00\x00\x00\x00" + b"\x00" * 64)
+    try:
+        with server.stream("GET", "/display/music.mp3") as r:
+            assert r.status_code == 200
+            assert r.headers["content-type"] == "audio/mpeg"
+            assert "no-store" in r.headers["cache-control"]
+    finally:
+        track.unlink(missing_ok=True)
+    assert server.get("/display/music.mp4").status_code == 404
     assert server.get("/display/%2e%2e/hydrate.mp3").status_code == 404
 
 

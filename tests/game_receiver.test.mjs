@@ -181,17 +181,34 @@ test('the TV reports its own render timings with the display credential, numbers
 
 test('TV background music loops from one shared player and pauses when the display stops',()=>{
   const players=[];
-  class Audio{constructor(src){this.src=src;players.push(this);this.loop=false;this.volume=1;this.played=0;this.paused=false;}
-    play(){this.played++;return Promise.resolve();}pause(){this.paused=true;}}
+  class Audio{constructor(src){this.src=src;players.push(this);this.loop=false;this.volume=1;this.played=0;this.paused=false;this.listeners={};}
+    play(){this.played++;return Promise.resolve();}pause(){this.paused=true;}
+    addEventListener(type,fn){(this.listeners[type]??=[]).push(fn);}}
   const h=tv({snapshots:[state()],Audio});
   const player=h.context.tvMusic();
-  assert.deepEqual(players.map(p=>p.src),['/display/hydrate.mp3']);
+  assert.deepEqual(players.map(p=>p.src),['/display/music.mp3']);
   assert.ok(player.loop && player.volume===0.5 && player.played===1);
   const stop=h.start();
   assert.equal(players.length,1);assert.equal(player.played,2); // reuses the same looping player
   h.tick();assert.ok(!player.paused); // phase renders never interrupt the track
   stop();
   assert.ok(player.paused); // session over: music stops with the display
+});
+
+test('without a configured track the TV stays silent and gameplay still works',async()=>{
+  const players=[];
+  class Audio{constructor(src){this.src=src;players.push(this);this.played=0;this.listeners={};}
+    play(){this.played++;return Promise.resolve();}pause(){this.paused=true;}
+    addEventListener(type,fn){(this.listeners[type]??=[]).push(fn);}}
+  const h=tv({snapshots:[state(),paired(),paired()],Audio});
+  const first=h.context.tvMusic();
+  first.listeners.error[0](); // no music.mp3 in this deployment: the load fails once
+  assert.equal(h.context.tvMusic(),null);
+  const stop=h.start();await h.settle();
+  await h.poll();
+  assert.equal(h.last().scene,'connected'); // visuals and rounds are unaffected
+  assert.equal(players.length,1); // no repeated load attempts after the failure
+  h.tick();stop();
 });
 
 const {present,explain,RETRY_AFTER_MS}=await import('../games/display/view.js');
@@ -407,7 +424,7 @@ test('receiver verifies revocation against its own origin and never sends a writ
 
 test('revoked display polling pauses the soundtrack and reports session ended',async()=>{
   let pauses=0;
-  class Audio {play(){return Promise.resolve();}pause(){pauses++;}}
+  class Audio {play(){return Promise.resolve();}pause(){pauses++;}addEventListener(){}}
   const h=tv({snapshots:[state()],Audio});h.start();await h.settle();
   h.ended=true;await h.poll();
   assert.ok(pauses>=1);assert.equal(h.failures.at(-1),'session_ended');

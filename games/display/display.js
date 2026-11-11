@@ -1,8 +1,24 @@
 const el = id => document.getElementById(id);
 
+// TV background music: one looping player shared by every TV display page.
+// Starts as soon as the TV version opens; retries handle autoplay-blocked starts.
+let music = null;
+export function startMusic() {
+  if (typeof Audio === 'undefined') return null; // headless test and non-DOM contexts
+  if (!music) {
+    music = new Audio('/display/hydrate.mp3');
+    music.loop = true;
+    music.volume = 0.5;
+  }
+  music.play().catch(() => {}); // no-op when blocked; the next open or render retries
+  return music;
+}
+export function pauseMusic() { music?.pause(); }
+
 // Both manual mirroring and the Custom Receiver use this exact renderer.
 export function startDisplay(credentials, {onRendered = () => {}, onFailure = () => {}} = {}) {
 let state = null, anchored = 0, request = null, timer = null, stopped = false;
+startMusic(); // every TV display open starts (or resumes) the shared background music
 const labels = {rock:'✊ Rock', paper:'✋ Paper', scissors:'✌ Scissors'};
 function render() {
   if (!state) return;
@@ -43,7 +59,7 @@ async function poll(){
   }catch{if(stopped)return;el('status').textContent='Connection interrupted — reconnecting…';onFailure('display_unavailable');delay=2000;}
   finally{clearTimeout(timeout);request=null;if(!stopped)timer=setTimeout(poll,delay);}
 }
-function stop(){stopped=true;clearTimeout(timer);clearInterval(renderTimer);request?.abort();window.removeEventListener('pagehide',stop);}
+function stop(){stopped=true;pauseMusic();clearTimeout(timer);clearInterval(renderTimer);request?.abort();window.removeEventListener('pagehide',stop);}
 el('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{el('status').textContent='Use Chrome’s fullscreen menu, then cast this tab.';}};
 window.addEventListener('pagehide',stop);
 const renderTimer=setInterval(render,100);

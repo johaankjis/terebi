@@ -4,7 +4,23 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: YouTube on Den TV
+## Current slice: TV background music for the RPS game
+
+User-authorized branch `feat/game-music`, from origin/main
+`e80cea5075de9d1f0a6eed005ec95917943d8af7` (YouTube PR #8 merged).
+
+- [x] Add the user-supplied track as `games/display/hydrate.mp3` (192 kbps, ~27 min
+  mix; shipped unmodified — no ffmpeg in the environment to re-encode).
+- [x] Loop it on the TV display (receiver and manual display page) from page open,
+  shared player, volume 0.5, pause on session end/page hide; phone player untouched.
+- [x] Serve `.mp3` from the `/display/` prefix only, with existing bounds tests.
+- [x] Automated checks: **925 Python tests**, **71 camera JS tests**, **8 receiver
+  JS tests** (new TV-music loop/pause test), Ruff clean, Hermes doctor (11 tools,
+  0 hooks) passed.
+- [ ] Live check on Den TV: start a game via Telegram, confirm music plays when the
+  TV receiver opens, stops when the session ends, and playback/mic rounds still work.
+
+## Previous slice: YouTube on Den TV
 
 User-authorized branch `feat/youtube-playback`, from origin/main
 `8771b8853129aa8cbb0f52f9b263074c91a02211` (PR #7 merged).

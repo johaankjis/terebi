@@ -109,3 +109,13 @@ def test_receiver_is_static_reuses_display_and_has_scoped_sdk_policy(server):
     assert server.get("/receiver/receiver.js").status_code == 200
     assert server.get("/receiver/%2e%2e/service.py").status_code == 404
     assert server.get("/receiver/?token=forbidden").status_code == 400
+
+
+def test_tv_background_music_serves_from_display_origin(server):
+    with server.stream("GET", "/display/hydrate.mp3") as r:
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "audio/mpeg"
+        assert int(r.headers["content-length"]) > 1_000_000
+        assert "no-store" in r.headers["cache-control"]
+    assert server.get("/display/hydrate.mp4").status_code == 404
+    assert server.get("/display/%2e%2e/hydrate.mp3").status_code == 404

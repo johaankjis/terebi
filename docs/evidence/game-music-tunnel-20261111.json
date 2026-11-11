@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-11T05:18Z-05:22Z",
+  "commit": "119a0dc49f0ba6aa6ee9ff323f2c94768d93966a",
+  "deployment": "ZimaOS [LAN IP redacted], terebi-games-rps image rebuilt and recreated (loopback bind + cloudflared tunnel)",
+  "origin": "[HTTPS tunnel hostname redacted] (the exact origin the Chromecast receiver loads)",
+  "checks": {
+    "health": {"ok": true, "configured": true},
+    "receiver.js_contains_startMusic": true,
+    "display.js_contains_startMusic": true,
+    "hydrate_mp3": {
+      "status": 200,
+      "content_type": "audio/mpeg",
+      "content_length": 39532388,
+      "cache_control": "no-store",
+      "first_bytes_hex": "49443304",
+      "note": "ID3 header intact; byte size matches the user-supplied file exactly (unmodified track)."
+    }
+  },
+  "probe_notes": "GET-only verification; the service returns 501 for HEAD by design (GET/POST handler only). Loopback bind means LAN-probes are impossible by design; the tunnel is the exact path the TV uses.",
+  "pending": "Live Den TV check: music starts when the receiver opens, loops through rounds, stops at session end; camera rounds and playback regressions."
+}

@@ -69,7 +69,7 @@ test('shared display renders Waiting then Ready from matching session snapshots'
     setInterval(){return 1;},clearInterval(){},setTimeout(fn,delay){if(delay===400)polls.push(fn);return 1;},clearTimeout(){},
     fetch:async(path,opts)=>{assert.equal(path,'/v1/sessions/'+ID);assert.equal(opts.headers.Authorization,'Bearer '+TOKEN);return {ok:true,json:async()=>({ok:true,state:snapshots.shift()})};},
   });
-  vm.runInContext(displaySource.replace('export function','function')+';globalThis.display=startDisplay;',context);
+  vm.runInContext(displaySource.replace(/export function/g,'function')+';globalThis.display=startDisplay;',context);
   const stop=context.display({id:ID,token:TOKEN},{onRendered:s=>rendered.push(s)});
   await new Promise(r=>setImmediate(r));
   assert.equal(nodes.get('headline').textContent,'Waiting for you');
@@ -89,11 +89,33 @@ test('wrong or expired state cannot produce a rendered acknowledgement',async()=
       setInterval(){return 1;},clearInterval(){},setTimeout(){return 1;},clearTimeout(){},
       fetch:async()=>({ok:true,json:async()=>({ok:true,state:snapshot})}),
     });
-    vm.runInContext(displaySource.replace('export function','function')+';globalThis.display=startDisplay;',context);
+    vm.runInContext(displaySource.replace(/export function/g,'function')+';globalThis.display=startDisplay;',context);
     const stop=context.display({id:ID,token:TOKEN},{onRendered:s=>rendered.push(s),onFailure:r=>failures.push(r)});
     await new Promise(r=>setImmediate(r));
     assert.equal(rendered.length,0);assert.equal(failures.length,1);
     if(snapshot.expires_at_ms===1000)assert.equal(nodes.get('status').textContent,'Session ended');
     stop();
   }
+});
+
+test('TV background music loops from one shared player and pauses when the display stops',()=>{
+  const players=[];
+  class Audio{constructor(src){this.src=src;players.push(this);this.loop=false;this.volume=1;this.played=0;this.paused=false;}
+    play(){this.played++;return Promise.resolve();}pause(){this.paused=true;}}
+  const nodes=new Map(), polls=[];
+  const context=vm.createContext({URLSearchParams,AbortController,performance,Audio,
+    location:{pathname:'/receiver/'},
+    document:{body:{dataset:{}},getElementById(id){if(!nodes.has(id))nodes.set(id,{textContent:''});return nodes.get(id);}},
+    window:{addEventListener(){},removeEventListener(){}},
+    setInterval(){return 1;},clearInterval(){},setTimeout(fn,delay){if(delay===400)polls.push(fn);return 1;},clearTimeout(){},
+    fetch:async()=>({ok:true,json:async()=>({ok:true,state:state()})}),
+  });
+  vm.runInContext(displaySource.replace(/export function/g,'function')+';globalThis.display=startDisplay;globalThis.tvMusic=startMusic;',context);
+  const player=context.tvMusic();
+  assert.deepEqual(players.map(p=>p.src),['/display/hydrate.mp3']);
+  assert.ok(player.loop && player.volume===0.5 && player.played===1);
+  const stop=context.display({id:ID,token:TOKEN},{});
+  assert.equal(players.length,1);assert.equal(player.played,2); // reuses the same looping player
+  stop();
+  assert.ok(player.paused); // session over: music stops with the display
 });

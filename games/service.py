@@ -223,6 +223,7 @@ class Handler(BaseHTTPRequestHandler):
                             ".wasm",
                             ".task",
                             ".txt",
+                            ".mp3",
                         }:
                             break
                         mime = {

@@ -125,6 +125,25 @@ Pairing once lasts across rounds/reloads in the same Safari tab. Expired session
 require a new Telegram game. Display tokens cannot play moves. Stop/retry/next are
 controlled only by the paired device.
 
+## TV background music
+
+The TV display (Custom Receiver and the manual display page) starts a looping
+background track — `games/display/hydrate.mp3` (user-supplied "hydrate! • a
+frutiger aero playlist") — as soon as the TV version opens, before the session
+handshake completes. Implementation details:
+
+- One shared `<audio>` player per page (`startMusic` in
+  `games/display/display.js`): `loop`, volume `0.5`, served same-origin at
+  `/display/hydrate.mp3` under the receiver's `default-src 'self'` CSP.
+- The receiver starts music at page open; the manual display page starts it via
+  `startDisplay`. Autoplay-blocked starts silently retry on the next call.
+- Music pauses when the session ends (`stop()`), the page hides, or the receiver
+  is stopped by Hermes; a session restart resumes it.
+- The iPhone camera player page never loads the audio — the phone keeps silent so
+  its microphone pipeline is unaffected.
+- The service whitelist gained `.mp3` for the `/display/` prefix only; traversal
+  and extension bounds stay covered by `tests/test_rps_http.py`.
+
 ## Acceptance evidence to capture
 
 - Exact source SHA, Docker image IDs and public HTTPS origin; isolated gateway

@@ -1,7 +1,8 @@
-import {startDisplay} from '/display/display.js';
+import {startDisplay, startMusic} from '/display/display.js';
 import {installSessions, NAMESPACE} from './session.js';
 
 const status = document.getElementById('status');
+startMusic(); // the TV version starts its background music as soon as it opens
 try {
   const context = cast.framework.CastReceiverContext.getInstance();
   installSessions(context, startDisplay, {ended: () => context.stop()});

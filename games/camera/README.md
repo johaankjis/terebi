@@ -11,8 +11,10 @@ locked Hermes move and the score. This page only:
   exponential backoff (cap 5 s); stops on 401/404/410 and on expiry;
 - derives the countdown from `server_time_ms` + a `performance.now()` anchor (lowest
   round-trip of the last 8 samples), never from the phone wall clock;
-- at the shared countdown end (+450 ms settle) decides once per `round_id` from the
-  frames in `[end-400 ms, end+450 ms]` and sends `{round_id, move}` to `/move`;
+- after Shoot, ignores the first 150 ms and accepts three consecutive confident
+  predictions spanning at least 120 ms, by +900 ms; sends at most one
+  `{round_id, move}` to `/move` per attempt. Predictions must be no more than
+  250 ms apart and the latest no older than 250 ms;
 - on no hand / low confidence / unstable, shows a Retry prompt and sends nothing;
 - `Retry` → `POST /retry {round_id}`; `Next round`/`Start round` → `POST /next {round_id}`;
 - labelled tap fallback → `POST /tap {round_id, move}`, enabled only from Shoot until

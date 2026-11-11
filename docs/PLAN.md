@@ -32,8 +32,9 @@ Live status (2026-11-11): the user deployed the ZimaOS service through a
 Cloudflare Quick Tunnel. Manager verified health, admin authentication, correct
 public pairing/display origins, camera/model/WASM assets, and the isolated
 @terebitvbot connection on `0e17940`. User reports iPhone Safari preview works but
-none of the three gestures was recognized. TV shared-state observation and camera
-rounds remain unverified.
+initially no gestures were recognized. User now reports practice recognition
+works, but live rounds reject the reveal as a last-moment change. TV shared-state
+observation and successful camera rounds remain unverified.
 
 - [x] Add temporary local practice diagnostics: landmarks, gesture/confidence,
   no-hand/low-confidence/model-stage errors, three-shape checklist, and Shoot
@@ -43,7 +44,10 @@ rounds remain unverified.
 - [x] Display footer follows unpaired/paired state; fresh local session and
   same-session pairing verified through actual HTTP API and display script.
 - [ ] Deploy diagnostic build and verify rock, paper, scissors on user's iPhone.
-- [ ] If practice succeeds, verify Shoot sampling, Retry, three camera rounds,
+- [x] Replace pre-Shoot majority with a bounded post-Shoot consecutive run;
+  movement into the pose is ignored, uncertain decisions retain Retry.
+  71 camera JS tests, 852 Python tests, asset build, Ruff and Hermes checks pass.
+- [ ] Verify updated timing on the real iPhone, Retry, three camera rounds,
   exactly-once score and Stop camera with actual device evidence.
 
 

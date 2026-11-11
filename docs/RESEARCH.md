@@ -408,3 +408,10 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
 - **UNVERIFIED:** each real iPhone gesture, round sampling, physical Den TV state,
   three camera rounds, missed-hand retry and Stop indicator. Temporary local
   practice diagnostics added to investigate; no model substitution made.
+
+
+- **USER OBSERVED (RPS follow-up):** practice recognizes gestures, but a live round
+  reports a last-moment hand change. Successful camera-round acceptance remains
+  unverified. **VERIFIED (source):** old round selection included pre-Shoot
+  predictions and a whole-window majority. New post-Shoot suffix logic has fixture
+  tests; actual iPhone timing and all-three-gesture rounds remain UNVERIFIED.

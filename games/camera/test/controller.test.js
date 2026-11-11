@@ -163,7 +163,7 @@ test('clock offset: decision waits for the SERVER deadline even if poll arrived 
   // Local monotonic time where the server deadline lands is 700 ms earlier than before.
   const endMono = h.c.clock.toMono(SERVER_T0 + 3000);
   for (let t = endMono - 300; t <= endMono + 440; t += 60) loop.opts.onFrame({ t, hand: true, move: 'scissors', score: 0.95 });
-  h.setMono(endMono + 449);
+  h.setMono(endMono + 149);
   h.c.tick();
   assert.equal(h.calls.length, 0);
   h.setMono(endMono + 450);
@@ -181,8 +181,8 @@ test('no hand or low confidence shows a retry prompt and sends nothing', async (
     h.c.applyState(countdown());
     const { loop } = await cameraOn(h);
     const end = SERVER_T0 + 3000;
-    feed(h, loop, end - 300, end + 440, frames.move, frames);
-    h.atServer(end + 500);
+    feed(h, loop, end - 300, end + 890, frames.move, frames);
+    h.atServer(end + 900);
     h.c.tick();
     await flush();
     assert.equal(h.calls.length, 0);
@@ -198,7 +198,7 @@ test('Retry posts {round_id}; the new round_id gets its own single automatic dec
   const h = setup();
   h.c.applyState(countdown());
   const { loop } = await cameraOn(h);
-  h.atServer(SERVER_T0 + 3500);
+  h.atServer(SERVER_T0 + 3900);
   h.c.tick(); // no frames: retry prompt
   assert.equal(h.c.currentRound().status, 'retry_prompt');
   const retried = countdown({ revision: 3, round_id: 'r1b', server_time_ms: SERVER_T0 + 4000, countdown_ends_at_ms: SERVER_T0 + 7000, accept_until_ms: SERVER_T0 + 17_000 });
@@ -507,4 +507,47 @@ test('unclear Shoot window reports local sample counts and sends nothing', async
   assert.equal(h.calls.length, 0);
   const samples = h.c.viewModel().camera.samples;
   assert.ok(samples.frames >= 3); assert.equal(samples.confident, 0); assert.ok(samples.spanMs <= 850);
+});
+
+
+test('revealing each move after Shoot ignores wind-up and submits a stable run once', async () => {
+  for (const move of ['rock', 'paper', 'scissors']) {
+    const h = setup(); h.c.applyState(countdown()); const { loop } = await cameraOn(h);
+    const end = SERVER_T0 + 3000;
+    feed(h, loop, end - 350, end + 130, 'rock'); // countdown/initial movement ignored
+    loop.opts.onFrame({t: h.atServer(end + 160), hand: true, move: 'paper', score: .9});
+    loop.opts.onFrame({t: h.atServer(end + 220), hand: true, move: null, score: .3});
+    h.atServer(end + 250); h.c.tick();
+    assert.equal(h.calls.length, 0); assert.equal(h.c.currentRound().status, 'pending');
+    feed(h, loop, end + 300, end + 500, move);
+    h.atServer(end + 550); h.c.tick(); h.c.tick(); await flush();
+    assert.equal(h.calls.length, 1); assert.equal(h.calls[0].name, 'move');
+    assert.equal(h.calls[0].args[2], move);
+    const sample = h.c.viewModel().camera.samples;
+    assert.ok(sample.runFrames >= 3); assert.ok(sample.runSpanMs >= 120);
+    assert.equal(sample.decision, 'recognized');
+  }
+});
+
+test('uncertain post-Shoot predictions wait, then offer Retry without scoring', async () => {
+  const h = setup(); h.c.applyState(countdown()); const { loop } = await cameraOn(h);
+  for (let offset = 150, i = 0; offset <= 890; offset += 70, i++) {
+    loop.opts.onFrame({t: h.atServer(SERVER_T0 + 3000 + offset), hand: true, move: i % 2 ? 'paper' : 'rock', score: .9});
+  }
+  h.atServer(SERVER_T0 + 3850); h.c.tick();
+  assert.equal(h.c.currentRound().status, 'pending');
+  h.atServer(SERVER_T0 + 3900); h.c.tick(); await flush();
+  assert.equal(h.c.currentRound().status, 'retry_prompt');
+  assert.equal(h.c.currentRound().reason, 'unstable');
+  assert.equal(h.c.canRetry(), true); assert.equal(h.calls.length, 0);
+  assert.equal(h.c.viewModel().score.rounds, 0);
+});
+
+test('late or stale predictions cannot rescue an expired capture window', async () => {
+  for (const from of [100, 1000]) {
+    const h = setup(); h.c.applyState(countdown()); const { loop } = await cameraOn(h);
+    feed(h, loop, SERVER_T0 + 3000 + from, SERVER_T0 + 3000 + from + 200, 'rock');
+    h.atServer(SERVER_T0 + 4250); h.c.tick(); await flush();
+    assert.equal(h.calls.length, 0); assert.equal(h.c.currentRound().status, 'retry_prompt');
+  }
 });

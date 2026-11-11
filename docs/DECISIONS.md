@@ -238,3 +238,15 @@ bounded round window. Clear practice predictions before rounds and on Stop.
 Expose local loading stages and Shoot sample counts without new API fields or
 telemetry. Require three locally recognized shapes in the practice UI before
 continuing. This is diagnostic instrumentation, not a claim of iPhone accuracy.
+
+
+### Accept a post-Shoot stable run (2026-11-11)
+
+User's practice now recognizes gestures but a live round rejects the reveal.
+Replace round-only majority across pre/post-Shoot frames with a rolling suffix
+of consecutive confident predictions from +150 to +900 ms. Require >=3 frames
+spanning >=120 ms, maximum 250 ms gap and age; reset on an unclear or different
+prediction. Submit the first stable run once. At deadline, Retry without a move
+if still unclear. Keep the existing model, confidence threshold, server-owned
+score, attempt IDs and practice decision unchanged. Timing constants are explicit
+and reported locally for iPhone diagnosis; device success remains unverified.

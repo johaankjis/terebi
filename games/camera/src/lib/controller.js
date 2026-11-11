@@ -2,7 +2,7 @@
 // Hermes' move; this only renders state, decides the local camera move once per
 // round_id at the shared countdown end, and drives /next, /retry, /move and /tap.
 
-import { DEFAULT_DECISION, GestureWindow, decideMove, isMove } from './gesture.js';
+import { DEFAULT_DECISION, GestureWindow, decideMove, decideRevealMove, isMove } from './gesture.js';
 import { clearSession, establishSession } from './session.js';
 import { Poller } from './poller.js';
 
@@ -27,10 +27,10 @@ export const CAMERA_MESSAGES = Object.freeze({
 });
 
 const RETRY_PROMPTS = Object.freeze({
-  no_frames: "The camera wasn't ready at Shoot. Press Retry for another countdown.",
+  no_frames: 'No recent predictions after Shoot. Keep the camera active and press Retry.',
   no_hand: "I couldn't see a hand. Keep it inside the frame and press Retry.",
   low_confidence: "Your hand shape wasn't clear. Hold it steady and press Retry.",
-  unstable: 'Your hand changed at the last moment. Hold one shape and press Retry.',
+  unstable: 'No steady pose after Shoot. Hold one shape a little longer and press Retry.',
 });
 
 export function isValidState(s) {
@@ -173,7 +173,7 @@ export class GameController {
     if (s.phase !== 'countdown' || !s.round_id || !Number.isFinite(s.countdown_ends_at_ms)) return;
     const rec = this.#round(s.round_id);
     if (rec.status !== 'pending' || this.practiceMode) return;
-    if (now < s.countdown_ends_at_ms + this.decision.windowAfterMs) return;
+    if (now < s.countdown_ends_at_ms + this.decision.settleMs) return;
     if (Number.isFinite(s.accept_until_ms) && now > s.accept_until_ms) {
       rec.status = 'timed_out';
       return this.#changed();
@@ -183,10 +183,23 @@ export class GameController {
       return this.#changed();
     }
     const endMono = this.clock.toMono(s.countdown_ends_at_ms);
-    const frames = this.window.between(endMono - this.decision.windowBeforeMs, endMono + this.decision.windowAfterMs);
-    this.sampleSummary = { frames: frames.length, confident: frames.filter(f => f.move && f.score >= this.decision.minScore).length, spanMs: frames.length > 1 ? Math.round(frames.at(-1).t - frames[0].t) : 0 };
-    const result = decideMove(frames, this.decision);
+    const nowMono = this.clock.toMono(now);
+    const deadlineMono = endMono + this.decision.windowAfterMs;
+    const frames = this.window.between(endMono + this.decision.settleMs, Math.min(nowMono, deadlineMono));
+    const result = decideRevealMove(frames, nowMono, this.decision);
+    this.sampleSummary = {
+      frames: frames.length,
+      confident: frames.filter(f => f.move && f.score >= this.decision.minScore).length,
+      spanMs: frames.length > 1 ? Math.round(frames.at(-1).t - frames[0].t) : 0,
+      runFrames: result.runFrames,
+      runSpanMs: Math.round(result.runSpanMs),
+      latestOffsetMs: frames.length ? Math.round(frames.at(-1).t - endMono) : null,
+      startMs: this.decision.settleMs,
+      deadlineMs: this.decision.windowAfterMs,
+      decision: result.ok ? 'recognized' : nowMono < deadlineMono ? 'waiting' : 'retry',
+    };
     if (!result.ok) {
+      if (nowMono < deadlineMono) return; // allow the player to settle into the pose
       rec.status = 'retry_prompt'; // no submission; score untouched
       rec.reason = result.reason;
       return this.#changed();

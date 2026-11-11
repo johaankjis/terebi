@@ -112,8 +112,10 @@ links; it does not claim automatic TV launch or verified TV state.
    lighting. If denied, change Safari's **aA → Website Settings → Camera → Allow**,
    then explicitly press Start camera again. No camera permission is re-requested
    silently. Backgrounding Safari or leaving the page stops its camera.
-5. Tap **Start round**. Hold the gesture through **3, 2, 1, Shoot**. At countdown end
-   the phone automatically recognizes and sends a stable move. Use **Next round**
+5. Tap **Start round**. Reveal your chosen gesture on **Shoot**, then hold it
+   steady briefly. After a 150 ms settling period, the phone looks for three
+   consecutive confident predictions spanning at least 120 ms, until +900 ms.
+   Countdown and initial movement do not vote against the revealed pose. Use **Next round**
    to continue. If unclear/no hand, follow the prompt and press **Retry**; the
    shared countdown restarts with unchanged score and Hermes move.
 6. For a temporary camera problem, use the clearly labelled **Tap-to-play** panel;
@@ -202,7 +204,8 @@ cannot establish trusted-HTTPS camera acceptance or ZimaOS deployment.
 User reports that Safari camera preview works, but no rock/paper/scissors was
 recognized. This is an unresolved live defect; mocked recognizer tests do not
 establish device success. The existing MediaPipe 0.10.35 CPU path, model hash,
-confidence threshold and 400ms-before/450ms-after Shoot window are unchanged.
+confidence threshold are unchanged. The initial diagnostic build retained the
+old 400ms-before/450ms-after window; the post-Shoot update below replaces it.
 
 After turning on the camera, practice runs before a round. Green connections and
 white landmarks follow the hand over a mirrored, aspect-preserving preview.
@@ -244,3 +247,24 @@ snapshot it says Connecting; expiration says Session ended. Verified using the
 actual display script in a DOM harness against a fresh local HTTP session,
 then pairing that same session. Browser preview was unavailable due to missing
 host libraries; physical Den TV verification remains separate.
+
+
+### Post-Shoot timing update
+
+User reports practice recognizes gestures, but a round says the hand changed at
+the last moment. Inspection found the old whole-window majority included 400 ms
+before Shoot and could penalize moving into the final shape. Round recognition
+now uses only predictions from +150 ms through +900 ms after the shared Shoot
+deadline. Accept the latest consecutive run of at least three predictions with
+confidence >=0.6 spanning >=120 ms. A missing hand, weak prediction, different
+move or >250 ms prediction gap breaks the run. The last prediction must be at
+most 250 ms old. Accept at the first stable run, submit once, or offer Retry at
+the deadline without changing the score. Practice's local feedback is unchanged.
+
+The local Last Shoot window line includes post-Shoot bounds, total/confident
+predictions, stable run length/span, latest prediction's offset from Shoot and
+waiting/recognized/retry status. Nothing new is sent to the server. Test a reveal
+on Shoot for each of rock, paper and scissors on the real iPhone Safari, then
+an uncertain gesture and Retry. Unit tests model transitions, flicker, low
+confidence, missing/stale/sparse frames, deadline, server clock offset and a
+single submission. Actual iPhone timing acceptance remains pending deployment.

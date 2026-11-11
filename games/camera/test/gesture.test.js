@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { GestureWindow, clampScore, decideMove, frameFromResult, mapGesture } from '../src/lib/gesture.js';
+import { GestureWindow, clampScore, decideMove, decideRevealMove, frameFromResult, mapGesture } from '../src/lib/gesture.js';
 
 test('maps exactly the three MediaPipe canned gestures', () => {
   assert.equal(mapGesture('Closed_Fist'), 'rock');
@@ -61,4 +61,24 @@ test('window is bounded, ordered and range-filtered', () => {
   assert.deepEqual(w.between(4, 5).map((x) => x.t), [4, 5]);
   w.clear();
   assert.equal(w.frames.length, 0);
+});
+
+
+test('post-Shoot uses a consecutive stable suffix instead of whole-window voting', () => {
+  for (const move of ['rock', 'paper', 'scissors']) {
+    const frames = [f(150, 'rock'), f(210, 'paper'), f(270, null, .2), f(330, move), f(400, move), f(470, move)];
+    assert.deepEqual(decideRevealMove(frames, 500), {ok: true, move, runFrames: 3, runSpanMs: 140});
+  }
+});
+
+test('missing, weak, opposite, sparse and stale predictions cannot form a stable suffix', () => {
+  const solid = [f(150, 'rock'), f(220, 'rock'), f(290, 'rock')];
+  assert.equal(decideRevealMove(solid, 300).ok, true);
+  for (const last of [f(350, null, 0, false), f(350, 'rock', .2), f(350, 'paper'), f(350, 'rock', NaN)]) {
+    assert.equal(decideRevealMove([...solid, last], 360).ok, false);
+  }
+  assert.equal(decideRevealMove(solid, 600).reason, 'no_frames');
+  assert.equal(decideRevealMove([f(150,'rock'),f(500,'rock'),f(570,'rock')],600).ok,false);
+  assert.equal(decideRevealMove([f(150,'rock'),f(151,'rock'),f(152,'rock')],160).ok,false);
+  assert.equal(decideRevealMove([f(150,'rock'),f(150,'rock'),f(150,'rock')],160).ok,false);
 });

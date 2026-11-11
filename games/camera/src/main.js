@@ -141,7 +141,10 @@ function render() {
     diagnostic += ` · Practice checks: ${['rock','paper','scissors'].map(m => `${m}${vm.camera.seen.includes(m) ? ' ✓' : ' —'}`).join(', ')}`;
     if (vm.camera.practice) diagnostic = 'Practice (no moves sent). ' + diagnostic;
   }
-  if (vm.camera.samples) diagnostic += ` · Last Shoot window: ${vm.camera.samples.frames} predictions, ${vm.camera.samples.confident} confident, ${vm.camera.samples.spanMs}ms span.`;
+  if (vm.camera.samples) {
+    const s = vm.camera.samples;
+    diagnostic += ` · Last Shoot window: +${s.startMs}–${s.deadlineMs}ms, ${s.frames} predictions, ${s.confident} confident, ${s.spanMs}ms span; steady run ${s.runFrames} / ${s.runSpanMs}ms, latest ${s.latestOffsetMs === null ? 'none' : '+' + s.latestOffsetMs + 'ms'}; ${s.decision}.`;
+  }
   setText(el.practice, diagnostic);
   el.practice.hidden = !diagnostic;
   el.practiceDone.hidden = cam !== 'on' || !vm.camera.practice;

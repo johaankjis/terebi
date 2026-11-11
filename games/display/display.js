@@ -1,15 +1,21 @@
 import {bootView, countdownBeat, endedView, present, RETRY_AFTER_MS} from './view.js';
 import {getScene} from './scene.js';
 
-// TV background music: one looping player shared by every TV display page.
-// Starts as soon as the TV version opens; retries handle autoplay-blocked starts.
-let music = null;
+// TV background music: silent by default. If the deploy includes an optional
+// user-provided track at /display/music.mp3, it loops; otherwise the display
+// stays silent and nothing else changes. One shared player per page.
+let music = null, musicUnavailable = false;
+const MUSIC_URL = '/display/music.mp3';
 export function startMusic() {
-  if (typeof Audio === 'undefined') return null; // headless test and non-DOM contexts
+  if (typeof Audio === 'undefined' || musicUnavailable) return null; // headless tests, or no track configured
   if (!music) {
-    music = new Audio('/display/hydrate.mp3');
+    music = new Audio(MUSIC_URL);
     music.loop = true;
     music.volume = 0.5;
+    music.addEventListener('error', () => { // 404/unsupported: run silently from now on
+      musicUnavailable = true;
+      music = null;
+    });
   }
   music.play().catch(() => {}); // no-op when blocked; the next open or render retries
   return music;

@@ -4,7 +4,26 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: Telegram game exit (PR #10)
+## Current slice: catalog readiness
+
+User-authorized branch `docs/catalog-readiness`, from origin/main
+`cd6d54d` (RPS redesign PR #10 merged).
+
+- [x] Fresh-device setup path in `docs/SETUP.md`; SUBMISSION.md rewritten with
+  the draft catalog entry (slug verified free) and disclosures; README stale
+  claims fixed; `roku` tag dropped; `.DS_Store` untracked.
+- [x] Credential scan of the full public history and candidate tree: no
+  credentials; LAN IPs in internal dev-record docs disclosed.
+- [x] `hydrate.mp3` removed from the release tree (licensing provenance could
+  not be established). The game is silent by default; an optional user-provided
+  `games/display/music.mp3` loops if present, and a missing track is handled
+  once with no gameplay impact (error handled once, no repeated loads).
+- [x] Both evidence MP4s frame-reviewed with ffmpeg (12 frames each): TV UI
+  only, no pairing links, display tokens or private settings.
+- [ ] Rerun full suites + Hermes validation at the candidate SHA; record it.
+- [ ] Upstream catalog PR after this PR lands (pin the final public SHA).
+
+## Previous slice: Telegram game exit (PR #10)
 
 User confirmed the practice completion fix works on the real iPhone. Keep PR #10
 unmerged for the stop-game live check.

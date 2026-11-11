@@ -5,7 +5,7 @@ Work in progress for the November 2026 Hermes Agent Plugin Hackathon.
 
 ## Implemented today
 
-Seven tools are registered:
+Twelve tools are registered:
 
 - **`library_status`** checks your configured Jellyfin server, resolves a user, and
   returns the server name/version and available library counts.
@@ -38,12 +38,14 @@ countdown and the phone submits the recognized move automatically. Images stay
 on the phone. Retry unclear gestures without changing the score; tap buttons are
 a separately labelled fallback.
 
-This optional service runs separately on ZimaOS and requires trusted HTTPS.
-Configure `games_service_url` plus the Hermes secret `TEREBI_GAMES_API_KEY`.
-See [deployment, pairing and mirroring instructions](docs/GAMES_RPS.md).
-The prototype includes local camera/round tests; real iPhone Safari, Den TV display
-and three-camera-round acceptance are still pending. Manual Chrome mirroring is
-the selected TV path; automatic Custom Receiver launching is not configured.
+The TV display and camera flow are **verified live on hardware**: Den TV
+(Chromecast Gen 2), iPhone Safari camera rounds, gesture practice, and
+"Stop the game" all passed in the isolated Telegram gateway. With a registered
+Custom Receiver the TV launches the game automatically; without one, manual
+Chrome mirroring is the fallback. The TV display is **silent by default** —
+you can add your own background track when deploying the game service (see
+[fresh-device setup](docs/SETUP.md)). See
+[setup, pairing and receiver registration](docs/GAMES_RPS.md).
 
 ### Describe a saved scene
 
@@ -70,9 +72,9 @@ Changed scene records or editions require a fresh lookup before playback.
 Matching uses a small local phrase/synonym vocabulary and saved aliases. It has no
 embedding model, subtitle indexing, or video/frame analysis in this path. Some
 paraphrases will not match; it does not understand arbitrary visual scenes.
-The planned three-scene Big Buck Bunny demo is **not yet verified live**: its
-exact-copy action-start timestamps are still awaiting inspection or user input.
-See [demo record status](docs/BBB_SCENE_DEMO.md).
+The Big Buck Bunny three-scene demo is verified live through Telegram
+(descriptions played and receiver-confirmed); see
+[demo record status](docs/BBB_SCENE_DEMO.md).
 
 ### Play a scene from your edition
 
@@ -110,20 +112,24 @@ Failures return a short reason and a hint. A failed Jellyfin lookup is reported 
 an error or a partial result, never as "nothing to watch".
 
 The Jellyfin client also implements library search and Roku `/Sessions` playback
-verification (`verify_playback`); those methods are **not** exposed as tools yet.
-`library_status`, `library_pick`, `tv_play`, `tv_pause`, `JellyfinClient.get_cast_source`,
-authenticated `HEAD`/byte-range streaming, and `JellyfinClient.verify_playback`
-against an active Roku 3 (`192.168.0.104`) playback session have been verified
-live against the Jellyfin `12.2.0` server (`terebi`) and the user's Chromecast
-Gen 2 (`192.168.0.134`) in the isolated Hermes `v0.22.0` runtime.
-The base Telegram pick/play/pause flow is verified. Programmatic Roku control,
-TV/CEC wake, `/watch`, YouTube,
-and Friday voting are not included in this slice.
+verification (`verify_playback`); those methods are **not** exposed as tools.
+All twelve tools are verified live against the Jellyfin `12.2.0` server
+(`terebi`), the user's Chromecast Gen 2, YouTube on that Chromecast, and the
+standalone game service in the isolated Hermes `v0.22.0` runtime (per-tool
+evidence in [docs/evidence](docs/evidence) and [docs/HARDWARE.md](docs/HARDWARE.md)).
+The Telegram pick/play/pause, scene, game and YouTube flows are verified.
+Programmatic Roku control, TV/CEC wake, `/watch` and Friday voting are not
+included.
 
 ## Install and configure
 
-This branch is not published in the catalog. For local development, use Python
-3.11+ and install from the checkout:
+Follow the [fresh-device setup path](docs/SETUP.md) — it covers installing the
+plugin at an exact commit, Jellyfin + Chromecast settings (including Docker
+port forwarding), saved scenes, YouTube with optional title search, the game
+service, and Custom Receiver registration, each with a smoke test and a
+troubleshooting step.
+
+For local development:
 
 ```bash
 python -m venv .venv
@@ -182,43 +188,48 @@ Public `config_schema` entries (settings via `ctx.get_config`, secrets via
   `os.environ`.
 - `jellyfin_user` — string, optional (exact case-sensitive username or GUID).
 - `chromecast_host` — string, required for `tv_play` / `tv_pause` (Chromecast LAN IP
-  or hostname, e.g. `192.168.0.134`).
+  or hostname, e.g. `192.168.1.50`).
 - `cast_media_base_url` — string, required for `tv_play` / `tv_pause` (LAN `http://host:port`
-  URL the Chromecast fetches from, e.g. `http://192.168.0.126:8765`; never loopback
+  URL the Chromecast fetches from, e.g. `http://192.168.1.20:8765`; never loopback
   or `0.0.0.0`).
 - `cast_relay_bind` — string, required for `tv_play` / `tv_pause` (local `IP:port`
-  for the temporary media relay listener, e.g. `192.168.0.126:8765` on host or
+  for the temporary media relay listener, e.g. `192.168.1.20:8765` on host or
   `0.0.0.0:8765` inside a bridge-networked container with port `8765` published).
 
 Non-text settings are rejected.
 
 ## Validation
 
-Official Hermes v0.22.0 doctor (`7 tool(s), 0 hook(s)`), validate, mocked loader
-smoke (`tests/hermes_smoke.py`), and live Jellyfin 12.2.0 + Chromecast Gen 2
-`tv_play` / `tv_pause` acceptance pass on the integrated tree; **722 automated tests**
-and Ruff pass. `hermes plugins validate --install-deps` passes with a visible
-`security scan — caution` (`bind_all_interfaces` on `playback.py:77`,
-`plugin.yaml:50`, `relay.py:158`, `relay.py:166`) because containerized setups can
-configure `cast_relay_bind` as `0.0.0.0:8765`. Details are in
+Official Hermes v0.22.0 doctor (`12 tool(s), 0 hook(s)`), `hermes plugins
+validate . --install-deps`, mocked loader smoke (`tests/hermes_smoke.py`), and
+live Jellyfin 12.2.0 + Chromecast Gen 2 acceptance pass; **943 automated Python
+tests**, 73 camera JS tests and Ruff pass. `hermes plugins validate
+--install-deps` passes with a visible `security scan — caution`
+(`bind_all_interfaces` on `playback.py:85`, `plugin.yaml:58`, `relay.py:158`,
+`relay.py:166`, and `tunnel_service` on `games/deploy/compose.yaml:22`) because
+containerized setups can configure `cast_relay_bind` as `0.0.0.0:8765` and the
+game deploy intentionally runs a tunnel sidecar. Details are in
 [integration evidence](docs/INTEGRATION.md). Catalog rules distinguish a
 validation failure from a caution finding requiring review.
 
-## Publication gates (not yet met)
+## Catalog submission
 
-- No catalog PR has been opened and no commit is pinned for publication.
-- Live `tv_play` and `tv_pause` through the integrated relay passed on Chromecast
-  Gen 2 (`192.168.0.134`) from the isolated Hermes `v0.22.0` runtime via the
-  temporary ZimaOS host forwarder (`192.168.0.126:8765` -> `172.23.0.2:8765`),
-  while the installed ZimaOS Hermes container remains on `v0.16.0` (below
-  `requires_hermes: ">=0.22.0"`).
-- Roku 3 programmatic control remains gated on Roku's third-party ECP restriction
-  (and live `/Sessions` confirms `SupportsMediaControl: false` on `Jellyfin Roku` `3.2.4`).
+This plugin is being prepared for the Hermes plugin catalog:
+[docs/SUBMISSION.md](docs/SUBMISSION.md) holds the checklist, the draft catalog
+entry, and the verified-versus-mocked evidence summary. The pinned commit for
+the upstream catalog PR is recorded there once this PR lands.
+
+## Live verification record
+
+- Live `tv_play`/`tv_pause` through the integrated relay passed on Chromecast
+  Gen 2 from the isolated Hermes `v0.22.0` runtime.
+- Roku 3 programmatic control remains unavailable (Roku's third-party ECP
+  restriction; live `/Sessions` confirms `SupportsMediaControl: false` on
+  `Jellyfin Roku` `3.2.4`). The Roku path was abandoned in favor of Chromecast.
 - TV/CEC wake is out of scope and unverified.
-- `library_pick`, `tv_play`, and `tv_pause` are verified from Telegram on the base
-  commit. Scene marker playback through Telegram is verified at 60.0 seconds, followed
-  by receiver-confirmed pause at 73.1 seconds;
-  `/watch` is not built.
+- `library_pick`, `tv_play`, `tv_pause`, scene save/find/play, game
+  start/stop, and YouTube play/pause are verified from Telegram; `/watch` is
+  not built.
 
 ## Troubleshooting
 
@@ -246,6 +257,18 @@ validation failure from a caution finding requiring review.
   the upstream header only, redacts capability paths from logs, and revokes the
   capability + closes the listener on expiry or plugin unload (`ctx.on_unload`).
 - Server/user names and library data returned in chat may be seen by your model provider.
+- `tv_youtube_play` / `tv_youtube_pause` connect to the configured Chromecast and
+  let YouTube serve the video directly; `library_youtube_search` (optional) calls
+  YouTube Data API v3 with your Hermes-stored key. No scraping, download or media
+  relay for YouTube.
+- The game service is a separate deployment you own: the phone camera page, the
+  TV receiver/display and a small JSON API. Camera frames and landmarks never
+  leave the phone. The public HTTPS origin (typically a Cloudflare Quick Tunnel)
+  carries game pages, tokens and API requests; camera images do not cross it.
+  Game credentials are one-use pairing links, expiring read-only viewer
+  capabilities and a generated admin token kept in Hermes secret scope.
+- The TV display/receiver loads Google's CAF v3 SDK from `www.gstatic.com`; the
+  game's background music track is served same-origin from the game service.
 
 ## Contributing
 

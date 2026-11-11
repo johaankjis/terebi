@@ -18,10 +18,15 @@ User-authorized branch `feat/youtube-playback`, from origin/main
   direct links work without that key. No scraping/downloading/media proxy.
 - [x] Full Python suite: 924 passed; Ruff; official Hermes v0.22.0 doctor
   (11 tools / 0 hooks), validation and real loader/dispatcher smoke passed.
-- [ ] Telegram link request with Mac mirroring off; user confirms actual video.
+- [x] Telegram link request with Mac mirroring off; user confirms actual video.
+  `AodSJJ-ZvuI` via Telegram 2026-11-11T04:55Z: `tv_youtube_play` returned
+  `ok/verified: true`, `state: PLAYING`, media session `1712781726`; user confirmed
+  the video on screen. Evidence: [evidence/youtube-live-telegram-20261111.json](evidence/youtube-live-telegram-20261111.json).
 - [ ] Live title request if an optional search key is configured.
 - [ ] Switch to Jellyfin movie and launch rock-paper-scissors after YouTube.
-- [ ] One draft PR with exact tested SHA and honest live evidence; leave unmerged.
+- [x] PR opened with exact tested SHA and honest live evidence; merged on user
+  authorization after the Telegram link acceptance (live pause, title search, and
+  post-YouTube regressions remain pending).
 
 Live gates: YouTube search key is unconfigured; the isolated game gateway has no
 Jellyfin settings/key for the post-YouTube movie check. Obtain any needed key only

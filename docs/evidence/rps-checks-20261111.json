@@ -1,0 +1,52 @@
+{
+  "date": "2026-11-11",
+  "tested_commit": "aee89f97acdcf8b7cd23efb1f1d32895c4a7767c",
+  "base_commit": "263c82629886bfdf45517e8583b94cffecea9888",
+  "python_tests_passed": 852,
+  "camera_js_tests_passed": 59,
+  "camera_asset_build": "passed checksum verification",
+  "ruff_check": "passed",
+  "ruff_format": "passed",
+  "diff_check": "passed",
+  "hermes_version": "0.22.0",
+  "hermes_doctor": {
+    "passed": true,
+    "tools": 8,
+    "hooks": 0
+  },
+  "hermes_validate": "passed after stable-source retry",
+  "hermes_official_loader_dispatcher_smoke": "passed",
+  "scanner_cautions": [
+    "bind_all_interfaces",
+    "tunnel_service",
+    "proc_access in built MediaPipe WASM loader helpers"
+  ],
+  "deployment": {
+    "zimaos": "pending user-run Docker commands",
+    "docker_build": "not run: no Docker socket/executable in T3",
+    "https": "Quick Tunnel proposed; not started"
+  },
+  "tv": {
+    "selected_path": "Mac Chrome tab mirroring",
+    "target": "Den TV, Chromecast Gen 2, 192.168.0.134",
+    "game_screen_and_live_update": "not yet verified"
+  },
+  "camera": {
+    "intended_device": "user iPhone Safari",
+    "real_rounds_verified": 0,
+    "no_hand_retry_live": "pending",
+    "stop_releases_camera_live": "pending",
+    "tap_fallback_live": "pending"
+  },
+  "worker": {
+    "provider": "claudeAgent",
+    "model": "claude-opus-5-5",
+    "original_commit": "d19498c06eacc6f0ad2414e2e7c7b7d6c0b5d9fc",
+    "integrated_commit": "e902553",
+    "ownership": "games/camera/**"
+  },
+  "notes": [
+    "Existing movie and scene tests included in full suite.",
+    "Protocol simulation and mocked gesture tests do not establish live camera acceptance."
+  ]
+}

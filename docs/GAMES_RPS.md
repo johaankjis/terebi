@@ -154,3 +154,37 @@ sh games/deploy/host.sh stop
 
 Private config remains for a repeat; active sessions are memory-only and expire
 on shutdown. This prototype adds no trivia, voice, charades, Roku or multiplayer.
+
+
+## Current verification checkpoint
+
+Exact tested source: **`aee89f97acdcf8b7cd23efb1f1d32895c4a7767c`**.
+
+- **852 Python tests passed**, including the complete existing movie/scene suite,
+  RPS scoring combinations, concurrent submissions, retry invariants, expiry,
+  capability roles, HTTP privacy/input boundaries and native Hermes game links.
+- **59 JS tests passed**, mocked camera/recognizer/timers. Camera assets build with
+  checksum verification; no real camera, iPhone accuracy or release observation
+  is claimed from these tests. A three-round API simulation is also a unit test.
+- Ruff lint/format, diff check, shell syntax, display JS syntax, compose YAML and
+  local-only host port assertions pass. Docker build/run remains host-side pending.
+- Official isolated Hermes v0.22.0 doctor passed (8 tools, 0 hooks); validation and
+  real-loader/ToolRegistry dispatcher smoke passed. Cautions remain visible for
+  configurable LAN bind, tunnel service, and generated MediaPipe WASM loader
+  `/proc` helpers discovered in built/vendor dependencies. No scan suppression.
+- The initial smoke command exposed an accidental extra positional argument in
+  the test harness; it was fixed and the smoke rerun passed. An initial dependency
+  preparation retry message cleared on the stable-source validation rerun.
+- Logs: `/tmp/terebi-rps-final-f6wz5fx5/` (validation/smoke),
+  `/tmp/terebi-rps-checks-cumx0bpr/doctor.log`.
+
+The selected TV path is manual Mac Chrome mirroring, not yet verified on Den TV.
+ZimaOS deployment, Telegram game start, trusted-HTTPS iPhone Safari capture,
+three real camera rounds, missed-hand retry, and physical Stop-camera indicator
+acceptance remain pending. No game-state update on the TV is claimed yet.
+A temporary T3 LAN display-only spike can use the existing host port 8765 forwarder
+for the first Waiting → Ready proof; camera acceptance requires the HTTPS host.
+
+The pinned model binary is downloaded at build time; no model binary is committed.
+The model card text was extracted, but contained no explicit license grant; its
+manifest retains that provenance limitation for redistribution review.

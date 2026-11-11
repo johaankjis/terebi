@@ -235,3 +235,12 @@ docker compose -f games/deploy/compose.yaml up -d --no-deps games
 Keep the tunnel container running to retain its hostname. The service restart
 expires old sessions; ask the isolated Telegram bot for a new game and reload
 both pages. Confirm the page contains the practice button before testing.
+
+
+Display footer: a fresh unpaired session shows **Waiting for you** with
+**Live · Waiting for a phone to pair**. Only after successful pairing does it
+show **Live · Your paired phone controls the game**. Before the first live
+snapshot it says Connecting; expiration says Session ended. Verified using the
+actual display script in a DOM harness against a fresh local HTTP session,
+then pairing that same session. Browser preview was unavailable due to missing
+host libraries; physical Den TV verification remains separate.

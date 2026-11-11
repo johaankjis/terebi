@@ -40,6 +40,8 @@ rounds remain unverified.
   sample counts. Preserve the pinned MediaPipe model and decision thresholds.
   Diagnostic candidate checks: 66 JS tests, 852 Python tests, asset build, Ruff,
   Hermes doctor (8 tools) and validation passed. iPhone verification pending.
+- [x] Display footer follows unpaired/paired state; fresh local session and
+  same-session pairing verified through actual HTTP API and display script.
 - [ ] Deploy diagnostic build and verify rock, paper, scissors on user's iPhone.
 - [ ] If practice succeeds, verify Shoot sampling, Retry, three camera rounds,
   exactly-once score and Stop camera with actual device evidence.

@@ -13,7 +13,7 @@ const labels = {rock:'✊ Rock', paper:'✋ Paper', scissors:'✌ Scissors'};
 function render() {
   if (!state) return;
   const now = state.server_time_ms + performance.now() - anchored;
-  if (now >= state.expires_at_ms) {stop(); el('headline').textContent='Session ended';el('guidance').textContent='Ask Hermes for a new game.';return;}
+  if (now >= state.expires_at_ms) {stop(); el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Ask Hermes for a new game.';return;}
   document.body.dataset.phase = state.phase;
   el('round').textContent = state.round_number ? `· ROUND ${state.round_number}` : '';
   const titles = {waiting_for_player:'Waiting for you',ready:'Ready',reveal:'Reveal!',score:'The score',next_round:'Play again?'};
@@ -38,9 +38,11 @@ async function poll(){
   try{
     const r=await fetch(`/v1/sessions/${encodeURIComponent(credentials.id)}`,{headers:{Authorization:`Bearer ${credentials.token}`},cache:'no-store',signal:request.signal});
     const data=await r.json();
-    if(!r.ok||!data.ok){if([401,404,410].includes(r.status)){stop();el('headline').textContent='Session ended';el('guidance').textContent='Open a fresh display link from Hermes.';return;}throw Error('connection');}
+    if(!r.ok||!data.ok){if([401,404,410].includes(r.status)){stop();el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Open a fresh display link from Hermes.';return;}throw Error('connection');}
     if(!state||data.state.revision>=state.revision){state=data.state;anchored=performance.now();render();}
-    el('status').textContent='Live · Your paired phone controls the game.';
+    el('status').textContent=state.phase==='waiting_for_player'
+      ? 'Live · Waiting for a phone to pair'
+      : 'Live · Your paired phone controls the game';
   }catch{el('status').textContent='Connection interrupted — reconnecting…';delay=2000;}
   finally{clearTimeout(timeout);request=null;if(!stopped)timer=setTimeout(poll,delay);}
 }

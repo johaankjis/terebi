@@ -254,3 +254,18 @@ recorded in [docs/HARDWARE.md](docs/HARDWARE.md).
 ## License
 
 MIT
+
+
+### Direct Chromecast game launch (registered Custom Receiver)
+
+Configure `games_receiver_app_id` with a Google Cast Custom Receiver ID and use
+the existing `chromecast_host`. Deploy the game service's `/receiver/` page and
+register that trusted HTTPS URL in Google's Console. Unpublished tests require
+registering the Chromecast as a test device. See [setup and acceptance steps](docs/GAMES_CAST.md).
+
+Hermes launches the game and sends only the session's read-only display capability.
+It reports the TV ready only after the receiver acknowledges rendering the same
+session. The iPhone pairing link is still returned in Telegram. Failed or
+unconfigured launches retain the manual Chrome display link. Starting a game
+replaces the current Chromecast app; TV wake and HDMI switching are separately
+tested device behavior, not implied by receiver readiness.

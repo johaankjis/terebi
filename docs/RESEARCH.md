@@ -415,3 +415,27 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   unverified. **VERIFIED (source):** old round selection included pre-Shoot
   predictions and a whole-window majority. New post-Shoot suffix logic has fixture
   tests; actual iPhone timing and all-three-gesture rounds remain UNVERIFIED.
+
+
+### Custom game receiver — 2026-11-11
+
+- VERIFIED (official Google registration guide, fetched 2026-11-11): unpublished
+  Custom Receiver testing requires device registration. Add New Device by serial,
+  wait roughly 15 minutes for Ready for Testing and restart the Chromecast.
+  Add New Application -> Custom Receiver -> URL -> Save gives the app ID.
+  Developer account fee is non-refundable US$5. Source:
+  `https://developers.google.com/cast/docs/registration`.
+- VERIFIED (official CAF API reference): customNamespaces must be declared before
+  start; addCustomMessageListener/sendCustomMessage support sender-specific JSON
+  messages. disableIdleTimeout is documented for non-media apps. skipPlayersLoad
+  avoids media player loading. Sources:
+  `https://developers.google.com/cast/docs/reference/web_receiver/cast.framework.CastReceiverOptions`
+  and `https://developers.google.com/cast/docs/reference/web_receiver/cast.framework.CastReceiverContext`.
+- VERIFIED (installed pychromecast 14.1.1 source): BaseController supports the
+  namespace and no_add_request_id; Chromecast.start_app accepts a timeout.
+  Existing direct connection uses explicit cast type; existing close clears
+  virtual channels before disconnect to avoid stopping the receiver.
+- UNVERIFIED (Den TV hardware): Custom Receiver registration, CAF runtime and
+  SDK CSP/hosting on Gen 2, matching render acknowledgement, persistence after
+  sender disconnect/Mac closed, game round, TV wake/input and subsequent movie
+  playback. User must complete registration and deploy the receiver build first.

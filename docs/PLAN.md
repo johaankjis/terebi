@@ -4,7 +4,29 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: Terebi Games v1 — camera rock-paper-scissors
+## Current slice: direct Chromecast game launch
+
+User-authorized branch `feat/chromecast-game-launch`, from verified clean
+origin/main `19e2344ca6dd5c671855036a0c1a93b3d0b71d77` (RPS PR #6 merged).
+
+- [x] Verify base, preserve existing main/demo checkouts, document current Google
+  Console setup and receiver URL in [GAMES_CAST.md](GAMES_CAST.md).
+- [x] Reuse the display renderer; add CAF receiver and a read-only session handoff.
+- [x] Require matching session/challenge render acknowledgement; retain phone
+  pairing and manual display links on every launch result.
+- [x] Run focused receiver/sender tests, all RPS/movie/scene regressions, Ruff,
+  camera asset build, and official Hermes doctor/validation/smoke. Results: 873
+  Python tests, 71 camera tests, 7 receiver/display tests; 8 Hermes tools/0 hooks.
+- [ ] User registers Den TV and supplies Custom Receiver app ID; deploy build.
+- [ ] Live Mac-closed Telegram -> Waiting -> iPhone pair -> Ready -> camera round.
+- [ ] Separate physical TV wake, input switching and post-game movie checks.
+- [x] Prepare one draft PR with exact checked SHA and honest live evidence/blockers.
+
+Blocker: no Custom Receiver application ID or completed Den TV test-device
+registration has been supplied. The current hosted service does not contain the
+new receiver page until user-run deployment. No new hardware success claimed.
+
+## Previous slice: Terebi Games v1 — camera rock-paper-scissors
 
 User explicitly authorizes this new slice. Base origin/main
 `263c82629886bfdf45517e8583b94cffecea9888`, separate manager branch/worktree

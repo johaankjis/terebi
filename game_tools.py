@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 
 from .hermes_screen.config import _default_secret_reader
+from .hermes_screen.game_cast import launch_game_display
 
 
 def _error(reason: str, hint: str) -> str:
     return json.dumps({"ok": False, "reason": reason, "hint": hint})
 
 
-def start_rps(args, *, ctx, identity=None, secret_reader=None) -> str:
+def start_rps(args, *, ctx, identity=None, secret_reader=None, cast_launcher=None) -> str:
     try:
         if isinstance(args, str):
             args = json.loads(args)
@@ -71,6 +72,60 @@ def start_rps(args, *, ctx, identity=None, secret_reader=None) -> str:
                 raise ValueError("insecure_camera")
             if not link.netloc or link.username or link.password:
                 raise ValueError("link")
+        display = urlsplit(data["display_url"])
+        credentials = parse_qs(display.fragment)
+        if (
+            display.path != "/display/"
+            or display.query
+            or set(credentials) != {"session", "token"}
+            or any(len(v) != 1 for v in credentials.values())
+            or credentials["session"][0] != data["session_id"]
+        ):
+            raise ValueError("display_capability")
+        app_id = ctx.get_config("games_receiver_app_id", "")
+        host = ctx.get_config("chromecast_host", "")
+        tv = {
+            "ok": False,
+            "reason": "games_receiver_not_configured",
+            "hint": "Set a Custom Receiver app ID and Chromecast IP, or mirror manually.",
+        }
+        if app_id and host:
+            try:
+                tv = (cast_launcher or launch_game_display)(
+                    host, app_id, data["session_id"], credentials["token"][0]
+                )
+            except Exception:
+                tv = {
+                    "ok": False,
+                    "reason": "games_cast_failed",
+                    "hint": "Use the manual display link.",
+                }
+        if not isinstance(tv, dict):
+            tv = {
+                "ok": False,
+                "reason": "games_cast_failed",
+                "hint": "Use the manual display link.",
+            }
+        verified = (
+            tv.get("ok") is True
+            and tv.get("evidence") == "receiver_rendered_session"
+            and tv.get("session_id") == data["session_id"]
+        )
+        if tv.get("ok") and not verified:
+            tv = {
+                "ok": False,
+                "reason": "receiver_render_unverified",
+                "hint": "Use the manual display link.",
+            }
+        instructions = (
+            "The receiver confirmed it rendered this game session. Open the pairing link in Safari "
+            "on your phone, then use the phone camera page to play. Camera frames stay on-device. "
+            "TV power and HDMI input are not verified."
+            if verified
+            else "Open the pairing link in Safari on your phone; camera frames stay on-device. "
+            "Automatic TV launch was not verified. Open the display link in Mac Chrome, cast that "
+            "tab to Den TV, then press Fullscreen. Start and advance rounds on the phone."
+        )
         return json.dumps(
             {
                 "ok": True,
@@ -81,14 +136,12 @@ def start_rps(args, *, ctx, identity=None, secret_reader=None) -> str:
                 "display_url": data["display_url"],
                 "expires_at_ms": data["state"]["expires_at_ms"],
                 "phase": data["state"]["phase"],
-                "display_path": "manual_chrome_mirroring",
-                "tv_verified": False,
-                "instructions": (
-                    "Open the pairing link in Safari on your phone; camera frames stay on-device. "
-                    "Open the display link in Mac Chrome, cast that tab to Den TV, then press "
-                    "Fullscreen. Start and advance rounds on the phone. "
-                    "If already paired, reuse the open player page."
-                ),
+                "display_path": "custom_cast_receiver" if verified else "manual_chrome_mirroring",
+                "tv_verified": verified,
+                "tv": tv,
+                "wake_verified": False,
+                "input_verified": False,
+                "instructions": instructions + " If already paired, reuse the open player page.",
             }
         )
     except Exception:

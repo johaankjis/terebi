@@ -126,11 +126,15 @@ class _RedactCapabilities(logging.Filter):
             message = record.getMessage()
         except Exception:
             return True
+        if "urn:x-cast:com.terebi.games" in message or "display_token" in message:
+            return False  # Cast debug payloads can contain the read-only game capability.
         cleaned = redact(message)
         if cleaned != message:
             record.msg, record.args = cleaned, None
         if record.exc_info:
             text = logging.Formatter().formatException(record.exc_info)
+            if "display_token" in text or "urn:x-cast:com.terebi.games" in text:
+                return False
             record.exc_text = redact(text)
         return True
 

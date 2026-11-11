@@ -25,7 +25,8 @@ User explicitly authorizes this new slice. Base origin/main
 - [x] Automated checks on `aee89f9`: 852 Python tests (including all movie/scene
   regressions), 59 camera JS tests, checksum-verified build, Ruff, Hermes v0.22.0
   doctor (8 tools) / validation / real-dispatch smoke. Scanner cautions visible.
-- [ ] Open one numbered draft game PR and record host/device acceptance blockers.
+- [x] Open draft PR #6, targeting main; host/device acceptance blockers recorded.
+  Leave unmerged.
 
 Live blockers: host currently exposes Caddy on HTTP port 80; direct TLS port 443
 refuses connections. No trusted hostname or ZimaOS shell access is configured in

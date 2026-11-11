@@ -188,3 +188,10 @@ for the first Waiting → Ready proof; camera acceptance requires the HTTPS host
 The pinned model binary is downloaded at build time; no model binary is committed.
 The model card text was extracted, but contained no explicit license grant; its
 manifest retains that provenance limitation for redistribution review.
+
+
+Draft PR: https://github.com/johaankjis/terebi/pull/6 (leave unmerged).
+The existing host:8765 → T3 forwarder returned HTTP 200 for the temporary game
+`/health` probe on 2026-11-11. This proves LAN reachability only. The display-only
+proof has a 20-minute lifetime and requires user mirroring/TV confirmation; it
+cannot establish trusted-HTTPS camera acceptance or ZimaOS deployment.

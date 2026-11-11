@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-11",
+  "base_sha": "19e2344ca6dd5c671855036a0c1a93b3d0b71d77",
+  "branch": "feat/chromecast-game-launch",
+  "automated": {
+    "python_tests": 873,
+    "camera_js_tests": 71,
+    "receiver_display_js_tests": 7,
+    "ruff_lint": "passed",
+    "ruff_format": "passed",
+    "camera_asset_build": "passed",
+    "hermes_version": "v0.22.0",
+    "doctor": {
+      "status": "passed",
+      "tools": 8,
+      "hooks": 0
+    },
+    "validate": "passed",
+    "dispatcher_smoke": "passed with mocked Cast handshake",
+    "credential_pattern_scan": "no matches; no private configuration tracked"
+  },
+  "scanner_cautions": [
+    "bind_all_interfaces: existing media relay/config",
+    "proc_access: generated MediaPipe loaders",
+    "tunnel_service: compose"
+  ],
+  "hardware": {
+    "status": "blocked",
+    "device": "Den TV Chromecast Gen 2",
+    "blocker": "Await registered Custom Receiver app ID and deployment of receiver build.",
+    "device_commands_sent": false,
+    "mac_closed_game_launch": "unverified",
+    "waiting_to_ready_on_tv": "unverified",
+    "camera_round_on_tv": "unverified",
+    "tv_wake": "unverified",
+    "hdmi_switch": "unverified",
+    "movie_after_game": "unverified"
+  },
+  "credential_boundary": "Cast gets session ID, read-only display capability and fresh challenge only. No pairing/admin/Jellyfin key or camera data.",
+  "success_boundary": "Receiver fetches and renders matching session; sender checks challenge, session and current app. Does not establish physical TV power/input."
+}

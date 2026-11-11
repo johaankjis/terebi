@@ -1,19 +1,13 @@
 const el = id => document.getElementById(id);
-const fragment = new URLSearchParams(location.hash.slice(1));
-let credentials;
-try {
-  if (fragment.has('session') && fragment.has('token')) {
-    credentials = {id: fragment.get('session'), token: fragment.get('token')};
-    sessionStorage.setItem('terebi-display', JSON.stringify(credentials));
-  } else credentials = JSON.parse(sessionStorage.getItem('terebi-display'));
-} catch { credentials = null; }
-history.replaceState(null, '', location.pathname);
+
+// Both manual mirroring and the Custom Receiver use this exact renderer.
+export function startDisplay(credentials, {onRendered = () => {}, onFailure = () => {}} = {}) {
 let state = null, anchored = 0, request = null, timer = null, stopped = false;
 const labels = {rock:'✊ Rock', paper:'✋ Paper', scissors:'✌ Scissors'};
 function render() {
   if (!state) return;
   const now = state.server_time_ms + performance.now() - anchored;
-  if (now >= state.expires_at_ms) {stop(); el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Ask Hermes for a new game.';return;}
+  if (now >= state.expires_at_ms) {stop(); el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Ask Hermes for a new game.';onFailure('session_ended');return;}
   document.body.dataset.phase = state.phase;
   el('round').textContent = state.round_number ? `· ROUND ${state.round_number}` : '';
   const titles = {waiting_for_player:'Waiting for you',ready:'Ready',reveal:'Reveal!',score:'The score',next_round:'Play again?'};
@@ -38,16 +32,36 @@ async function poll(){
   try{
     const r=await fetch(`/v1/sessions/${encodeURIComponent(credentials.id)}`,{headers:{Authorization:`Bearer ${credentials.token}`},cache:'no-store',signal:request.signal});
     const data=await r.json();
-    if(!r.ok||!data.ok){if([401,404,410].includes(r.status)){stop();el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Open a fresh display link from Hermes.';return;}throw Error('connection');}
-    if(!state||data.state.revision>=state.revision){state=data.state;anchored=performance.now();render();}
+    if(stopped)return;
+    if(!r.ok||!data.ok){if([401,404,410].includes(r.status)){stop();el('headline').textContent='Session ended';el('status').textContent='Session ended';el('guidance').textContent='Open a fresh display link from Hermes.';onFailure('session_ended');return;}throw Error('connection');}
+    if(data.state?.session_id!==credentials.id)throw Error('session_mismatch');
+    if(!state||data.state.revision>=state.revision){state=data.state;anchored=performance.now();render();if(!stopped)onRendered(state);}
+    if(stopped)return;
     el('status').textContent=state.phase==='waiting_for_player'
       ? 'Live · Waiting for a phone to pair'
       : 'Live · Your paired phone controls the game';
-  }catch{el('status').textContent='Connection interrupted — reconnecting…';delay=2000;}
+  }catch{if(stopped)return;el('status').textContent='Connection interrupted — reconnecting…';onFailure('display_unavailable');delay=2000;}
   finally{clearTimeout(timeout);request=null;if(!stopped)timer=setTimeout(poll,delay);}
 }
-function stop(){stopped=true;clearTimeout(timer);request?.abort();}
-el('fullscreen').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{el('status').textContent='Use Chrome’s fullscreen menu, then cast this tab.';}});
+function stop(){stopped=true;clearTimeout(timer);clearInterval(renderTimer);request?.abort();window.removeEventListener('pagehide',stop);}
+el('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch{el('status').textContent='Use Chrome’s fullscreen menu, then cast this tab.';}};
 window.addEventListener('pagehide',stop);
-setInterval(render,100);
+const renderTimer=setInterval(render,100);
 if(credentials?.id&&credentials?.token)poll();
+return stop;
+
+}
+
+// The receiver supplies its credential in memory, never via a URL or storage.
+if (location.pathname.startsWith('/display/')) {
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  let credentials;
+  try {
+    if (fragment.has('session') && fragment.has('token')) {
+      credentials = {id: fragment.get('session'), token: fragment.get('token')};
+      sessionStorage.setItem('terebi-display', JSON.stringify(credentials));
+    } else credentials = JSON.parse(sessionStorage.getItem('terebi-display'));
+  } catch { credentials = null; }
+  history.replaceState(null, '', location.pathname);
+  startDisplay(credentials);
+}

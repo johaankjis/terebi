@@ -9,6 +9,7 @@ import json
 import socket
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import respx
 from agent.secret_scope import reset_secret_scope, set_secret_scope
@@ -244,9 +245,9 @@ def main() -> None:
         route = router.post("http://games.test:8766/v1/sessions").respond(
             json={
                 "ok": True,
-                "session_id": "game-smoke",
+                "session_id": "game-smoke-123456789",
                 "pairing_url": "https://games.test/play/#pair=fixture",
-                "display_url": "https://games.test/display/#token=fixture",
+                "display_url": "https://games.test/display/#session=game-smoke-123456789&token=read-only-viewer-token-123456789",
                 "pairing_expires_at_ms": 123,
                 "state": {
                     "expires_at_ms": 456,
@@ -257,6 +258,28 @@ def main() -> None:
         token = set_secret_scope({"TEREBI_GAMES_API_KEY": "game-smoke-secret"})
         try:
             started = json.loads(dispatcher.dispatch("tv_game_start", {}, session_id="game-smoke"))
+            first.settings["games_receiver_app_id"] = "AB12CD34"
+            game_module = sys.modules[module.__name__ + ".game_tools"]
+            with patch.object(
+                game_module,
+                "launch_game_display",
+                return_value={
+                    "ok": True,
+                    "evidence": "receiver_rendered_session",
+                    "session_id": "game-smoke-123456789",
+                    "phase": "waiting_for_player",
+                },
+            ) as launch:
+                direct = json.loads(
+                    dispatcher.dispatch("tv_game_start", {}, session_id="game-smoke")
+                )
+                launch.assert_called_once_with(
+                    "192.0.2.50",
+                    "AB12CD34",
+                    "game-smoke-123456789",
+                    "read-only-viewer-token-123456789",
+                )
+                assert direct["tv_verified"] and direct["display_path"] == "custom_cast_receiver"
         finally:
             reset_secret_scope(token)
         assert started["ok"] and not started["tv_verified"], started
@@ -274,7 +297,8 @@ def main() -> None:
         "PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + "
         "tv_pause through real client + respx + local relay + fake Chromecast, scoped "
         "secret rotation, context isolation, description paraphrase, seek + measured position, "
-        "game session links via scoped secret + dispatcher, on_unload cleanup"
+        "game fallback + mocked Cast handoff via scoped secret + dispatcher, "
+        "on_unload cleanup"
     )
 
 

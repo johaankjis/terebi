@@ -63,3 +63,9 @@ config_schema:
     env: TEREBI_GAMES_API_KEY
     label: "Terebi Games service key"
     description: "Admin token from the private standalone game configuration. Never share in chat."
+
+  games_receiver_app_id:
+    type: str
+    default: ""
+    label: "Terebi Games Custom Receiver app ID"
+    description: "Eight-character Google Cast Developer Console app ID. Register the Chromecast for unpublished testing. Blank keeps manual mirroring."

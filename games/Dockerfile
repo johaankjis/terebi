@@ -9,6 +9,7 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY games/__init__.py games/state.py games/service.py /app/games/
 COPY games/display /app/games/display
+COPY games/receiver /app/games/receiver
 COPY --from=camera /camera/dist /app/games/camera/dist
 USER 10001:10001
 EXPOSE 8766

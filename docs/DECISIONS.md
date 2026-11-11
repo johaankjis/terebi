@@ -250,3 +250,16 @@ prediction. Submit the first stable run once. At deadline, Retry without a move
 if still unclear. Keep the existing model, confidence threshold, server-owned
 score, attempt IDs and practice decision unchanged. Timing constants are explicit
 and reported locally for iPhone diagnosis; device success remains unverified.
+
+
+### Direct game receiver (2026-11-11)
+
+Use a registered CAF Custom Web Receiver at /receiver/ and the existing TV display
+renderer. Send only session ID, viewer token and a fresh challenge over the
+custom namespace. Confirm receiver-rendered matching session after a render
+opportunity; an app launch response alone is not readiness evidence. Preserve
+manual mirroring and iPhone pairing on failures. Reuse the existing pychromecast
+14.x connection and disconnect cleanup, so the receiver survives sender loss.
+No new runtime dependency; the receiver loads Google's CAF v3 browser SDK with
+a narrowly scoped receiver-only CSP. Suppress credential-bearing Cast debug
+payloads. No TV wake/input claim without separate physical checks.

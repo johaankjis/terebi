@@ -87,18 +87,32 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def _headers(self, status: int, mime: str, size: int) -> None:
+        receiver = urlsplit(self.path).path.startswith("/receiver/")
         self.send_response(status)
         self.send_header("Content-Type", mime)
         self.send_header("Content-Length", str(size))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")
+        self.send_header(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=()"
+            if receiver
+            else "camera=(self), microphone=(), geolocation=()",
+        )
         self.send_header(
             "Content-Security-Policy",
-            "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; "
-            "img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; "
-            "worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+            (
+                "default-src 'self'; script-src 'self' https://www.gstatic.com; "
+                "style-src 'self'; img-src 'self' data:; "
+                "connect-src 'self' https://www.gstatic.com https://*.googleapis.com; "
+                "object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+                if receiver
+                else "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; "
+                "img-src 'self' data:; connect-src 'self'; media-src 'self' blob:; "
+                "worker-src 'self' blob:; object-src 'none'; "
+                "base-uri 'none'; frame-ancestors 'none'"
+            ),
         )
         self.end_headers()
 
@@ -191,7 +205,11 @@ class Handler(BaseHTTPRequestHandler):
                 match = re.fullmatch(r"/v1/sessions/([A-Za-z0-9_-]{16,64})", path)
                 if match:
                     return self._json(self.server.store.state(match[1], self._token()))
-                for prefix, directory in (("/play/", "camera/dist"), ("/display/", "display")):
+                for prefix, directory in (
+                    ("/play/", "camera/dist"),
+                    ("/display/", "display"),
+                    ("/receiver/", "receiver"),
+                ):
                     if path.startswith(prefix):
                         base = (self.server.root / directory).resolve()
                         target = (base / unquote(path[len(prefix) :] or "index.html")).resolve()

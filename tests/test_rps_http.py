@@ -98,3 +98,14 @@ def test_image_payloads_and_invalid_json_rejected(server):
         == 400
     )
     assert server.post("/v1/pair", json={"pair_token": "x", "image": "private"}).status_code == 400
+
+
+def test_receiver_is_static_reuses_display_and_has_scoped_sdk_policy(server):
+    receiver = server.get("/receiver/")
+    assert receiver.status_code == 200
+    assert "/display/style.css" in receiver.text and "cast_receiver_framework.js" in receiver.text
+    assert "www.gstatic.com" in receiver.headers["Content-Security-Policy"]
+    assert "www.gstatic.com" not in server.get("/play/").headers["Content-Security-Policy"]
+    assert server.get("/receiver/receiver.js").status_code == 200
+    assert server.get("/receiver/%2e%2e/service.py").status_code == 404
+    assert server.get("/receiver/?token=forbidden").status_code == 400

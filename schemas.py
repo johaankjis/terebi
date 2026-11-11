@@ -220,14 +220,17 @@ TV_GAME_START = {
     "description": (
         "Start rock-paper-scissors against Hermes when the user asks to play, including "
         "'Let's play rock-paper-scissors'. Returns an expiring phone pairing link and a "
-        "read-only TV display link. Show both clickable links. The user opens the display "
-        "on Mac Chrome and mirrors that tab to Den TV, then uses the phone camera page. "
-        "Do not claim the TV is connected or showing the game: v1 uses manual mirroring. "
+        "read-only TV display link. If tv_verified is true, the configured Custom Receiver "
+        "confirmed it rendered this session; return the phone pairing link. Otherwise explain "
+        "the tv.reason and offer the display link for Mac Chrome tab mirroring to Den TV. "
+        "Do not claim TV readiness from app launch alone. Always keep the fallback display link. "
         "Camera permission is requested only by the phone page; images stay on-device. "
         "Hermes's move, countdown, result and score are controlled by the game service, "
         "not the language model. Repeated calls reuse this conversation's active session. "
         "If pairing_url is null, the player is already paired; reuse their player page. "
-        "Only rock-paper-scissors is supported. No movie playback or TV wake is triggered."
+        "Only rock-paper-scissors is supported. Launch may cause HDMI-CEC power/input changes, "
+        "but wake_verified and input_verified remain false until separately observed. "
+        "Starting a game replaces any app currently showing on the configured Chromecast."
     ),
     "parameters": {"type": "object", "additionalProperties": False, "properties": {}},
 }

@@ -501,3 +501,23 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   device: frame timing per phase, which level and turn style it settles on, whether
   the cold-start stall exists there, hand antialiasing, and a real camera round.
   Read it from the footer and from `display_profile` rows after a round.
+
+
+## Practice completion touch investigation (2026-11-11, PR #10)
+
+VERIFIED in Chromium 156 at a 390×844 mobile touch viewport, synthetic local video
+track and prediction fixture: the unmodified completion button was enabled after
+three checks. Recognition/no-hand diagnostics above it changed line wrapping,
+moving its top from 470.875px to 445.28125px mid-touch. A lower-edge touch failed to
+call finishPractice and activated Stop camera instead. A center tap succeeded.
+After moving diagnostics below both controls the same held touch calls the handler
+once, exits practice, enables/focuses Start round and keeps the track live and
+frame loop running. One Start round tap sends one next request. The controller
+unit test also verifies the original stream/loop identity and zero stopped tracks.
+
+The live main.js matched PR head aba93c6 during the check. T3 preview failed for
+missing browser libraries; a local Chromium with existing extracted libraries was
+used. Real iPhone Safari retest is UNVERIFIED. The reproduction identifies a real
+moving-target failure, not proof that every Safari symptom has the same cause.
+Evidence: `docs/evidence/practice-completion-touch-20261111.json`; repeatable
+optional browser harness: `games/camera/browser/practice.mjs`.

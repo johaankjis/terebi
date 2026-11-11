@@ -390,3 +390,13 @@ Decisions:
 - **“Keep ambient loops running” still holds.** During Countdown, Shoot and the turn
   the lake effects and bubbles fade to zero opacity and keep running underneath;
   clouds and the floating spheres never stop.
+
+
+## Practice completion controls (2026-11-11)
+
+Place live practice diagnostic text after both camera controls so text reflow
+cannot relocate either action during a touch. Keep native click/keyboard handling.
+Completing practice immediately renders and brings the enabled round action into
+view while retaining the same camera stream and inference loop. The optional
+browser regression uses external developer Playwright tooling with local synthetic
+media; no runtime dependency or camera/model/scoring change is added.

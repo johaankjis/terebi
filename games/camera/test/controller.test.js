@@ -551,3 +551,25 @@ test('late or stale predictions cannot rescue an expired capture window', async 
     assert.equal(h.calls.length, 0); assert.equal(h.c.currentRound().status, 'retry_prompt');
   }
 });
+
+
+test('finish practice enables a ready round without releasing camera or restarting inference', async () => {
+  const h = setup(); h.c.applyState(state());
+  const { video, stream, loop } = await cameraOn(h, { practice: true });
+  let t = SERVER_T0;
+  for (const move of ['rock', 'paper', 'scissors']) {
+    feed(h, loop, t, t + 900, move); t += 1200;
+  }
+  const cameraRun = h.c.cameraRun;
+  assert.equal(h.c.finishPractice(), true);
+  assert.equal(h.c.viewModel().camera.practice, false);
+  assert.equal(h.c.viewModel().canNext, true);
+  assert.equal(h.c.viewModel().camera.status, 'on');
+  assert.equal(h.c.cameraRun, cameraRun);
+  assert.equal(h.c.frameLoop, loop);
+  assert.equal(loop.running, true);
+  assert.equal(video.srcObject, stream);
+  assert.equal(stream.getTracks().every(track => track.stopCalls === 0), true);
+  await h.c.next();
+  assert.equal(h.calls.filter(c => c.name === 'next').length, 1);
+});

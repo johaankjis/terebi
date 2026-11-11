@@ -4,7 +4,25 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: RPS motion and rendering polish (PR #10)
+## Current slice: practice completion tap (PR #10)
+
+- [x] Verify clean PR #10 head `aba93c6` and live main.js matches source.
+- [x] Reproduce an enabled completion button moving ~25.6px during a touch when
+  diagnostic text rewraps. In a lower-edge mobile Chromium tap, completion handler
+  calls = 0 and the touch activates Stop camera. Synthetic stream/predictions only;
+  this does not establish the exact real Safari failure.
+- [x] Put changing diagnostics after camera controls; retain native click handling.
+  On completion render immediately, focus/scroll Start round, preserve camera and
+  inference loop. Avoid redundant disabled/hidden writes for completion control.
+- [x] Browser regression: disabled until checks complete, button stays in place,
+  one handler call, practice false, Start round enabled/focused, camera track live,
+  inference loop retained, and one next request.
+- [x] 72 camera tests, 22 receiver/display tests, 928 Python tests, camera asset build,
+  Ruff and official Hermes doctor (11 tools / 0 hooks) pass.
+- [ ] Deploy updated source and confirm completion on the user's real iPhone Safari.
+  No host shell/Docker access in T3; provide archive + ZimaOS commands. Keep PR draft.
+
+## Previous slice: RPS motion and rendering polish (PR #10)
 
 User tested `7cf12ac` on Den TV: works, but animations and 3D hands look rough.
 Polish in the existing draft PR #10; keep server-driven pairing, countdown, scoring,

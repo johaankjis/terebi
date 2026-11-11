@@ -10,6 +10,7 @@ PROVIDES_TOOLS = [
     "library_scene_find",
     "library_scene_save",
     "tv_scene_play",
+    "tv_game_start",
 ]
 
 
@@ -108,3 +109,16 @@ def register(ctx: Any) -> None:
         ctx.register_tool(
             name=name, toolset="hermes_screen", schema=schema, handler=scene_handler(method)
         )
+
+    from .game_tools import start_rps
+
+    def tv_game_start(args: dict, **kwargs: Any) -> str:
+        identity = kwargs.get("conversation_id") or kwargs.get("session_id")
+        return start_rps(args, ctx=ctx, identity=identity)
+
+    ctx.register_tool(
+        name="tv_game_start",
+        toolset="hermes_screen",
+        schema=schemas.TV_GAME_START,
+        handler=tv_game_start,
+    )

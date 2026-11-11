@@ -374,3 +374,44 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
 - **UNVERIFIED (live Telegram):** paraphrase to described marker to exact-edition
   receiver PLAYING, and ambiguous/unmatched agent requests causing no playback.
   Previous marker acceptance on PR #4 is not evidence for this new demo flow.
+
+
+## Terebi Games hosting/displays — 2026-11-11
+
+- Google registration docs verified: Custom Web Receiver requires an app ID;
+  unpublished testing requires registered Cast device. Development receiver URL
+  may use LAN HTTP; published receiver requires HTTPS. No such app/device setup
+  exists for this user. Manual Mac Chrome mirroring selected, not yet proven.
+  https://developers.google.com/cast/docs/registration
+- Camera getUserMedia requires a secure context and explicit permission; LAN
+  plain HTTP does not qualify. Request video only and release every track.
+  https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
+- Host probe: `http://192.168.0.126/` responds 200 with Server: Caddy;
+  `https://192.168.0.126/` refuses connection. Repo has no proxy deployment config.
+  Internal host configuration has not been inspected from this T3 container.
+- Cloudflare Quick Tunnel docs verified: temporary trycloudflare.com hostname,
+  no account/domain needed, URL changes each start, no uptime guarantee, up to
+  200 in-flight requests and no SSE. Use bounded short polling for the game.
+  https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/
+
+
+### RPS iPhone live debug — 2026-11-11
+
+- **VERIFIED (manager HTTPS requests):** deployed service health and admin session
+  creation return HTTP 200; returned links use the configured public origin.
+  Player, display, local model, JS and WASM return HTTP 200 with usable MIME types.
+- **VERIFIED (gateway log):** isolated @terebitvbot connected at 02:20:37 UTC on
+  `0e17940`, with the game tool preflight successful and plugin origins checked.
+- **USER OBSERVED:** iPhone Safari shows the camera preview, but recognized no
+  rock/paper/scissors. This does not isolate model initialization, inference,
+  confidence or sampling as the cause.
+- **UNVERIFIED:** each real iPhone gesture, round sampling, physical Den TV state,
+  three camera rounds, missed-hand retry and Stop indicator. Temporary local
+  practice diagnostics added to investigate; no model substitution made.
+
+
+- **USER OBSERVED (RPS follow-up):** practice recognizes gestures, but a live round
+  reports a last-moment hand change. Successful camera-round acceptance remains
+  unverified. **VERIFIED (source):** old round selection included pre-Shoot
+  predictions and a whole-window majority. New post-Shoot suffix logic has fixture
+  tests; actual iPhone timing and all-three-gesture rounds remain UNVERIFIED.

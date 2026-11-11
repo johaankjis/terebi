@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light" />
+    <meta name="theme-color" content="#4fb3ef" />
+    <title>Terebi Games · Rock Paper Scissors</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <div class="sky" aria-hidden="true"><span class="bubble b1"></span><span class="bubble b2"></span><span class="bubble b3"></span></div>
+    <main class="app" id="app" data-screen="loading">
+      <header class="masthead glass">
+        <h1>Rock · Paper · Scissors</h1>
+        <p class="sub">You vs Hermes, on the TV</p>
+      </header>
+
+      <section class="glass panel" id="screen-message" hidden>
+        <h2 id="message-title">Connecting…</h2>
+        <p id="message-body">Getting your game ready.</p>
+      </section>
+
+      <section id="screen-game" hidden>
+        <div class="glass panel scoreboard" aria-label="Score">
+          <div class="score"><span class="label">You</span><span class="value" id="score-player">0</span></div>
+          <div class="score round"><span class="label">Round</span><span class="value" id="round-number">0</span></div>
+          <div class="score"><span class="label">Hermes</span><span class="value" id="score-hermes">0</span></div>
+          <p class="ties">Ties: <span id="score-ties">0</span></p>
+        </div>
+
+        <div class="glass panel stage">
+          <div class="countdown" id="countdown" aria-live="assertive" aria-atomic="true"></div>
+          <div class="result" id="result" hidden aria-live="polite"></div>
+          <p class="prompt" id="prompt" aria-live="polite"></p>
+          <p class="commit" id="commitment" hidden></p>
+          <div class="actions">
+            <button type="button" class="aero primary" id="btn-next">Start round</button>
+            <button type="button" class="aero" id="btn-retry">Retry</button>
+          </div>
+        </div>
+
+        <div class="glass panel camera">
+          <h2>Camera play</h2>
+          <div id="camera-intro">
+            <p>
+              Show <strong>fist</strong> for rock, <strong>open hand</strong> for paper and <strong>two fingers</strong> for
+              scissors. Your video stays on this phone: hand shapes are recognized on-device, and only the word rock, paper
+              or scissors is sent. No photos, no audio, nothing recorded.
+            </p>
+            <button type="button" class="aero primary" id="btn-camera-start">Turn on camera</button>
+          </div>
+          <div class="preview" id="camera-preview" hidden>
+            <video id="video" playsinline muted autoplay disablepictureinpicture aria-label="Your camera preview"></video>
+            <canvas id="hand-overlay" aria-hidden="true"></canvas>
+            <div class="guide" aria-hidden="true"><span>Hand here</span></div>
+            <p class="cam-status" id="camera-status" role="status"></p>
+          </div>
+          <p id="practice-status" role="status" hidden></p>
+          <button type="button" class="aero primary" id="btn-practice-done" hidden>Practice complete — use camera in rounds</button>
+          <button type="button" class="aero stop" id="btn-camera-stop" hidden>Stop camera</button>
+          <p class="cam-message" id="camera-message" role="alert" hidden></p>
+        </div>
+
+        <div class="glass panel taps">
+          <h2>No camera? Tap fallback</h2>
+          <p class="hint">Tap buttons count as a <strong>tap</strong> round, not a camera round. They unlock when the countdown says Shoot.</p>
+          <div class="tap-row">
+            <button type="button" class="aero tap" data-move="rock">✊ Rock (tap)</button>
+            <button type="button" class="aero tap" data-move="paper">✋ Paper (tap)</button>
+            <button type="button" class="aero tap" data-move="scissors">✌️ Scissors (tap)</button>
+          </div>
+        </div>
+      </section>
+
+      <p class="notice" id="notice" role="status" hidden></p>
+    </main>
+  </body>
+</html>

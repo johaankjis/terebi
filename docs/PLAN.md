@@ -4,6 +4,53 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
+## Current slice: Terebi Games v1 — camera rock-paper-scissors
+
+User explicitly authorizes this new slice. Base origin/main
+`263c82629886bfdf45517e8583b94cffecea9888`, separate manager branch/worktree
+`feat/hermes-games-rps`. Preserve movie/scene code and regression tests.
+
+- [x] Verify main and define [session/round contract](RPS_CONTRACT.md).
+- [x] Select manual Mac Chrome mirroring: no Custom Receiver ID/test registration.
+- [ ] FIRST LIVE GATE: Den TV display page plus one shared-state update observed.
+- [x] Manager: standalone service/API, authoritative rounds, Hermes tool, fullscreen display.
+- [x] Deploy the service on ZimaOS through the user-run host commands.
+- [x] One Claude Code worker: iPhone-compatible camera UI and local recognition;
+  59 mocked-media JS tests and checksum-verified camera asset build pass.
+- [x] Single-use pairing/expiring credentials implemented; Docker/Quick Tunnel
+  package and exact host-side commands in [GAMES_RPS.md](GAMES_RPS.md).
+- [ ] Trusted HTTPS deployment and real iPhone permission/camera checks.
+- [ ] Telegram -> pair once -> three camera rounds; missed-hand retry; exactly-once
+  scores; Stop camera releases tracks. Tap fallback labelled separately.
+- [x] Automated checks on `aee89f9`: 852 Python tests (including all movie/scene
+  regressions), 59 camera JS tests, checksum-verified build, Ruff, Hermes v0.22.0
+  doctor (8 tools) / validation / real-dispatch smoke. Scanner cautions visible.
+- [x] Open draft PR #6, targeting main; host/device acceptance blockers recorded.
+  Leave unmerged.
+
+Live status (2026-11-11): the user deployed the ZimaOS service through a
+Cloudflare Quick Tunnel. Manager verified health, admin authentication, correct
+public pairing/display origins, camera/model/WASM assets, and the isolated
+@terebitvbot connection on `0e17940`. User reports iPhone Safari preview works but
+initially no gestures were recognized. User now reports practice recognition
+works, but live rounds reject the reveal as a last-moment change. TV shared-state
+observation and successful camera rounds remain unverified.
+
+- [x] Add temporary local practice diagnostics: landmarks, gesture/confidence,
+  no-hand/low-confidence/model-stage errors, three-shape checklist, and Shoot
+  sample counts. Preserve the pinned MediaPipe model and decision thresholds.
+  Diagnostic candidate checks: 66 JS tests, 852 Python tests, asset build, Ruff,
+  Hermes doctor (8 tools) and validation passed. iPhone verification pending.
+- [x] Display footer follows unpaired/paired state; fresh local session and
+  same-session pairing verified through actual HTTP API and display script.
+- [ ] Deploy diagnostic build and verify rock, paper, scissors on user's iPhone.
+- [x] Replace pre-Shoot majority with a bounded post-Shoot consecutive run;
+  movement into the pose is ignored, uncertain decisions retain Retry.
+  71 camera JS tests, 852 Python tests, asset build, Ruff and Hermes checks pass.
+- [ ] Verify updated timing on the real iPhone, Retry, three camera rounds,
+  exactly-once score and Stop camera with actual device evidence.
+
+
 ## Blockers
 
 

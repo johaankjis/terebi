@@ -1,0 +1,56 @@
+{
+  "schema": 1,
+  "note": "Build-time pins for every runtime asset served under /play/. scripts/build.mjs refuses to build if any checksum differs. Nothing here is fetched by the browser from a third party.",
+  "runtime": {
+    "package": "@mediapipe/tasks-vision",
+    "version": "0.10.35",
+    "license": "Apache-2.0 (package.json license field; https://github.com/google-ai-edge/mediapipe/blob/master/LICENSE)",
+    "provenance": "npm registry tarball pinned by package-lock.json integrity sha512-HOvadwVRE6JC+45nyYhmnywnr5h/J8KZvOeUNVOG9q/0875pZgItznFB9bRTvLc264YSJqiZ1NsIpCStJw/egg==",
+    "why_this_version": "Newest release without the built-in usage logger. @mediapipe/tasks-vision 1.0.0 and later bundle a logger that POSTs to https://odml.pa.googleapis.com/v1/log (checked 2026-11-11 in 1.0.0 and 1.2.2 vision_bundle.mjs); 0.10.35 contains no such endpoint.",
+    "files": [
+      {
+        "from": "vision_bundle.mjs",
+        "to": "vendor/vision_bundle.js",
+        "sha256": "55d7ab624fbb70dcc5adc4ae6d7ea9cfcb569139d3dbfbf2b1deafcb966bc0fe"
+      },
+      {
+        "from": "wasm/vision_wasm_internal.js",
+        "to": "vendor/wasm/vision_wasm_internal.js",
+        "sha256": "e7fd9858e8e8f221d9b96eddc11f8e077f263e0b7bbd79d3cbe882b134274f8c"
+      },
+      {
+        "from": "wasm/vision_wasm_internal.wasm",
+        "to": "vendor/wasm/vision_wasm_internal.wasm",
+        "sha256": "6a5c64584c2ab61c763b6e204afbdbc7ce1caf7f5216187322bca8df94f646bc"
+      },
+      {
+        "from": "wasm/vision_wasm_nosimd_internal.js",
+        "to": "vendor/wasm/vision_wasm_nosimd_internal.js",
+        "sha256": "438d1fe8ff7f4d946025bc211c291543c037d8a3785ed4eee60f1f521b236296"
+      },
+      {
+        "from": "wasm/vision_wasm_nosimd_internal.wasm",
+        "to": "vendor/wasm/vision_wasm_nosimd_internal.wasm",
+        "sha256": "8a3092d34c79d3f57e6ba8592105e8a90f6b07c27891ffecd14cca428bfd3e31"
+      }
+    ]
+  },
+  "models": [
+    {
+      "name": "MediaPipe hand gesture recognizer (float16, version 1)",
+      "url": "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
+      "to": "models/gesture_recognizer.task",
+      "bytes": 8373440,
+      "sha256": "97952348cf6a6a4915c2ea1496b4b37ebabc50cbbf80571435643c455f2b0482",
+      "upstream_last_modified": "Wed, 26 Apr 2023 03:33:22 GMT",
+      "docs": "https://ai.google.dev/edge/mediapipe/solutions/vision/gesture_recognizer",
+      "model_card": "https://storage.googleapis.com/mediapipe-assets/gesture_recognizer/model_card_hand_gesture_classification_with_faireness_2022.pdf",
+      "license": "UNVERIFIED: manager extracted the linked model card PDF on 2026-11-11; its text contains no explicit license grant. No model binary is committed. Preserve upstream provenance and resolve redistribution terms before distributing a built image beyond this home prototype.",
+      "labels_used": {
+        "Closed_Fist": "rock",
+        "Open_Palm": "paper",
+        "Victory": "scissors"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+name: terebi-games-rps
+services:
+  games:
+    image: terebi-games-rps:local
+    build:
+      context: ../..
+      dockerfile: games/Dockerfile
+    container_name: terebi-games-rps
+    ports:
+      - "127.0.0.1:8766:8766"
+    volumes:
+      - ../../private/game.json:/run/terebi.json:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
+    logging:
+      options:
+        max-size: "5m"
+        max-file: "2"
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: terebi-games-rps-tunnel
+    command: ["tunnel", "--no-autoupdate", "--url", "http://games:8766"]
+    depends_on: [games]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: "no"
+    logging:
+      options:
+        max-size: "2m"
+        max-file: "2"

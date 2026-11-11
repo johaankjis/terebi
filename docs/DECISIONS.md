@@ -205,3 +205,25 @@ burrow marker on Den TV at 45 s. Pause is device-reported. No-match behavior is
 covered by unit tests only. PR #4 merges with a merge commit so that the stacked
 PR #5 diff contains only its own commits. Deploying to the production bot is a
 separate step.
+
+
+## D-019: Standalone RPS session authority and manual TV mirroring (2026-11-11)
+
+Serve one game session to both the local-camera player and TV display. A Python
+standard-library service owns all round phases, locks Hermes's move before
+countdown, commits it with a random nonce, rejects stale/duplicate/early/late moves,
+and scores once under a lock. Retry retains the move and score while rotating
+attempt ID. One-use 3-minute pairing yields separate player/read-only display
+credentials expiring at 30 minutes; all sessions are memory-only. Hermes adds one
+`tv_game_start` tool with scoped secret access and bounded httpx calls.
+
+User chose Mac Chrome manual mirroring because no Custom Receiver app or test
+registration exists. iPhone Safari camera needs trusted HTTPS. Use a separately
+containerized, localhost-published service and optional account-free Quick Tunnel;
+its public hostname is not a credential. Camera assets are pinned/self-hosted,
+frames never go to the service, and score events contain only move/state data and
+hashed session/attempt IDs. Existing movie tools remain independently configured.
+No new Python production dependency. The separate camera build pins MediaPipe
+0.10.35 to avoid the newer bundles' usage logger; a same-origin CSP also blocks
+third-party browser network connections. Containerized deployment and real device
+acceptance remain unverified until the user runs the host commands.

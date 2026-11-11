@@ -148,6 +148,7 @@ def test_registers_four_tools_and_unload_hook(plugin):
         "library_scene_find",
         "library_scene_save",
         "tv_scene_play",
+        "tv_game_start",
     ]
     assert len(c.unload) == 1
     assert c.tools["tv_play"]["schema"]["parameters"]["required"] == ["item_id"]

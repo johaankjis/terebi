@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terebi Games · Den TV</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<header><div class="brand"><span class="orb" aria-hidden="true">✦</span> Terebi <b>Games</b></div><button id="fullscreen">Fullscreen</button></header>
+<section class="glass stage" aria-live="polite">
+<p class="eyebrow">ROCK · PAPER · SCISSORS <span id="round"></span></p>
+<h1 id="headline">Welcome!</h1><p id="guidance">Open the display link Hermes sent you.</p>
+<div id="moves" hidden><div><span>YOU</span><strong id="player-move"></strong></div><div class="versus">vs</div><div><span>HERMES</span><strong id="hermes-move"></strong></div></div>
+<p id="result"></p><p id="input"></p>
+</section>
+<section class="scores" aria-label="Running score"><div class="glass"><span>YOU</span><strong id="player-score">0</strong></div><div class="glass ties"><span>TIES</span><strong id="ties">0</strong></div><div class="glass"><span>HERMES</span><strong id="hermes-score">0</strong></div></section>
+<footer><span id="status">Your paired phone controls the game.</span><span id="completed">0 rounds played</span></footer>
+</main><script type="module" src="display.js"></script></body></html>

@@ -94,6 +94,7 @@ def main() -> None:
         "library_scene_find",
         "library_scene_save",
         "tv_scene_play",
+        "tv_game_start",
     ]
     assert [t["name"] for t in second.tools] == manifest_data["provides_tools"]
     status_tool, pick_tool, play_tool, pause_tool = 0, 1, 2, 3
@@ -224,6 +225,7 @@ def main() -> None:
             scene = json.loads(
                 dispatcher.dispatch(
                     "tv_scene_play",
+                    "tv_game_start",
                     {
                         "candidate_id": found["candidates"][0]["candidate_id"],
                     },
@@ -237,6 +239,30 @@ def main() -> None:
             assert paused["ok"] and paused["state"] == "paused"
         finally:
             reset_secret_scope(token)
+    # The new game entry also runs through Hermes' actual injected-session dispatcher.
+    first.settings["games_service_url"] = "http://games.test:8766"
+    with respx.mock(assert_all_called=True) as router:
+        route = router.post("http://games.test:8766/v1/sessions").respond(
+            json={
+                "ok": True,
+                "session_id": "game-smoke",
+                "pairing_url": "https://games.test/play/#pair=fixture",
+                "display_url": "https://games.test/display/#token=fixture",
+                "pairing_expires_at_ms": 123,
+                "state": {
+                    "expires_at_ms": 456,
+                    "phase": "waiting_for_player",
+                },
+            }
+        )
+        token = set_secret_scope({"TEREBI_GAMES_API_KEY": "game-smoke-secret"})
+        try:
+            started = json.loads(dispatcher.dispatch("tv_game_start", {}, session_id="game-smoke"))
+        finally:
+            reset_secret_scope(token)
+        assert started["ok"] and not started["tv_verified"], started
+        assert route.calls[0].request.headers["Authorization"] == "Bearer game-smoke-secret"
+        assert "game-smoke-secret" not in json.dumps(started)
     assert len(first.unload) == 1 and len(second.unload) == 1
     for callback in first.unload + second.unload:
         callback()
@@ -249,7 +275,7 @@ def main() -> None:
         "PASS: official namespaced loader, YAML, library_status + library_pick + tv_play + "
         "tv_pause through real client + respx + local relay + fake Chromecast, scoped "
         "secret rotation, context isolation, description paraphrase, seek + measured position, "
-        "on_unload cleanup"
+        "game session links via scoped secret + dispatcher, on_unload cleanup"
     )
 
 

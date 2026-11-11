@@ -213,3 +213,21 @@ TV_SCENE_PLAY = {
         "required": ["candidate_id"],
     },
 }
+
+
+TV_GAME_START = {
+    "name": "tv_game_start",
+    "description": (
+        "Start rock-paper-scissors against Hermes when the user asks to play, including "
+        "'Let's play rock-paper-scissors'. Returns an expiring phone pairing link and a "
+        "read-only TV display link. Show both clickable links. The user opens the display "
+        "on Mac Chrome and mirrors that tab to Den TV, then uses the phone camera page. "
+        "Do not claim the TV is connected or showing the game: v1 uses manual mirroring. "
+        "Camera permission is requested only by the phone page; images stay on-device. "
+        "Hermes's move, countdown, result and score are controlled by the game service, "
+        "not the language model. Repeated calls reuse this conversation's active session. "
+        "If pairing_url is null, the player is already paired; reuse their player page. "
+        "Only rock-paper-scissors is supported. No movie playback or TV wake is triggered."
+    ),
+    "parameters": {"type": "object", "additionalProperties": False, "properties": {}},
+}

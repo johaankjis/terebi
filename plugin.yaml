@@ -9,6 +9,7 @@ provides_tools:
   - library_scene_find
   - library_scene_save
   - tv_scene_play
+  - tv_game_start
 provides_hooks: []
 manifest_version: 2
 api_version: 1
@@ -51,3 +52,14 @@ config_schema:
     default: ""
     label: "Media link listen address"
     description: "Local IP:port the temporary media link listens on while something plays (e.g. 0.0.0.0:8765). Links are random, single-item and expire."
+
+  games_service_url:
+    type: str
+    default: ""
+    label: "Terebi Games service origin"
+    description: "Private LAN or HTTPS origin of the standalone rock-paper-scissors service."
+  games_api_key:
+    type: secret
+    env: TEREBI_GAMES_API_KEY
+    label: "Terebi Games service key"
+    description: "Admin token from the private standalone game configuration. Never share in chat."

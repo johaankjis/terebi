@@ -65,6 +65,7 @@ def test_manifest_and_registration(plugin):
         "library_scene_find",
         "library_scene_save",
         "tv_scene_play",
+        "tv_game_start",
     ]
     assert plugin.PROVIDES_TOOLS == manifest["provides_tools"]
     assert manifest["provides_hooks"] == []

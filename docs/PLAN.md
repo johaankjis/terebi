@@ -13,9 +13,13 @@ User explicitly authorizes this new slice. Base origin/main
 - [x] Verify main and define [session/round contract](RPS_CONTRACT.md).
 - [x] Select manual Mac Chrome mirroring: no Custom Receiver ID/test registration.
 - [ ] FIRST LIVE GATE: Den TV display page plus one shared-state update observed.
-- [ ] Manager: ZimaOS service, session authority, Hermes tool, fullscreen display.
-- [ ] One Claude Code worker: iPhone-compatible camera UI, local recognition/tests.
-- [ ] Trusted HTTPS deployment; single-use pairing and expiring credentials.
+- [x] Manager: standalone service/API, authoritative rounds, Hermes tool, fullscreen display.
+- [ ] Deploy the service on ZimaOS through the user-run host commands.
+- [x] One Claude Code worker: iPhone-compatible camera UI and local recognition;
+  59 mocked-media JS tests and checksum-verified camera asset build pass.
+- [x] Single-use pairing/expiring credentials implemented; Docker/Quick Tunnel
+  package and exact host-side commands in [GAMES_RPS.md](GAMES_RPS.md).
+- [ ] Trusted HTTPS deployment and real iPhone permission/camera checks.
 - [ ] Telegram -> pair once -> three camera rounds; missed-hand retry; exactly-once
   scores; Stop camera releases tracks. Tap fallback labelled separately.
 - [ ] Existing tests, game tests, Ruff, Hermes checks, exact tested SHA and draft PR.

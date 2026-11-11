@@ -27,6 +27,22 @@ Seven tools are registered:
   configured Chromecast and verifies that the receiver transitions to `PAUSED` on
   the same capability URL and media session.
 
+### Play rock-paper-scissors with Hermes
+
+Say “Let's play rock-paper-scissors.” Hermes returns an expiring phone pairing
+link and a display link. Open the camera page in iPhone Safari; mirror the display
+from Mac Chrome to Den TV. Hold a fist, open palm, or V through the shared
+countdown and the phone submits the recognized move automatically. Images stay
+on the phone. Retry unclear gestures without changing the score; tap buttons are
+a separately labelled fallback.
+
+This optional service runs separately on ZimaOS and requires trusted HTTPS.
+Configure `games_service_url` plus the Hermes secret `TEREBI_GAMES_API_KEY`.
+See [deployment, pairing and mirroring instructions](docs/GAMES_RPS.md).
+The prototype includes local camera/round tests; real iPhone Safari, Den TV display
+and three-camera-round acceptance are still pending. Manual Chrome mirroring is
+the selected TV path; automatic Custom Receiver launching is not configured.
+
 ### Describe a saved scene
 
 Save a scene description with a timestamp verified against your exact Jellyfin

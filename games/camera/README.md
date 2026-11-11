@@ -55,7 +55,7 @@ sha256, cached in `.cache/`), and fails on any mismatch. For an offline build se
 | Asset | Pin | Source | License |
 |---|---|---|---|
 | `@mediapipe/tasks-vision` | 0.10.35, lockfile sha512 integrity, per-file sha256 in manifest | npm registry | Apache-2.0 |
-| `gesture_recognizer.task` | float16 v1, 8,373,440 bytes, sha256 `97952348…2b0482` | `storage.googleapis.com/mediapipe-models/...` | **UNVERIFIED** (see manifest) |
+| `gesture_recognizer.task` | float16 v1, 8,373,440 bytes, sha256 `97952348…2b0482` | `storage.googleapis.com/mediapipe-models/...` | **UNVERIFIED** (model card text extracted; no explicit license grant found; see manifest) |
 
 Why 0.10.35 rather than the newest version: `@mediapipe/tasks-vision` 1.0.0 and later
 (checked 1.0.0 and 1.2.2 on 2026-11-11) contain a usage logger that POSTs to

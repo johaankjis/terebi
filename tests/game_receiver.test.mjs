@@ -62,20 +62,27 @@ const strip=text=>text.replace(/^import .*$/gm,'').replace(/^export /gm,'');
 const displaySource=strip(await readFile(new URL('../games/display/view.js',import.meta.url),'utf8'))+
   strip(await readFile(new URL('../games/display/display.js',import.meta.url),'utf8'))+
   ';globalThis.display=startDisplay;globalThis.tvMusic=startMusic;';
-function tv({snapshots,Audio,status=200}={}) {
-  const h={views:[],labels:[],celebrations:0,polls:[],rendered:[],failures:[],clock:0,tick:null};
+function tv({snapshots,Audio}={}) {
+  const h={views:[],labels:[],celebrations:0,polls:[],timers:[],posts:[],rendered:[],failures:[],clock:0,tick:null,offline:false};
   h.scene={render(view,opts={}){h.views.push({...view,instant:Boolean(opts.instant)});},
-    connection(kind,label){h.labels.push([kind,label]);},celebrate(){h.celebrations++;},setMotion(){}};
+    connection(kind,label){h.labels.push([kind,label]);},celebrate(){h.celebrations++;},setMotion(){},
+    profile:()=>({mode:'3d',tier:'full',turn:'gl',ambient:[180,17,21,0],screen:[1280,720,100]})};
   const context=vm.createContext({URLSearchParams,AbortController,Audio,performance:{now:()=>h.clock},
     location:{pathname:'/receiver/'},window:{addEventListener(){},removeEventListener(){}},
-    setInterval(fn){h.tick=fn;return 1;},clearInterval(){},setTimeout(fn,delay){if(delay===400)h.polls.push(fn);return 1;},clearTimeout(){},
-    fetch:async(path,opts)=>{assert.equal(path,'/v1/sessions/'+ID);assert.equal(opts.headers.Authorization,'Bearer '+TOKEN);
-      return {ok:status===200,status,json:async()=>({ok:status===200,state:snapshots.length>1?snapshots.shift():snapshots[0]})};},
+    setInterval(fn){h.tick=fn;return 1;},clearInterval(){},clearTimeout(){},
+    setTimeout(fn,delay){(fn.name==='poll'?h.polls:h.timers).push({fn,delay});return 1;},
+    fetch:async(path,opts)=>{
+      if(h.offline)throw Error('offline');
+      assert.equal(opts.headers.Authorization,'Bearer '+TOKEN);
+      if(opts.method==='POST'){h.posts.push({path,body:JSON.parse(opts.body)});return {ok:true,json:async()=>({ok:true})};}
+      assert.equal(path,'/v1/sessions/'+ID);
+      return {ok:true,status:200,json:async()=>({ok:true,state:snapshots.length>1?snapshots.shift():snapshots[0]})};},
   });
   vm.runInContext(displaySource,context);
   h.context=context;
   h.start=()=>context.display({id:ID,token:TOKEN},{scene:h.scene,onRendered:s=>h.rendered.push(s),onFailure:r=>h.failures.push(r)});
   h.last=()=>h.views[h.views.length-1];
+  h.poll=()=>h.polls.shift().fn();
   h.settle=()=>new Promise(r=>setImmediate(r));
   return h;
 }
@@ -88,11 +95,14 @@ test('TV shows Waiting, plays the pairing transition once, then settles on Ready
   assert.deepEqual([h.last().scene,h.last().headline,h.last().sub,h.last().center,h.last().instant],
     ['waiting','Waiting for you','Open the pairing link on your phone.','phone',true]);
   assert.deepEqual(h.labels[h.labels.length-1],['live','Live · Waiting for a phone to pair']);
-  await h.polls.shift()();
+  await h.poll();
   assert.equal(h.celebrations,1);
   assert.deepEqual([h.last().scene,h.last().headline,h.last().center,h.last().instant],['connected','Phone connected','check',false]);
   assert.deepEqual(h.labels[h.labels.length-1],['live','Live · Phone paired']);
-  await h.polls.shift()();h.clock=2700;h.tick();
+  // The hand-off to Ready is scheduled for the moment the transition ends, not left to a tick.
+  const settle=h.timers.find(t=>t.fn.name==='render'&&t.delay>2000);
+  assert.ok(settle);
+  await h.poll();h.clock=settle.delay;settle.fn();
   assert.deepEqual([h.last().scene,h.last().headline,h.last().sub],['ready','Ready','Start the round on your phone.']);
   assert.equal(h.celebrations,1);assert.equal(h.rendered.length,3);
   stop();
@@ -107,33 +117,39 @@ test('reconnecting to an already paired session renders its state at once, with 
   stop();
 });
 
-test('countdown beats never repeat when a poll re-anchors the clock',async()=>{
+test('countdown beats are timed locally, one second apart, and a late poll cannot move them',async()=>{
   const counting=over=>paired({phase:'countdown',revision:3,countdown_ends_at_ms:4000,accept_until_ms:14000,...over});
-  const h=tv({snapshots:[counting({server_time_ms:2050}),counting({server_time_ms:1950}),counting({server_time_ms:4100}),counting({server_time_ms:6100})]});
+  // The second poll claims an earlier server time and the third a later one: neither may shift a beat.
+  const h=tv({snapshots:[counting({server_time_ms:1050}),counting({server_time_ms:700}),counting({server_time_ms:2600})]});
+  const beatTimer=()=>h.timers.filter(t=>t.fn.name==='render').pop();
   const stop=h.start();await h.settle();
-  assert.deepEqual([h.last().scene,h.last().count],['countdown','2']);
-  await h.polls.shift()();
-  assert.equal(h.last().count,'2'); // an earlier server time must not bring 3 back
-  await h.polls.shift()();
-  assert.deepEqual([h.last().scene,h.last().count,h.last().moves],['shoot','Shoot!',null]);
-  await h.polls.shift()();
+  assert.deepEqual([h.last().scene,h.last().center,h.last().count],['countdown','count','3']);
+  assert.equal(beatTimer().delay,951); // 2950 ms left: the 2 lands in 950 ms, plus a 1 ms guard
+  await h.poll();assert.equal(h.last().count,'3');
+  h.clock=951;beatTimer().fn();assert.equal(h.last().count,'2');
+  assert.equal(beatTimer().delay,1000);
+  await h.poll();assert.equal(h.last().count,'2'); // a poll far ahead does not skip to 1
+  h.clock=1951;beatTimer().fn();assert.equal(h.last().count,'1');
+  h.clock=1900;h.tick();assert.equal(h.last().count,'1'); // a beat already shown never comes back
+  h.clock=2951;beatTimer().fn();
+  assert.deepEqual([h.last().scene,h.last().center,h.last().moves],['shoot','shoot',null]);
+  assert.equal(beatTimer().delay,2000); // then the retry prompt, if no move arrives
+  h.clock=4951;beatTimer().fn();
   assert.deepEqual([h.last().scene,h.last().headline,h.last().sub],['retry','Try again','Tap Retry on your phone.']);
   stop();
 });
 
 test('connection label follows real polls: reconnecting on failure, live again on success',async()=>{
   const h=tv({snapshots:[state()]});
-  const real=h.context.fetch;let fail=false;
-  h.context.fetch=(...args)=>fail?Promise.reject(Error('offline')):real(...args);
-  h.context.setTimeout=(fn)=>{h.polls.push(fn);return 1;};
   const stop=h.start();
   assert.deepEqual(h.labels[0],['connecting','Connecting to the game service…']);
   await h.settle();
   assert.equal(h.labels[h.labels.length-1][0],'live');
-  fail=true;await h.polls.pop()();
+  h.offline=true;await h.poll();
   assert.deepEqual(h.labels[h.labels.length-1],['retrying','Reconnecting to the game service…']);
   assert.deepEqual(h.failures,['display_unavailable']);
-  fail=false;await h.polls.pop()();
+  assert.equal(h.polls[0].delay,2000);
+  h.offline=false;await h.poll();
   assert.equal(h.labels[h.labels.length-1][0],'live');
   stop();
 });
@@ -146,6 +162,20 @@ test('wrong or expired state cannot produce a rendered acknowledgement',async()=
     if(snapshot.expires_at_ms===1000){assert.equal(h.last().headline,'Session ended');assert.deepEqual(h.labels[h.labels.length-1],['ended','Session ended']);}
     stop();
   }
+});
+
+test('the TV reports its own render timings with the display credential, numbers only',async()=>{
+  const h=tv({snapshots:[state()]});
+  const stop=h.start();await h.settle();
+  const report=h.timers.find(t=>t.fn.name==='report');
+  assert.ok(report.delay>=10000); // after the ambient scene has been measured
+  report.fn();await h.settle();
+  assert.equal(h.posts[0].path,'/v1/sessions/'+ID+'/profile');
+  assert.deepEqual(Object.keys(h.posts[0].body).sort(),['ambient','mode','screen','tier','turn']);
+  assert.ok(!JSON.stringify(h.posts).includes(TOKEN));
+  h.offline=true;report.fn(); // a failed report is silent and never touches the game
+  await h.settle();assert.deepEqual(h.failures,[]);
+  stop();
 });
 
 test('TV background music loops from one shared player and pauses when the display stops',()=>{
@@ -192,7 +222,9 @@ test('wins, losses and ties read differently in words, not only in color',()=>{
   assert.match(tie.meta,/Camera round$/);
 });
 
-const {handPrims,handFrame,createHands}=await import('../games/display/hands.js');
+const {handPrims,handFrame,handPose,createHands,decodeHands,TURN_MS}=await import('../games/display/hands.js');
+const baked=JSON.parse(await readFile(new URL('../games/display/hands.json',import.meta.url),'utf8'));
+const decode=text=>new Uint8Array(Buffer.from(text,'base64'));
 test('each move has its own hand rig, and Hermes mirrors the player',()=>{
   const shapes=['rock','paper','scissors'].map(move=>JSON.stringify(handPrims(move)));
   assert.equal(new Set(shapes).size,3);assert.equal(handPrims('lizard'),null);
@@ -206,21 +238,121 @@ test('each move has its own hand rig, and Hermes mirrors the player',()=>{
   }
 });
 
-test('both hands reveal on the same frame; without WebGL the static painter draws the same moves',()=>{
-  const drawn=[], frames=[]; let now=0;
-  const canvas=name=>({name,width:2,height:2,clientWidth:300,parentNode:null,addEventListener(){},cloneNode(){return canvas(name);},
-    getContext(kind){if(kind!=='2d')return null;const record=()=>{};
-      return {setTransform:record,clearRect(){drawn.push([name,frames.length]);},beginPath:record,ellipse:record,fill:record,moveTo:record,lineTo:record,stroke:record};}});
+test('the reveal turn starts from nothing, overshoots softly and ends exactly on the resting pose',()=>{
+  const size=t=>Math.hypot(...handPose('rock',false,t).slice(0,3));
+  const rest=size(1);
+  assert.ok(size(0)<rest*0.01);
+  let peak=0; for(let t=0;t<=1;t+=0.01) { peak=Math.max(peak,size(t)); assert.ok(size(t)<=rest*1.08); }
+  assert.ok(peak>rest*1.03); // a visible but soft bounce
+  assert.ok(Math.abs(size(0.999)-rest)<rest*0.002); // no pop at the end
+  const near=handPose('scissors',true,0.999), end=handPose('scissors',true,1);
+  for(let k=0;k<9;k++) assert.ok(Math.abs(near[k]-end[k])<0.01);
+});
+
+test('baked hand meshes decode for every move and reject damaged data',()=>{
+  const meshes=decodeHands(baked,decode);
+  for(const move of ['rock','paper','scissors']) {
+    assert.ok(meshes[move].index.length>=9000&&meshes[move].position.length/3<20000); // smooth, still small
+    assert.equal(meshes[move].normalShade.length/4,meshes[move].position.length/3);
+  }
+  assert.equal(decodeHands({...baked,version:2},decode),null);
+  assert.equal(decodeHands({...baked,moves:{...baked.moves,paper:{...baked.moves.paper,vertices:3}}},decode),null);
+  assert.equal(decodeHands(null,decode),null);
+});
+
+function fakeCanvas(name,log,{webgl=false}={}) {
+  const classes=new Set();
+  const gl=new Proxy({},{get:(_,key)=>key==='drawElements'?()=>log.push(name):
+    key==='getShaderParameter'||key==='getProgramParameter'?()=>true:
+    typeof key==='string'&&/^[A-Z_0-9]+$/.test(key)?1:()=>({})});
+  const record=()=>{};
+  return {name,width:2,height:2,clientWidth:300,offsetWidth:300,parentNode:null,addEventListener(){},
+    classList:{add:c=>classes.add(c),remove:c=>classes.delete(c),contains:c=>classes.has(c)},
+    cloneNode(){return fakeCanvas(name,log,{webgl});},
+    getContext(kind){if(kind==='2d')return {setTransform:record,clearRect(){log.push(name);},beginPath:record,ellipse:record,fill:record,moveTo:record,lineTo:record,stroke:record};
+      return webgl?gl:null;}};
+}
+function handsRig(webgl) {
+  const h={log:[],frames:[],later:[],now:0,landed:0};
   globalThis.window={devicePixelRatio:1};
-  const hands=createHands([{canvas:canvas('player'),mirrored:false},{canvas:canvas('hermes'),mirrored:true}],
-    {raf:fn=>{frames.push(fn);return frames.length;},caf(){},clock:()=>now});
-  assert.equal(hands.is3d(),false);
-  hands.show(['rock','scissors'],true);
-  assert.deepEqual(drawn,[['player',0],['hermes',0]]); // first frame paints both
-  now=400;frames[0]();
-  assert.deepEqual(drawn.slice(2),[['player',1],['hermes',1]]);
-  now=900;frames[1]();assert.equal(frames.length,2); // settled: the loop ends
-  drawn.length=0;hands.show(['paper','paper'],false);
-  assert.deepEqual(drawn.map(d=>d[0]),['player','hermes']);assert.equal(frames.length,2); // still mode: one paint, no loop
+  h.hands=createHands([{canvas:fakeCanvas('player',h.log,{webgl}),mirrored:false},{canvas:fakeCanvas('hermes',h.log,{webgl}),mirrored:true}],
+    {raf:fn=>{h.frames.push(fn);return h.frames.length;},caf(){},clock:()=>h.now,later:(fn,ms)=>h.later.push({fn,ms})});
+  h.hands.setMeshes(webgl?decodeHands(baked,decode):null);
+  while(h.frames.length)h.frames.pop()(); // the warm-up frame is shown, then cleared
+  h.log.length=0;
+  h.frame=ms=>{h.now+=ms;h.frames.pop()();};
+  return h;
+}
+
+test('3D hands turn together frame by frame, and the outcome waits until they land',()=>{
+  const h=handsRig(true);
+  assert.ok(h.hands.is3d());assert.equal(h.hands.turnStyle(),'gl');
+  h.hands.show(['rock','scissors'],true,()=>h.landed++);
+  assert.deepEqual(h.log,['player','hermes']); // both painted before the first animated frame
+  let frames=0;
+  while(h.frames.length){h.log.length=0;h.frame(16);frames++;assert.deepEqual(h.log,['player','hermes']);
+    if(frames*16<TURN_MS*0.8)assert.equal(h.landed,0);}
+  assert.equal(h.landed,1);
+  assert.ok(Math.abs(frames*16-TURN_MS)<=32); // a steady device finishes on time
+  assert.equal(h.hands.turnStyle(),'gl');
+  delete globalThis.window;
+});
+
+test('a stalled frame stretches the turn instead of skipping it; a slow device moves to the compositor',()=>{
+  const h=handsRig(true);
+  h.hands.show(['paper','rock'],true,()=>h.landed++);
+  h.frame(16);h.frame(600); // one long hitch
+  assert.equal(h.landed,0);assert.equal(h.frames.length,1); // still turning: 600 ms counted as 40
+  let frames=2; while(h.frames.length){h.frame(60);frames++;} // then a device that manages ~16 fps
+  assert.equal(h.landed,1);
+  assert.ok(frames>20); // every step was drawn; none were jumped over
+  assert.equal(h.hands.turnStyle(),'css'); // next reveal: paint once, let the compositor swing it
+  h.log.length=0;h.hands.show(['rock','rock'],true,()=>h.landed++);
+  assert.deepEqual(h.log,['player','hermes']);assert.equal(h.frames.length,0);
+  assert.equal(h.later.length,1);h.later[0].fn();assert.equal(h.landed,2);
+  delete globalThis.window;
+});
+
+test('a hidden rehearsal decides the turn style before the first real reveal',()=>{
+  const steady=handsRig(true);
+  steady.hands.rehearse();
+  while(steady.frames.length)steady.frame(17);
+  assert.equal(steady.hands.turnStyle(),'gl');assert.ok(steady.hands.lastTurn().frames>=10);
+  const stalling=handsRig(true);
+  stalling.hands.rehearse();
+  stalling.frame(17);stalling.frame(900); // one stall while the scene is animating
+  while(stalling.frames.length)stalling.frame(17);
+  assert.equal(stalling.hands.turnStyle(),'css');
+  const busy=handsRig(true); // a reveal that arrives mid-rehearsal wins: the rehearsal stops drawing
+  busy.hands.rehearse();busy.frame(17);
+  busy.hands.show(['rock','paper'],true,()=>busy.landed++);
+  busy.log.length=0;busy.frames.shift()(); // the stale rehearsal frame
+  assert.deepEqual(busy.log,[]);
+  delete globalThis.window;
+});
+
+test('the canvases start drawing unseen before a reveal, and the turn takes over without a gap',()=>{
+  const h=handsRig(true);
+  h.hands.prime(true);
+  h.frame(17);h.frame(17);
+  assert.deepEqual(h.log,['player','hermes','player','hermes']); // invisible frames keep the pipeline warm
+  h.hands.show(['paper','rock'],true,()=>h.landed++);
+  h.log.length=0;h.frames.shift()(); // the stale priming frame does nothing
+  assert.deepEqual(h.log,[]);
+  while(h.frames.length)h.frame(16);
+  assert.equal(h.landed,1);assert.equal(h.hands.turnStyle(),'gl');
+  h.hands.clear();h.hands.prime(true);h.frame(17);h.hands.prime(false); // a retry: nothing stays on screen
+  h.log.length=0;if(h.frames.length)h.frames.pop()();assert.deepEqual(h.log,[]);
+  delete globalThis.window;
+});
+
+test('without WebGL the same moves are painted flat, both at once, with compositor motion',()=>{
+  const h=handsRig(false);
+  assert.equal(h.hands.is3d(),false);assert.equal(h.hands.turnStyle(),'css');
+  h.hands.show(['rock','scissors'],true,()=>h.landed++);
+  assert.deepEqual(h.log,['player','hermes']);assert.equal(h.frames.length,0);
+  h.later[0].fn();assert.equal(h.landed,1);
+  h.log.length=0;h.hands.show(['paper','paper'],false,()=>h.landed++); // still mode: one paint, landed at once
+  assert.deepEqual(h.log,['player','hermes']);assert.equal(h.landed,2);
   delete globalThis.window;
 });

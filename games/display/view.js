@@ -56,7 +56,7 @@ export function present(state, now, {celebrating = false, beat = null} = {}) {
           headline: 'Get ready', sub: 'Show your hand on Shoot.'};
       }
       if (now < state.countdown_ends_at_ms + RETRY_AFTER_MS) {
-        return {...view, scene: 'shoot', center: 'count', count: 'Shoot!',
+        return {...view, scene: 'shoot', center: 'shoot',
           headline: 'Show your hand', sub: 'Hold your gesture steady.'};
       }
       return {...view, scene: 'retry', center: 'retry',
@@ -77,7 +77,7 @@ export function present(state, now, {celebrating = false, beat = null} = {}) {
         },
         headline: OUTCOMES[result.outcome],
         sub: state.phase === 'next_round' ? 'Tap Next round on your phone.' : explain(result),
-        meta: `${view.meta} · ${result.input === 'tap' ? 'Tap round' : 'Camera round'}`,
+        meta: `${view.meta}\n${result.input === 'tap' ? 'Tap round' : 'Camera round'}`,
       };
     }
     default:

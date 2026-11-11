@@ -1,13 +1,14 @@
-// Procedural glove hands for the TV. One rig per move, built from spheres and capsules,
-// drawn either with a tiny WebGL renderer (3D) or with Canvas 2D (static fallback).
-// No model files and no libraries: the whole asset is the pose table below.
+// Glove hands for the TV. One rig per move, built from spheres and capsules.
+// games/tools/build-hands.mjs blends each rig into a smooth baked mesh (hands.json) that a
+// small WebGL renderer turns in 3D with one draw call per hand. The same rig is painted
+// flat with Canvas 2D when WebGL or the meshes are unavailable. No libraries.
 
 const D = Math.PI / 180;
 const FINGERS = [ // base x, length scale, radius — index, middle, ring, little
-  {x: -0.36, k: 0.95, r: 0.155},
-  {x: -0.12, k: 1.04, r: 0.16},
-  {x: 0.12, k: 0.97, r: 0.155},
-  {x: 0.35, k: 0.8, r: 0.14},
+  {x: -0.37, k: 0.95, r: 0.165},
+  {x: -0.125, k: 1.04, r: 0.172},
+  {x: 0.125, k: 0.97, r: 0.165},
+  {x: 0.36, k: 0.8, r: 0.15},
 ];
 const SEGMENTS = [0.33, 0.25, 0.2];
 const CURLED = [82, 100, 72];
@@ -26,7 +27,7 @@ export const POSES = {
     view: [16, 14, -62],
   },
   scissors: {
-    spread: [-19, 9, 3, 6], curl: [OPEN, OPEN, CURLED, CURLED],
+    spread: [-23, 11, 3, 6], curl: [OPEN, OPEN, CURLED, CURLED],
     thumb: [[-0.42, -0.22, 0.1], [-0.2, -0.06, 0.4], [0.04, 0.06, 0.5]],
     view: [14, 18, -66],
   },
@@ -64,7 +65,7 @@ export function handPrims(move) {
     });
     chain(points, finger.r);
   });
-  chain(pose.thumb, 0.165);
+  chain(pose.thumb, 0.175);
 
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   const reach = p => (p.c ? [[p.c, Math.max(...p.r)]] : [[p.a, p.r], [p.b, p.r]]);
@@ -89,23 +90,25 @@ const rotX = a => [1, 0, 0, 0, Math.cos(a), -Math.sin(a), 0, Math.sin(a), Math.c
 const rotY = a => [Math.cos(a), 0, Math.sin(a), 0, 1, 0, -Math.sin(a), 0, Math.cos(a)];
 const rotZ = a => [Math.cos(a), -Math.sin(a), 0, Math.sin(a), Math.cos(a), 0, 0, 0, 1];
 const columns = (x, y, z) => [x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2]];
-function inverseTranspose(m) {
-  const [a, b, c, d, e, f, g, h, i] = m;
-  const co = [e * i - f * h, f * g - d * i, d * h - e * g, c * h - b * i, a * i - c * g, b * g - a * h, b * f - c * e, c * d - a * f, a * e - b * d];
-  const det = a * co[0] + b * co[1] + c * co[2] || 1;
-  return co.map(v => v / det);
-}
 
-// The reveal: a spin that overshoots and settles. t is 0..1; t >= 1 is the resting pose.
-const easeOutBack = t => 1 + 2.4 * Math.pow(t - 1, 3) + 1.4 * Math.pow(t - 1, 2);
+// The reveal: the hand swings round into view while it grows, overshoots a little and
+// settles. t is 0..1 over TURN_MS; t >= 1 is the resting pose.
+export const TURN_MS = 1050;
+const FILL = 0.9; // share of the canvas a settled hand may fill
+export function handPose(move, mirrored, t) {
+  const [rx, ry, rz] = POSES[move].view;
+  const u = Math.max(0, Math.min(1, t));
+  const away = t >= 1 ? 0 : Math.pow(1 - Math.min(1, u / 0.7), 3);       // rotation left to go, eased out
+  const grow = t >= 1 ? 1 : 1 - Math.exp(-7.7 * u) * Math.cos(7 * u);     // soft spring: peaks near 1.05
+  const scale = FILL * Math.max(0.001, grow);
+  const view = mul(rotY((ry - away * 215) * D), mul(rotX((rx + away * 24) * D), rotZ((rz + away * 38) * D)));
+  return view.map((v, k) => v * scale * (mirrored && k < 3 ? -1 : 1));
+}
+// The rig as drawable primitives for the flat painter.
 export function handFrame(move, mirrored, t) {
   const prims = handPrims(move);
   if (!prims) return [];
-  const [rx, ry, rz] = POSES[move].view;
-  const e = t >= 1 ? 1 : easeOutBack(Math.max(0, t)), left = 1 - Math.min(1, e);
-  const scale = 0.86 * Math.max(0.02, e);
-  let view = mul(rotY((ry + left * 210) * D), mul(rotX(rx * D), rotZ((rz + left * 50) * D)));
-  view = view.map((v, k) => v * scale * (mirrored && k < 3 ? -1 : 1));
+  const view = handPose(move, mirrored, t), scale = Math.hypot(view[0], view[3], view[6]);
   return prims.map(p => {
     if (p.c) return {kind: 'sphere', g: p.g, L: mul(view, [p.r[0], 0, 0, 0, p.r[1], 0, 0, 0, p.r[2]]), T: apply(view, p.c)};
     const axis = [p.b[0] - p.a[0], p.b[1] - p.a[1], p.b[2] - p.a[2]];
@@ -119,39 +122,41 @@ export function handFrame(move, mirrored, t) {
   });
 }
 
-// --- WebGL renderer ----------------------------------------------------------------------
-const VERTEX = `attribute vec3 aPos;attribute vec3 aNor;uniform mat3 uL;uniform mat3 uN;uniform vec3 uT;varying vec3 vN;
-void main(){vec3 p=uL*aPos+uT;vN=uN*aNor;gl_Position=vec4(p.x,p.y,-p.z*0.45,1.0);}`;
-const FRAGMENT = `precision mediump float;varying vec3 vN;
-void main(){vec3 n=normalize(vN);vec3 l=normalize(vec3(-0.45,0.75,0.55));
-float lit=dot(n,l)*0.5+0.5;
-vec3 c=mix(vec3(0.56,0.77,0.94),vec3(1.0),smoothstep(0.18,0.78,lit));
-float rim=pow(1.0-clamp(n.z,0.0,1.0),2.2);
-c=mix(c,vec3(0.47,0.70,0.92),rim*0.6);
-c+=pow(max(dot(n,normalize(l+vec3(0.0,0.0,1.0))),0.0),42.0)*0.3;
-gl_FragColor=vec4(c,1.0);}`;
-
-function mesh() {
-  const pos = [], nor = [], idx = [], LAT = 12, LON = 20;
-  for (let i = 0; i <= LAT; i++) for (let j = 0; j <= LON; j++) {
-    const v = i / LAT * Math.PI, u = j / LON * 2 * Math.PI;
-    const p = [Math.sin(v) * Math.cos(u), Math.cos(v), Math.sin(v) * Math.sin(u)];
-    pos.push(...p); nor.push(...p);
-  }
-  for (let i = 0; i < LAT; i++) for (let j = 0; j < LON; j++) {
-    const a = i * (LON + 1) + j, b = a + LON + 1;
-    idx.push(a, b, a + 1, b, b + 1, a + 1);
-  }
-  const sphere = idx.length, base = pos.length / 3;
-  for (let j = 0; j <= LON; j++) for (let y = 0; y < 2; y++) {
-    const u = j / LON * 2 * Math.PI;
-    pos.push(Math.cos(u), y, Math.sin(u)); nor.push(Math.cos(u), 0, Math.sin(u));
-  }
-  for (let j = 0; j < LON; j++) { const a = base + j * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
-  return {pos: new Float32Array(pos), nor: new Float32Array(nor), idx: new Uint16Array(idx), sphere, tube: idx.length - sphere};
+// --- Baked meshes ------------------------------------------------------------------------
+const MOVES = ['rock', 'paper', 'scissors'];
+// hands.json → typed arrays. Returns null unless every move is present and well formed.
+export function decodeHands(data, decode = text => Uint8Array.from(atob(text), c => c.charCodeAt(0))) {
+  try {
+    if (!data || data.version !== 1 || !(data.extent > 0)) return null;
+    const meshes = {extent: data.extent};
+    for (const move of MOVES) {
+      const raw = data.moves[move], count = raw.vertices;
+      const position = new Int16Array(decode(raw.position).buffer), normalShade = new Int8Array(decode(raw.normalShade).buffer), index = new Uint16Array(decode(raw.index).buffer);
+      if (!(count > 0 && count < 65536) || position.length !== count * 3 || normalShade.length !== count * 4 || index.length !== raw.triangles * 3) return null;
+      for (let i = 0; i < index.length; i++) if (index[i] >= count) return null;
+      meshes[move] = {position, normalShade, index};
+    }
+    return meshes;
+  } catch { return null; }
 }
 
-function glPainter(canvas) {
+// --- WebGL renderer: one buffer set per move, one draw call per hand ----------------------
+const VERTEX = `attribute vec3 aPos;attribute vec4 aNor;uniform mat3 uM;varying vec3 vN;varying float vShade;
+void main(){vec3 p=uM*aPos;vN=uM*aNor.xyz;vShade=aNor.w;gl_Position=vec4(p.x,p.y,-p.z*0.45,1.0);}`;
+// A white glove under a blue sky: wrapped key light, cool shadows, sky on the grazing
+// edges, a little lake light from below, baked occlusion in the creases, one soft highlight.
+const FRAGMENT = `precision mediump float;varying vec3 vN;varying float vShade;uniform float uA;
+void main(){vec3 n=normalize(vN);vec3 l=normalize(vec3(-0.42,0.74,0.52));
+float lit=dot(n,l)*0.5+0.5;
+vec3 c=mix(vec3(0.47,0.69,0.94),vec3(1.0),smoothstep(0.24,0.74,lit));
+c=mix(c,vec3(0.78,0.95,0.92),max(-n.y,0.0)*0.22);
+c*=mix(vec3(0.46,0.66,0.93),vec3(1.0),smoothstep(0.15,0.95,vShade));
+float rim=pow(1.0-clamp(n.z,0.0,1.0),3.0);
+c=mix(c,vec3(0.40,0.65,0.93),rim*0.55);
+c+=pow(max(dot(n,normalize(l+vec3(0.0,0.0,1.0))),0.0),48.0)*0.3;
+gl_FragColor=vec4(c*uA,uA);}`;
+
+function glPainter(canvas, meshes) {
   let gl = null;
   try {
     const options = {alpha: true, antialias: true, depth: true, powerPreference: 'low-power'};
@@ -169,28 +174,36 @@ function glPainter(canvas) {
   gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
   gl.useProgram(program);
-  const m = mesh();
-  for (const [name, data] of [['aPos', m.pos], ['aNor', m.nor]]) {
-    const at = gl.getAttribLocation(program, name);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(at); gl.vertexAttribPointer(at, 3, gl.FLOAT, false, 0, 0);
+  const aPos = gl.getAttribLocation(program, 'aPos'), aNor = gl.getAttribLocation(program, 'aNor'), uM = gl.getUniformLocation(program, 'uM'), uA = gl.getUniformLocation(program, 'uA');
+  gl.enableVertexAttribArray(aPos); gl.enableVertexAttribArray(aNor);
+  const buffers = {};
+  for (const move of MOVES) {
+    const mesh = meshes[move], set = {position: gl.createBuffer(), normal: gl.createBuffer(), index: gl.createBuffer(), count: mesh.index.length};
+    gl.bindBuffer(gl.ARRAY_BUFFER, set.position); gl.bufferData(gl.ARRAY_BUFFER, mesh.position, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, set.normal); gl.bufferData(gl.ARRAY_BUFFER, mesh.normalShade, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, set.index); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.index, gl.STATIC_DRAW);
+    buffers[move] = set;
   }
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, m.idx, gl.STATIC_DRAW);
-  const uL = gl.getUniformLocation(program, 'uL'), uN = gl.getUniformLocation(program, 'uN'), uT = gl.getUniformLocation(program, 'uT');
-  const transposed = r => [r[0], r[3], r[6], r[1], r[4], r[7], r[2], r[5], r[8]]; // GL wants columns
   gl.enable(gl.DEPTH_TEST); gl.clearColor(0, 0, 0, 0);
-  return frame => {
+  const matrix = new Float32Array(9);
+  let bound = null;
+  // alpha < 1 is only for the warm-up frame: the full pipeline runs, nothing is visible.
+  return (move, view, frame, alpha = 1) => {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    for (const p of frame) {
-      gl.uniformMatrix3fv(uL, false, transposed(p.L));
-      gl.uniformMatrix3fv(uN, false, transposed(inverseTranspose(p.L)));
-      gl.uniform3fv(uT, p.T);
-      if (p.kind === 'sphere') gl.drawElements(gl.TRIANGLES, m.sphere, gl.UNSIGNED_SHORT, 0);
-      else gl.drawElements(gl.TRIANGLES, m.tube, gl.UNSIGNED_SHORT, m.sphere * 2);
+    const set = buffers[move];
+    if (!set) return;
+    if (bound !== move) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, set.position); gl.vertexAttribPointer(aPos, 3, gl.SHORT, true, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, set.normal); gl.vertexAttribPointer(aNor, 4, gl.BYTE, true, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, set.index);
+      bound = move;
     }
+    // Positions are stored as ±1 of the baked extent; GL wants the matrix in columns.
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) matrix[c * 3 + r] = view[r * 3 + c] * meshes.extent;
+    gl.uniformMatrix3fv(uM, false, matrix);
+    gl.uniform1f(uA, alpha);
+    gl.drawElements(gl.TRIANGLES, set.count, gl.UNSIGNED_SHORT, 0);
   };
 }
 
@@ -200,7 +213,7 @@ function flatPainter(canvas) {
   try { ctx = canvas.getContext('2d'); } catch { ctx = null; }
   if (!ctx) return null;
   const PASSES = [['#79b3de', 0.03, 0, 0], ['#cfe6f8', 0, 0, 0], ['#ffffff', -0.035, -0.02, 0.028]];
-  return frame => {
+  return (move, view, frame) => {
     const half = canvas.width / 2;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -234,62 +247,181 @@ function flatPainter(canvas) {
   };
 }
 
-const TURN_MS = 760;
+// A real-time turn slower than this (mean frame), or with a stall this long, is handed to
+// the compositor instead (see below).
+const SLOW_FRAME_MS = 36, STALL_MS = 120;
+const REHEARSAL_FRAMES = 16;
+// A late frame advances the turn by at most this much: a hitch stretches the motion a
+// little instead of making the hand jump.
+const MAX_STEP_MS = 40;
+const WARM_ALPHA = 1 / 512;
+const LANDED = 0.84; // share of the turn after which the hand reads as settled
 
 // Owns both hand canvases so the two reveals always share one clock and one frame.
-export function createHands(seats, {raf = fn => requestAnimationFrame(fn), caf = id => cancelAnimationFrame(id), clock = () => performance.now(), forceFlat = false} = {}) {
-  const slots = seats.map(({canvas, mirrored}) => {
-    const slot = {canvas, mirrored, paint: null, flat: false, move: null};
-    const useFlat = () => {
-      const fresh = slot.canvas.cloneNode(false); // a canvas keeps its first context type
-      if (slot.canvas.parentNode) slot.canvas.parentNode.replaceChild(fresh, slot.canvas);
-      slot.canvas = fresh; slot.paint = flatPainter(fresh); slot.flat = true;
-    };
-    if (!forceFlat) slot.paint = glPainter(canvas);
-    if (slot.paint) {
-      canvas.addEventListener('webglcontextlost', event => {
-        event.preventDefault(); useFlat();
-        if (slot.move) draw(slot, 1);
-      });
-    } else useFlat();
-    return slot;
-  });
-  let frame = 0, started = 0;
+// How a reveal moves:
+//   'gl'  — WebGL redraws the turning hand every frame (meshes loaded, frames keeping up)
+//   'css' — the settled hand is painted once and the compositor swings it in; used for the
+//           flat painter and after a WebGL turn that the device could not hold smoothly
+export function createHands(seats, {raf = fn => requestAnimationFrame(fn), caf = id => cancelAnimationFrame(id), clock = () => performance.now(), later = (fn, ms) => setTimeout(fn, ms), forceFlat = false} = {}) {
+  const slots = seats.map(({canvas, mirrored}) => ({canvas, mirrored, paint: null, gl: false, move: null}));
+  let frame = 0, elapsed = 0, previous = 0, cssTurn = false, meshes = null, landed = null, run = 0, priming = false;
+  const turn = {frames: 0, total: 0, worst: 0};
+  let lastTurn = null;
 
+  function fresh(slot) { // a canvas keeps its first context type: swap in a clean one
+    const next = slot.canvas.cloneNode(false);
+    if (slot.canvas.parentNode) slot.canvas.parentNode.replaceChild(next, slot.canvas);
+    slot.canvas = next;
+  }
+  function painter(slot, wantGl) {
+    if (slot.paint) fresh(slot);
+    slot.paint = wantGl ? glPainter(slot.canvas, meshes) : null;
+    slot.gl = Boolean(slot.paint);
+    if (slot.gl) {
+      slot.canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); painter(slot, false); draw(slot, 1); });
+      return;
+    }
+    if (wantGl) fresh(slot); // the failed attempt may have claimed the canvas
+    slot.paint = flatPainter(slot.canvas);
+  }
   function size(slot) {
     const css = slot.canvas.clientWidth || 300;
     const px = Math.min(640, Math.max(160, Math.round(css * Math.min(2, (window.devicePixelRatio || 1) * 1.5))));
     if (slot.canvas.width !== px) slot.canvas.width = slot.canvas.height = px;
   }
-  function draw(slot, t) {
-    if (!slot.paint || !slot.move) return;
+  function draw(slot, t, move = slot.move, alpha = 1) {
+    if (!slot.paint || !move) return;
     size(slot);
-    slot.paint(handFrame(slot.move, slot.mirrored, t));
+    slot.paint(move, handPose(move, slot.mirrored, t), slot.gl ? null : handFrame(move, slot.mirrored, t), alpha);
+  }
+  // Clear by painting nothing. Resizing the canvas would also clear it, but that throws the
+  // drawing buffer away and the next reveal would start by waiting for a new one.
+  function wipe(slot) { if (slot.paint) slot.paint(null, null, [], 1); }
+  function swing(on) {
+    for (const slot of slots) {
+      slot.canvas.classList.remove('swing');
+      if (on) { void slot.canvas.offsetWidth; slot.canvas.classList.add('swing'); }
+    }
+  }
+  function land() { const done = landed; landed = null; if (done) done(); }
+  function measured() {
+    if (!turn.frames) return;
+    lastTurn = {frames: turn.frames, mean: Math.round(turn.total / turn.frames), worst: Math.round(turn.worst)};
+    // Smooth hand motion comes first: if the device could not keep up, stop asking it to.
+    if (turn.total / turn.frames > SLOW_FRAME_MS || turn.worst > STALL_MS) cssTurn = true;
+  }
+  function finishTurn() {
+    frame = 0;
+    land();
+    measured();
   }
   function tick() {
-    const t = (clock() - started) / TURN_MS;
+    const now = clock();
+    if (previous) {
+      const gap = now - previous;
+      turn.frames++; turn.total += gap; turn.worst = Math.max(turn.worst, gap);
+      elapsed += Math.min(gap, MAX_STEP_MS);
+    }
+    previous = now;
+    const t = elapsed / TURN_MS;
     for (const slot of slots) draw(slot, t);
-    frame = t < 1 ? raf(tick) : 0;
+    if (t >= LANDED) land();
+    if (t < 1) frame = raf(tick); else finishTurn();
   }
+  function stop() {
+    run++; priming = false;
+    if (frame) { caf(frame); finishTurn(); }
+    land();
+  }
+  const allGl = () => slots.every(slot => slot.gl);
   return {
-    is3d: () => slots.every(slot => slot.paint && !slot.flat),
+    // Called once when hands.json has loaded (or failed: pass null). Creates the painters and
+    // draws every mesh once, so shader and buffer setup never lands on a reveal's first frame.
+    setMeshes(loaded) {
+      meshes = forceFlat ? null : loaded;
+      stop();
+      for (const slot of slots) {
+        painter(slot, Boolean(meshes));
+        if (slot.gl) for (const move of MOVES) draw(slot, 1, move, WARM_ALPHA);
+        if (slot.move) draw(slot, 1);
+      }
+      // Let a warm-up frame reach the screen (at an alpha no display can show), then empty the canvas.
+      const mine = run;
+      raf(() => raf(() => raf(() => { if (mine === run) for (const slot of slots) if (!slot.move) wipe(slot); })));
+    },
+    // A dress rehearsal while nobody is watching: the same turn, drawn at an alpha no display
+    // can show, with the scene's loops running. If the device cannot hold it, the first real
+    // reveal already uses the compositor.
+    rehearse() {
+      if (frame || priming || !allGl() || cssTurn || slots.some(slot => slot.move)) return;
+      const mine = ++run;
+      let count = 0;
+      previous = 0; turn.frames = turn.total = turn.worst = 0;
+      const step = () => {
+        if (mine !== run) return;
+        const now = clock();
+        if (previous) { const gap = now - previous; turn.frames++; turn.total += gap; turn.worst = Math.max(turn.worst, gap); }
+        previous = now;
+        for (const slot of slots) draw(slot, 0.2 + 0.8 * count / REHEARSAL_FRAMES, slot.mirrored ? 'scissors' : 'rock', WARM_ALPHA);
+        if (++count <= REHEARSAL_FRAMES) { raf(step); return; }
+        for (const slot of slots) wipe(slot);
+        measured();
+      };
+      raf(step);
+    },
+    // Just before a reveal the canvases keep drawing frames nobody can see, so the first
+    // visible frame of the turn is one more frame, not a cold start after seconds of idling.
+    prime(on) {
+      if (!on) { if (priming) { priming = false; run++; for (const slot of slots) if (!slot.move) wipe(slot); } return; }
+      if (priming || frame || !allGl() || cssTurn || slots.some(slot => slot.move)) return;
+      priming = true;
+      const mine = ++run;
+      const step = () => {
+        if (mine !== run || !priming) return;
+        for (const slot of slots) draw(slot, 1, slot.mirrored ? 'scissors' : 'rock', WARM_ALPHA);
+        raf(step);
+      };
+      raf(step);
+    },
+    // Between rounds: one unseen frame now and then, so the contexts never go fully idle.
+    pulse() {
+      if (priming || frame || !allGl() || cssTurn || slots.some(slot => slot.move)) return;
+      for (const slot of slots) draw(slot, 1, slot.mirrored ? 'scissors' : 'rock', WARM_ALPHA);
+      const mine = run;
+      raf(() => raf(() => { if (mine === run && !priming && !frame) for (const slot of slots) if (!slot.move) wipe(slot); }));
+    },
+    is3d: () => allGl(),
+    turnStyle: () => (allGl() && !cssTurn ? 'gl' : 'css'),
+    lastTurn: () => lastTurn,
     // moves: one per seat. animate=false paints the settled pose once (still mode, reconnects).
-    show(moves, animate) {
-      slots.forEach((slot, i) => { slot.move = moves[i]; });
-      if (frame) caf(frame);
-      frame = 0;
-      if (animate) { started = clock(); tick(); } else for (const slot of slots) draw(slot, 1);
+    // onLanded fires once, when both hands have (all but) settled.
+    show(moves, animate, onLanded = null) {
+      slots.forEach((slot, i) => { slot.move = moves[i]; if (!slot.paint) painter(slot, false); });
+      stop();
+      landed = onLanded;
+      if (animate && allGl() && !cssTurn) {
+        swing(false);
+        // Paint the (invisibly small) first frame now; the turn's clock starts on the next frame.
+        elapsed = 0; previous = 0; turn.frames = turn.total = turn.worst = 0;
+        for (const slot of slots) draw(slot, 0);
+        frame = raf(tick);
+        return;
+      }
+      for (const slot of slots) draw(slot, 1);
+      swing(animate);
+      if (!animate) { land(); return; }
+      const mine = run;
+      later(() => { if (mine === run) land(); }, TURN_MS * LANDED);
     },
     clear() {
-      if (frame) caf(frame);
-      frame = 0;
-      for (const slot of slots) { slot.move = null; if (slot.canvas.width) slot.canvas.width = slot.canvas.width; }
+      stop();
+      swing(false);
+      for (const slot of slots) { slot.move = null; wipe(slot); }
     },
     // Hidden tabs do not run rAF; finish on the settled pose when the page comes back.
     settle() {
-      if (!frame) return;
-      caf(frame); frame = 0;
-      for (const slot of slots) draw(slot, 1);
+      if (frame) { caf(frame); frame = 0; for (const slot of slots) draw(slot, 1); }
+      land();
     },
     redraw() { if (!frame) for (const slot of slots) draw(slot, 1); },
   };

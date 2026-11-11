@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import logging
 import re
 import secrets
 import threading
@@ -18,6 +19,7 @@ LAUNCH_TIMEOUT_S = 8.0
 NAMESPACE_TIMEOUT_S = 8.0
 PHASES = {"waiting_for_player", "ready", "countdown", "reveal", "score", "next_round"}
 _LAUNCH_LOCK = threading.Lock()
+_LOG = logging.getLogger(__name__)
 
 
 class GameCastTransport:
@@ -27,6 +29,8 @@ class GameCastTransport:
         from pychromecast.controllers import BaseController
 
         self.app_id = app_id
+        self.expected_request = None
+        self.expected_session = None
         self.events: deque = deque(maxlen=16)
         self.condition = threading.Condition()
         self.connection = PyChromecastSession(host, CAST_PORT)
@@ -40,6 +44,15 @@ class GameCastTransport:
 
             def receive_message(self, _message, data):
                 if isinstance(data, dict):
+                    _LOG.info(
+                        "game_cast event=ack_received kind=%s "
+                        "request_matches=%s session_matches=%s",
+                        data.get("type")
+                        if data.get("type") in {"DISPLAY_RENDERED", "DISPLAY_FAILED"}
+                        else "other",
+                        data.get("request_id") == owner.expected_request,
+                        data.get("session_id") == owner.expected_session,
+                    )
                     with owner.condition:
                         owner.events.append(dict(data))
                         owner.condition.notify_all()
@@ -53,10 +66,13 @@ class GameCastTransport:
             raise
 
     def launch(self):
+        _LOG.info("game_cast event=app_launch_requested app_id=%s", self.app_id)
         self.cast.start_app(self.app_id, timeout=LAUNCH_TIMEOUT_S)
+        _LOG.info("game_cast event=app_launch_returned app_matches=%s", self.matches_app())
         deadline = time.monotonic() + NAMESPACE_TIMEOUT_S
         while time.monotonic() < deadline:
             if self.matches_app() and NAMESPACE in self.cast.socket_client.app_namespaces:
+                _LOG.info("game_cast event=receiver_namespace_ready")
                 return
             time.sleep(0.05)
         raise CastError("receiver_unavailable", "Check the receiver URL and device registration.")
@@ -69,6 +85,8 @@ class GameCastTransport:
             raise CastError(
                 "receiver_changed", "The Chromecast changed apps. Use the display link."
             )
+        self.expected_request = message.get("request_id")
+        self.expected_session = message.get("session_id")
         self.controller.send_message(message, no_add_request_id=True)
 
     def receive(self, timeout: float) -> dict | None:
@@ -118,10 +136,16 @@ def launch_game_display(
             "hint": "Another launch is running. Use the display link or retry.",
         }
     transport = None
+    stage = "connect"
+    started = time.monotonic()
+    _LOG.info("game_cast event=attempt_started app_id=%s host=%s", app_id.upper(), host)
     try:
         challenge = secrets.token_urlsafe(24)
         transport = transport_factory(host, app_id.upper())
+        _LOG.info("game_cast event=connected elapsed_s=%.3f", time.monotonic() - started)
+        stage = "launch_and_namespace"
         transport.launch()
+        stage = "send_session"
         transport.send(
             {
                 "type": "SHOW_SESSION",
@@ -130,6 +154,8 @@ def launch_game_display(
                 "display_token": display_token,
             }
         )
+        _LOG.info("game_cast event=session_sent elapsed_s=%.3f", time.monotonic() - started)
+        stage = "render_ack"
         deadline = clock() + ack_timeout_s
         while clock() < deadline:
             event = transport.receive(min(0.25, max(0, deadline - clock())))
@@ -140,6 +166,9 @@ def launch_game_display(
             ):
                 continue
             if event.get("type") == "DISPLAY_FAILED":
+                _LOG.info(
+                    "game_cast event=display_failed elapsed_s=%.3f", time.monotonic() - started
+                )
                 return {
                     "ok": False,
                     "reason": "receiver_display_failed",
@@ -152,6 +181,10 @@ def launch_game_display(
                 and event["revision"] >= 1
                 and transport.matches_app()
             ):
+                _LOG.info(
+                    "game_cast event=matching_render_accepted elapsed_s=%.3f",
+                    time.monotonic() - started,
+                )
                 return {
                     "ok": True,
                     "evidence": "receiver_rendered_session",
@@ -160,14 +193,26 @@ def launch_game_display(
                     "phase": event["phase"],
                     "revision": event["revision"],
                 }
+        _LOG.info("game_cast event=ack_deadline elapsed_s=%.3f", time.monotonic() - started)
         return {
             "ok": False,
             "reason": "receiver_render_unverified",
             "hint": "No matching render acknowledgement. Use the manual display link.",
         }
     except CastError as exc:
+        _LOG.info(
+            "game_cast event=failed stage=%s exception_type=CastError elapsed_s=%.3f",
+            stage,
+            time.monotonic() - started,
+        )
         return exc.to_dict()
-    except Exception:
+    except Exception as exc:
+        _LOG.info(
+            "game_cast event=failed stage=%s exception_type=%s elapsed_s=%.3f",
+            stage,
+            type(exc).__name__,
+            time.monotonic() - started,
+        )
         return {
             "ok": False,
             "reason": "games_cast_failed",
@@ -179,4 +224,5 @@ def launch_game_display(
                 transport.close()
             except Exception:
                 pass
+        _LOG.info("game_cast event=attempt_closed elapsed_s=%.3f", time.monotonic() - started)
         _LAUNCH_LOCK.release()

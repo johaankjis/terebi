@@ -122,3 +122,20 @@ hardware tests. Record the exact plugin/service source commit and Console app ID
 Until the user supplies a registered app ID and deploys this receiver build,
 these live gates are BLOCKED. Unit/DOM fixtures do not count as Gen 2 CAF tests,
 Mac-closed operation, TV power/input checks or post-game movie playback.
+
+## Fresh-attempt timing diagnostics
+
+Sender INFO records mark connection, app launch request/return, custom namespace
+readiness, session send, acknowledgment receipt/matching, deadline, failure stage
+and exception type. No credential, challenge, raw session ID, payload or exception
+message is logged. Existing launch/namespace/render deadlines are unchanged.
+Namespace readiness establishes that the receiver initialized CAF; it does not
+provide an HTTP request timestamp for `/receiver/`. Physical screen appearance
+is recorded separately from the user's observation.
+
+The first Telegram attempt on 2026-11-11 requested app B94F303E at 04:07:36.035
+UTC and completed with failure at 04:07:36.119, before the render deadline.
+Its swallowed exception cannot be reconstructed from those logs. A subsequent
+manager probe connected to Den TV and reached the receiver namespace; it did not
+send a session credential or establish a rendered game. A fresh Telegram attempt
+with stage capture is pending.

@@ -98,7 +98,8 @@ def test_changed_app_or_no_ack_does_not_claim_ready():
         assert fake.closed
 
 
-def test_receiver_failure_and_connection_exception_are_sanitized():
+def test_receiver_failure_and_connection_exception_are_sanitized(caplog):
+    caplog.set_level(logging.INFO, logger=game_cast.__name__)
     fake = FakeTransport(mutate=lambda e: {**e, "type": "DISPLAY_FAILED", "reason": TOKEN})
     result = launch(fake)
     assert result["reason"] == "receiver_display_failed" and TOKEN not in str(result)
@@ -106,6 +107,8 @@ def test_receiver_failure_and_connection_exception_are_sanitized():
     assert launch(fake)["reason"] == "games_cast_failed" and fake.closed
     fake = FakeTransport(error=CastError("cast_unreachable", "Check Chromecast power."))
     assert launch(fake)["reason"] == "cast_unreachable" and fake.closed
+    assert "stage=launch_and_namespace exception_type=RuntimeError" in caplog.text
+    assert TOKEN not in caplog.text and SID not in caplog.text
 
 
 @pytest.mark.parametrize(

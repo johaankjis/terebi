@@ -66,6 +66,11 @@ export class GameController {
     this.session = null;
     this.state = null;
     this.rounds = new Map();
+    this.practiceMode = false;
+    this.practiceSeen = new Set();
+    this.diagnostics = null;
+    this.modelStage = null;
+    this.sampleSummary = null;
     this.cameraStatus = 'off';
     this.cameraMessage = null;
     this.cameraRun = 0; // bumps on every camera start/stop; stale async work checks it
@@ -167,7 +172,7 @@ export class GameController {
     if (Number.isFinite(s.expires_at_ms) && now >= s.expires_at_ms) return this.expire();
     if (s.phase !== 'countdown' || !s.round_id || !Number.isFinite(s.countdown_ends_at_ms)) return;
     const rec = this.#round(s.round_id);
-    if (rec.status !== 'pending') return;
+    if (rec.status !== 'pending' || this.practiceMode) return;
     if (now < s.countdown_ends_at_ms + this.decision.windowAfterMs) return;
     if (Number.isFinite(s.accept_until_ms) && now > s.accept_until_ms) {
       rec.status = 'timed_out';
@@ -179,6 +184,7 @@ export class GameController {
     }
     const endMono = this.clock.toMono(s.countdown_ends_at_ms);
     const frames = this.window.between(endMono - this.decision.windowBeforeMs, endMono + this.decision.windowAfterMs);
+    this.sampleSummary = { frames: frames.length, confident: frames.filter(f => f.move && f.score >= this.decision.minScore).length, spanMs: frames.length > 1 ? Math.round(frames.at(-1).t - frames[0].t) : 0 };
     const result = decideMove(frames, this.decision);
     if (!result.ok) {
       rec.status = 'retry_prompt'; // no submission; score untouched
@@ -285,6 +291,11 @@ export class GameController {
     this.video = video;
     this.cameraStatus = 'requesting';
     this.cameraMessage = null;
+    this.practiceMode = true;
+    this.practiceSeen.clear();
+    this.diagnostics = null;
+    this.modelStage = 'camera';
+    this.sampleSummary = null;
     this.#changed();
     const res = await this.camera.start();
     if (run !== this.cameraRun) {
@@ -313,7 +324,9 @@ export class GameController {
     this.#changed();
     let recognizer;
     try {
-      this.recognizerPromise ??= this.loadRecognizer();
+      this.recognizerPromise ??= this.loadRecognizer({ onStage: (stage) => {
+        if (run === this.cameraRun) { this.modelStage = stage; this.#changed(); }
+      } });
       recognizer = await this.recognizerPromise;
     } catch {
       this.recognizerPromise = null; // a later explicit click may try again
@@ -326,7 +339,16 @@ export class GameController {
       video,
       recognizer,
       onFrame: (frame) => {
-        if (run === this.cameraRun) this.window.push(frame);
+        if (run !== this.cameraRun) return;
+        // Retain compact predictions only in the bounded round window.
+        const { t, hand, move, score } = frame;
+        this.window.push({ t, hand, move, score });
+        this.diagnostics = { ...(frame.diagnostics ?? { status: !hand ? 'no_hand' : !move || score < this.decision.minScore ? 'low_confidence' : 'recognized', move, score, gesture: move, landmarks: [] }), t };
+        if (this.practiceMode) {
+          const stable = decideMove(this.window.between(t - 800, t), this.decision);
+          if (stable.ok) this.practiceSeen.add(stable.move);
+        }
+        this.#changed();
       },
       onError: () => {
         if (run === this.cameraRun) this.#fail('model');
@@ -334,7 +356,16 @@ export class GameController {
     });
     this.frameLoop.start();
     this.cameraStatus = 'on';
+    this.modelStage = 'inference';
     this.cameraError = null;
+    this.#changed();
+    return true;
+  }
+
+  finishPractice() {
+    if (this.cameraStatus !== 'on') return false;
+    this.practiceMode = false;
+    this.window.clear();
     this.#changed();
     return true;
   }
@@ -349,6 +380,8 @@ export class GameController {
     this.frameLoop?.stop();
     this.frameLoop = null;
     this.window.clear();
+    this.diagnostics = null;
+    this.practiceMode = false;
     this.cameraSubmit?.abort();
     this.cameraSubmit = null;
     const released = this.camera.stop();
@@ -400,7 +433,7 @@ export class GameController {
       screen: this.screen,
       pairErrorReason: this.pairErrorReason,
       notice: this.notice,
-      camera: { status: this.cameraStatus, message: this.cameraMessage, error: this.cameraError ?? null },
+      camera: { status: this.cameraStatus, message: this.cameraMessage, error: this.cameraError ?? null, stage: this.modelStage, diagnostics: this.diagnostics, practice: this.practiceMode, seen: [...this.practiceSeen], samples: this.sampleSummary },
       phase: s?.phase ?? null,
       roundNumber: s?.round_number ?? 0,
       score: s?.score ?? { player: 0, hermes: 0, ties: 0, rounds: 0 },

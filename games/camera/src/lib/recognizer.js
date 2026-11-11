@@ -2,6 +2,7 @@
 // No CDN, no model download at runtime from a third party, no telemetry.
 
 import { frameFromResult } from './gesture.js';
+import { describeResult } from './practice.js';
 
 export const VENDOR_URL = new URL('../vendor/vision_bundle.js', import.meta.url).href;
 export const WASM_BASE_URL = new URL('../vendor/wasm', import.meta.url).href;
@@ -16,17 +17,21 @@ export const RECOGNIZER_OPTIONS = Object.freeze({
 });
 
 /** Load once; reuse across camera sessions. */
-export async function loadRecognizer({ importModule = (u) => import(u) } = {}) {
+export async function loadRecognizer({ importModule = (u) => import(u), onStage = () => {} } = {}) {
+  onStage('runtime');
   const vision = await importModule(VENDOR_URL);
+  onStage('wasm');
   const fileset = await vision.FilesetResolver.forVisionTasks(WASM_BASE_URL);
   // CPU delegate: the WebGL delegate is less predictable on iOS Safari.
+  onStage('model');
   const recognizer = await vision.GestureRecognizer.createFromOptions(fileset, {
     baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
     ...RECOGNIZER_OPTIONS,
   });
   return {
     recognize(video, tMono) {
-      return frameFromResult(recognizer.recognizeForVideo(video, tMono), tMono);
+      const result = recognizer.recognizeForVideo(video, tMono);
+      return { ...frameFromResult(result, tMono), diagnostics: describeResult(result) };
     },
     close() {
       try {

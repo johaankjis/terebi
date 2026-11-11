@@ -58,7 +58,10 @@ test('loadRecognizer uses the local module, CPU delegate and VIDEO mode (mocked 
   assert.equal(seen.opts.baseOptions.modelAssetPath, MODEL_URL);
   assert.equal(seen.opts.baseOptions.delegate, 'CPU');
   assert.equal(seen.opts.runningMode, 'VIDEO');
-  assert.deepEqual(r.recognize({}, 12), { t: 12, hand: true, move: 'scissors', score: 0.8 });
+  const frame = r.recognize({}, 12);
+  assert.equal(frame.move, 'scissors');
+  assert.equal(frame.score, 0.8);
+  assert.equal(frame.diagnostics.status, 'recognized');
 });
 
 test('FrameLoop throttles, skips repeated video frames and stops completely', () => {

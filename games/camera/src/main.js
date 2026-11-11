@@ -1,3 +1,4 @@
+import { drawLandmarks } from './lib/practice.js';
 // DOM wiring for /play/. Game logic lives in lib/controller.js (unit tested).
 
 import { createApi } from './lib/api.js';
@@ -31,6 +32,9 @@ const el = {
   camStatus: $('camera-status'),
   camMessage: $('camera-message'),
   video: $('video'),
+  overlay: $('hand-overlay'),
+  practice: $('practice-status'),
+  practiceDone: $('btn-practice-done'),
   taps: Array.from(document.querySelectorAll('button[data-move]')),
   notice: $('notice'),
 };
@@ -49,7 +53,7 @@ controller = new GameController({
   camera,
   storage: window.sessionStorage,
   subtle: window.crypto?.subtle,
-  loadRecognizer: () => loadRecognizer(),
+  loadRecognizer: (opts) => loadRecognizer(opts),
   createFrameLoop: (opts) => new FrameLoop(opts),
   onChange: () => scheduleRender(),
 });
@@ -109,7 +113,7 @@ function render() {
   el.commitment.hidden = !vm.commitment || Boolean(vm.result);
   setText(el.commitment, vm.commitment ? `Hermes locked in (proof ${vm.commitment}…)` : '');
 
-  el.next.disabled = !vm.canNext;
+  el.next.disabled = !vm.canNext || (vm.camera.practice && vm.camera.status !== 'off');
   setText(el.next, vm.phase === 'next_round' ? 'Next round' : 'Start round');
   el.retry.disabled = !vm.canRetry;
   for (const b of el.taps) b.disabled = !vm.canTap;
@@ -123,6 +127,25 @@ function render() {
   setText(el.camStatus, cam === 'loading' ? 'Loading hand recognizer…' : cam === 'on' ? 'Camera on · on-device only' : '');
   el.camMessage.hidden = !vm.camera.message || live;
   setText(el.camMessage, vm.camera.message ?? '');
+
+  const d = vm.camera.diagnostics;
+  drawLandmarks(el.overlay, el.video, d?.landmarks);
+  const stages = { camera: 'Starting camera', runtime: 'Loading recognizer JavaScript', wasm: 'Preparing WASM', model: 'Loading gesture model', inference: 'Running recognition' };
+  let diagnostic = cam === 'loading' ? `${stages[vm.camera.stage] ?? 'Loading'}…` : '';
+  if (vm.camera.error === 'model') diagnostic = `Model error during ${stages[vm.camera.stage] ?? 'recognition'}. Stop and restart the camera to retry.`;
+  else if (cam === 'on') {
+    diagnostic = !d ? 'Waiting for the first prediction…' : performance.now() - d.t > 2000 ? 'No recent predictions. Recognition may be stalled; stop and restart the camera.' :
+      d.status === 'no_hand' ? 'No hand detected. Put your whole hand in the guide.' :
+      d.status === 'low_confidence' ? `Low confidence: ${d.gesture ?? 'unclassified hand'} (${Math.round(d.score * 100)}%). Face your palm toward the camera and hold steady.` :
+      `${MOVE_LABEL[d.move]} · ${Math.round(d.score * 100)}% confidence`;
+    diagnostic += ` · Practice checks: ${['rock','paper','scissors'].map(m => `${m}${vm.camera.seen.includes(m) ? ' ✓' : ' —'}`).join(', ')}`;
+    if (vm.camera.practice) diagnostic = 'Practice (no moves sent). ' + diagnostic;
+  }
+  if (vm.camera.samples) diagnostic += ` · Last Shoot window: ${vm.camera.samples.frames} predictions, ${vm.camera.samples.confident} confident, ${vm.camera.samples.spanMs}ms span.`;
+  setText(el.practice, diagnostic);
+  el.practice.hidden = !diagnostic;
+  el.practiceDone.hidden = cam !== 'on' || !vm.camera.practice;
+  el.practiceDone.disabled = vm.camera.seen.length < 3;
 
   el.notice.hidden = !vm.notice;
   setText(el.notice, vm.notice ?? '');
@@ -141,12 +164,13 @@ function scheduleRender() {
 // Countdown and the automatic decision run off the monotonic clock.
 setInterval(() => {
   controller.tick();
-  if (controller.state?.phase === 'countdown') scheduleRender();
+  if (controller.state?.phase === 'countdown' || controller.cameraStatus === 'on') scheduleRender();
 }, 50);
 
 el.next.addEventListener('click', () => controller.next());
 el.retry.addEventListener('click', () => controller.retry());
 el.camStart.addEventListener('click', () => controller.startCamera(el.video));
+el.practiceDone.addEventListener('click', () => controller.finishPractice());
 el.camStop.addEventListener('click', () => controller.stopCamera('user'));
 for (const b of el.taps) b.addEventListener('click', () => controller.tap(b.dataset.move));
 

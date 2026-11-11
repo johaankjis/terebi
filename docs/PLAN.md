@@ -14,7 +14,7 @@ User explicitly authorizes this new slice. Base origin/main
 - [x] Select manual Mac Chrome mirroring: no Custom Receiver ID/test registration.
 - [ ] FIRST LIVE GATE: Den TV display page plus one shared-state update observed.
 - [x] Manager: standalone service/API, authoritative rounds, Hermes tool, fullscreen display.
-- [ ] Deploy the service on ZimaOS through the user-run host commands.
+- [x] Deploy the service on ZimaOS through the user-run host commands.
 - [x] One Claude Code worker: iPhone-compatible camera UI and local recognition;
   59 mocked-media JS tests and checksum-verified camera asset build pass.
 - [x] Single-use pairing/expiring credentials implemented; Docker/Quick Tunnel
@@ -28,11 +28,22 @@ User explicitly authorizes this new slice. Base origin/main
 - [x] Open draft PR #6, targeting main; host/device acceptance blockers recorded.
   Leave unmerged.
 
-Live blockers: host currently exposes Caddy on HTTP port 80; direct TLS port 443
-refuses connections. No trusted hostname or ZimaOS shell access is configured in
-T3. User can run host-side commands. Public Custom Receiver unavailable by user
-confirmation; use manual mirroring. No TV game-screen update or camera round has
-been verified. iPhone Safari and Mac Chrome/Den TV are the intended live devices.
+Live status (2026-11-11): the user deployed the ZimaOS service through a
+Cloudflare Quick Tunnel. Manager verified health, admin authentication, correct
+public pairing/display origins, camera/model/WASM assets, and the isolated
+@terebitvbot connection on `0e17940`. User reports iPhone Safari preview works but
+none of the three gestures was recognized. TV shared-state observation and camera
+rounds remain unverified.
+
+- [x] Add temporary local practice diagnostics: landmarks, gesture/confidence,
+  no-hand/low-confidence/model-stage errors, three-shape checklist, and Shoot
+  sample counts. Preserve the pinned MediaPipe model and decision thresholds.
+  Diagnostic candidate checks: 66 JS tests, 852 Python tests, asset build, Ruff,
+  Hermes doctor (8 tools) and validation passed. iPhone verification pending.
+- [ ] Deploy diagnostic build and verify rock, paper, scissors on user's iPhone.
+- [ ] If practice succeeds, verify Shoot sampling, Retry, three camera rounds,
+  exactly-once score and Stop camera with actual device evidence.
+
 
 ## Blockers
 

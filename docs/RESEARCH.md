@@ -393,3 +393,18 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   no account/domain needed, URL changes each start, no uptime guarantee, up to
   200 in-flight requests and no SSE. Use bounded short polling for the game.
   https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/
+
+
+### RPS iPhone live debug — 2026-11-11
+
+- **VERIFIED (manager HTTPS requests):** deployed service health and admin session
+  creation return HTTP 200; returned links use the configured public origin.
+  Player, display, local model, JS and WASM return HTTP 200 with usable MIME types.
+- **VERIFIED (gateway log):** isolated @terebitvbot connected at 02:20:37 UTC on
+  `0e17940`, with the game tool preflight successful and plugin origins checked.
+- **USER OBSERVED:** iPhone Safari shows the camera preview, but recognized no
+  rock/paper/scissors. This does not isolate model initialization, inference,
+  confidence or sampling as the cause.
+- **UNVERIFIED:** each real iPhone gesture, round sampling, physical Den TV state,
+  three camera rounds, missed-hand retry and Stop indicator. Temporary local
+  practice diagnostics added to investigate; no model substitution made.

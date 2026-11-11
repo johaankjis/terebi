@@ -74,3 +74,11 @@ no-telemetry rule.
   own. Background tabs lose the camera, so the page stops it when hidden.
 - Gesture labels are the MediaPipe canned set. `Victory` (two fingers) is scissors.
   Other gestures count as unclear.
+
+
+Temporary practice: camera start now shows landmarks, category/confidence and a
+three-shape checklist before enabling camera rounds. No-hand, low-confidence,
+loading stage, inference/model error and stale predictions have separate local
+status. Practice sends no moves. After practice, the existing Shoot window is
+shown as local sample counts; Retry remains mandatory for uncertain decisions.
+See `docs/GAMES_RPS.md` for real-iPhone acceptance and deployment steps.

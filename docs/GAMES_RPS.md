@@ -195,3 +195,43 @@ The existing host:8765 → T3 forwarder returned HTTP 200 for the temporary game
 `/health` probe on 2026-11-11. This proves LAN reachability only. The display-only
 proof has a 20-minute lifetime and requires user mirroring/TV confirmation; it
 cannot establish trusted-HTTPS camera acceptance or ZimaOS deployment.
+
+
+## Temporary iPhone recognition practice (PR #6)
+
+User reports that Safari camera preview works, but no rock/paper/scissors was
+recognized. This is an unresolved live defect; mocked recognizer tests do not
+establish device success. The existing MediaPipe 0.10.35 CPU path, model hash,
+confidence threshold and 400ms-before/450ms-after Shoot window are unchanged.
+
+After turning on the camera, practice runs before a round. Green connections and
+white landmarks follow the hand over a mirrored, aspect-preserving preview.
+The page shows the detected category and confidence, or distinct no-hand,
+low-confidence, stalled-prediction or model-error status. Initialization reports
+JavaScript, WASM and model stages. Hold each of rock/paper/scissors steady until
+its local practice check appears, then press **Practice complete — use camera in
+rounds**. Practice never sends moves, and its frame window is cleared on exit.
+Only the latest landmark set is retained in device memory; it is cleared on Stop
+or leaving the page. No frame, landmark, confidence or practice status is sent.
+
+First test all three gestures on the actual iPhone Safari. If practice works,
+start a countdown and hold the shape through Shoot. The local status reports the
+last Shoot window's prediction count, confident count and span. Unclear rounds
+still send nothing and require Retry. Report the displayed status and which
+shapes worked; device acceptance remains open until observed. Tap rounds remain
+separate evidence.
+
+To update the existing ZimaOS deployment, upload the new source archive, extract
+it over the source directory (the archive contains no private configuration),
+then build and recreate only the game service:
+
+```sh
+cd /DATA/AppData/terebi-games-rps/src
+tar -xzf ../practice-source.tar.gz
+sh games/deploy/host.sh build
+docker compose -f games/deploy/compose.yaml up -d --no-deps games
+```
+
+Keep the tunnel container running to retain its hostname. The service restart
+expires old sessions; ask the isolated Telegram bot for a new game and reload
+both pages. Confirm the page contains the practice button before testing.

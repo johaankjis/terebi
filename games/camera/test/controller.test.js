@@ -100,12 +100,13 @@ function setup({ storedSession = true } = {}) {
   };
 }
 
-async function cameraOn(h) {
+async function cameraOn(h, { practice = false } = {}) {
   const video = fakeVideo();
   const p = h.c.startCamera(video);
   const stream = fakeStream();
   h.md.pending.resolve(stream);
   assert.equal(await p, true);
+  if (!practice) h.c.finishPractice();
   return { video, stream, loop: h.loops.at(-1) };
 }
 
@@ -469,4 +470,41 @@ test('model is loaded once and reused across camera sessions', async () => {
   h.c.stopCamera('user');
   await cameraOn(h);
   assert.equal(h.recognizerLoads, 1);
+});
+
+
+test('practice recognizes all three shapes locally and never submits a round', async () => {
+  const h = setup(); h.c.applyState(countdown());
+  const { loop } = await cameraOn(h, { practice: true });
+  let t = SERVER_T0;
+  for (const move of ['rock', 'paper', 'scissors']) {
+    feed(h, loop, t, t + 900, move); t += 1200;
+  }
+  h.atServer(SERVER_T0 + 3500); h.c.tick();
+  assert.deepEqual(h.c.viewModel().camera.seen, ['rock', 'paper', 'scissors']);
+  assert.equal(h.calls.length, 0);
+  assert.equal(h.c.viewModel().camera.practice, true);
+  assert.equal(h.c.finishPractice(), true);
+  assert.equal(h.c.window.frames.length, 0);
+});
+
+test('only latest diagnostics retain landmarks, and Stop removes them', async () => {
+  const h = setup(); const { loop } = await cameraOn(h, { practice: true });
+  const diagnostics = { status: 'recognized', move: 'rock', score: 0.9, gesture: 'Closed_Fist', landmarks: [{x: .2, y: .3}] };
+  loop.opts.onFrame({t: MONO_T0, hand: true, move: 'rock', score: .9, diagnostics});
+  assert.deepEqual(h.c.viewModel().camera.diagnostics.landmarks, diagnostics.landmarks);
+  assert.equal(h.c.window.frames[0].diagnostics, undefined);
+  h.c.stopCamera();
+  assert.equal(h.c.viewModel().camera.diagnostics, null);
+  assert.equal(h.c.window.frames.length, 0);
+  assert.equal(h.calls.length, 0);
+});
+
+test('unclear Shoot window reports local sample counts and sends nothing', async () => {
+  const h = setup(); h.c.applyState(countdown()); const { loop } = await cameraOn(h);
+  feed(h, loop, SERVER_T0 + 2700, SERVER_T0 + 3400, 'rock', {score: .2});
+  h.atServer(SERVER_T0 + 3500); h.c.tick();
+  assert.equal(h.calls.length, 0);
+  const samples = h.c.viewModel().camera.samples;
+  assert.ok(samples.frames >= 3); assert.equal(samples.confident, 0); assert.ok(samples.spanMs <= 850);
 });

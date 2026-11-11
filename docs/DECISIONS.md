@@ -227,3 +227,14 @@ No new Python production dependency. The separate camera build pins MediaPipe
 0.10.35 to avoid the newer bundles' usage logger; a same-origin CSP also blocks
 third-party browser network connections. Containerized deployment and real device
 acceptance remain unverified until the user runs the host commands.
+
+
+### RPS iPhone practice diagnostics (2026-11-11)
+
+Add temporary practice before camera rounds to distinguish recognition failure
+from countdown timing. Keep the current MediaPipe runtime/model and thresholds.
+Render the latest landmarks locally; retain only compact predictions in the
+bounded round window. Clear practice predictions before rounds and on Stop.
+Expose local loading stages and Shoot sample counts without new API fields or
+telemetry. Require three locally recognized shapes in the practice UI before
+continuing. This is diagnostic instrumentation, not a claim of iPhone accuracy.

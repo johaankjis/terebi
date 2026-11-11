@@ -4,6 +4,28 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
+## Current slice: Terebi Games v1 — camera rock-paper-scissors
+
+User explicitly authorizes this new slice. Base origin/main
+`263c82629886bfdf45517e8583b94cffecea9888`, separate manager branch/worktree
+`feat/hermes-games-rps`. Preserve movie/scene code and regression tests.
+
+- [x] Verify main and define [session/round contract](RPS_CONTRACT.md).
+- [x] Select manual Mac Chrome mirroring: no Custom Receiver ID/test registration.
+- [ ] FIRST LIVE GATE: Den TV display page plus one shared-state update observed.
+- [ ] Manager: ZimaOS service, session authority, Hermes tool, fullscreen display.
+- [ ] One Claude Code worker: iPhone-compatible camera UI, local recognition/tests.
+- [ ] Trusted HTTPS deployment; single-use pairing and expiring credentials.
+- [ ] Telegram -> pair once -> three camera rounds; missed-hand retry; exactly-once
+  scores; Stop camera releases tracks. Tap fallback labelled separately.
+- [ ] Existing tests, game tests, Ruff, Hermes checks, exact tested SHA and draft PR.
+
+Live blockers: host currently exposes Caddy on HTTP port 80; direct TLS port 443
+refuses connections. No trusted hostname or ZimaOS shell access is configured in
+T3. User can run host-side commands. Public Custom Receiver unavailable by user
+confirmation; use manual mirroring. No TV game-screen update or camera round has
+been verified. iPhone Safari and Mac Chrome/Den TV are the intended live devices.
+
 ## Blockers
 
 

@@ -263,3 +263,25 @@ manual mirroring and iPhone pairing on failures. Reuse the existing pychromecast
 No new runtime dependency; the receiver loads Google's CAF v3 browser SDK with
 a narrowly scoped receiver-only CSP. Suppress credential-bearing Cast debug
 payloads. No TV wake/input claim without separate physical checks.
+
+
+## YouTube direct playback (2026-11-11)
+
+Reuse installed PyChromecast 14.1.1's YouTube controller and transitive casttube
+session protocol, with a per-request 5-second timeout and six-request budget to
+bound rebind retries. No new dependency. This controller uses YouTube's MDX/lounge
+control endpoints; it is not the official YouTube Data API. Never call its HTML
+queue-parser helpers, download/extract video, or proxy YouTube media. The YouTube
+receiver obtains media directly from YouTube.
+
+Separate `tv_youtube_play` / `tv_youtube_pause` keep the existing Jellyfin ownership
+and relay unchanged. Fresh exact content ID + YouTube app + PLAYING/PAUSED + media
+session are required, with a 25-second verification window. The whole action is
+bounded by connection, MDX screen discovery, request budget and verification limits.
+Pause pins the verified media session and host. A matching reported video ID is
+receiver evidence; the user's screen observation is recorded separately, including
+ads or sign-in prompts. Suppress MDX/lounge diagnostic payloads that could contain
+screen/session capabilities. Optional `library_youtube_search` uses the official
+Data API with a Hermes-scoped key in a request header, never a logged URL. Search
+results are choices, not proof of TV availability. Playlists and offsets are not
+supported in this slice.

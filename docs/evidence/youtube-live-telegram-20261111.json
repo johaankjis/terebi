@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-11T04:55:34Z-04:56:01Z",
+  "commit": "6b774ed53068bb03a06947b577b49f516ddd4c6b",
+  "gateway": "/tmp/terebi-rps-gateway (isolated @terebitvbot, plugins symlink pinned to the commit above)",
+  "channel": "telegram",
+  "request": "play this on dentv: https://www.youtube.com/watch?v=AodSJJ-ZvuI",
+  "tool": "tv_youtube_play",
+  "tool_result": {
+    "ok": true,
+    "verified": true,
+    "video_id": "AodSJJ-ZvuI",
+    "state": "PLAYING",
+    "media_session_id": 1712781726,
+    "duration_s": 25.51
+  },
+  "user_screen_confirmation": "User reported the requested video played on Den TV (Chromecast Gen 2, 192.168.0.134) with Mac mirroring off.",
+  "not_exercised_live": [
+    "Telegram pause (tv_youtube_pause): verified only in the device spike (PAUSED in same media session, docs/evidence/youtube-direct-spike-20261111.json) and mocked tests.",
+    "Title search: YOUTUBE_API_KEY unconfigured; mocked official-API tests only.",
+    "Post-YouTube Jellyfin movie and rock-paper-scissors regression through Telegram."
+  ]
+}

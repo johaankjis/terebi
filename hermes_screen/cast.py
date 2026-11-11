@@ -126,14 +126,21 @@ class _RedactCapabilities(logging.Filter):
             message = record.getMessage()
         except Exception:
             return True
-        if "urn:x-cast:com.terebi.games" in message or "display_token" in message:
+        sensitive = (
+            "urn:x-cast:com.terebi.games",
+            "display_token",
+            "urn:x-cast:com.google.youtube.mdx",
+            "/api/lounge/",
+            "loungeToken",
+        )
+        if any(marker in message for marker in sensitive):
             return False  # Cast debug payloads can contain the read-only game capability.
         cleaned = redact(message)
         if cleaned != message:
             record.msg, record.args = cleaned, None
         if record.exc_info:
             text = logging.Formatter().formatException(record.exc_info)
-            if "display_token" in text or "urn:x-cast:com.terebi.games" in text:
+            if any(marker in text for marker in sensitive):
                 return False
             record.exc_text = redact(text)
         return True
@@ -161,7 +168,7 @@ def install_log_redaction() -> None:
     names = set(_PYCHROMECAST_LOGGERS) | {
         name for name in list(logging.root.manager.loggerDict) if name.startswith("pychromecast.")
     }
-    for name in names:
+    for name in names | {"urllib3.connectionpool"}:
         logger = logging.getLogger(name)
         if _REDACT_FILTER not in logger.filters:
             logger.addFilter(_REDACT_FILTER)

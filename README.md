@@ -269,3 +269,27 @@ session. The iPhone pairing link is still returned in Telegram. Failed or
 unconfigured launches retain the manual Chrome display link. Starting a game
 replaces the current Chromecast app; TV wake and HDMI switching are separately
 tested device behavior, not implied by receiver readiness.
+
+
+### YouTube on Chromecast
+
+Send Hermes a YouTube video link or ID: “Play https://youtu.be/aqz-KE-bpKQ on TV.”
+`tv_youtube_play` uses the configured `chromecast_host`; YouTube serves the video
+directly. No API key, media relay or download is needed for a link. This replaces
+the current TV app. `tv_youtube_pause` pauses only the YouTube video/session this
+plugin context verified. Asking to play the same paused video resumes it.
+Existing `tv_pause` continues to control Jellyfin movies.
+
+Success requires fresh receiver evidence for the requested video ID and state.
+`app_opened` means the YouTube app opened but playback was not confirmed. Check the
+TV for ads, sign-in, age/region restrictions or unavailable/private videos; never
+interpret an app launch as confirmed video playback. Supported inputs: an
+11-character video ID, HTTPS watch/youtu.be/shorts/embed/live video links.
+Playlists and timestamp offsets are not supported.
+
+For optional title search, enable **YouTube Data API v3** in your Google Cloud
+project and configure `YOUTUBE_API_KEY` through Hermes secret settings. Restrict
+the key to that API and set an appropriate quota. `library_youtube_search` returns
+up to five titles/channels; choose a result before playing. Without the key, Hermes
+asks for a direct link. No YouTube page scraping is used. Search availability is
+independent of playback availability on the TV.

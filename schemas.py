@@ -234,3 +234,54 @@ TV_GAME_START = {
     ),
     "parameters": {"type": "object", "additionalProperties": False, "properties": {}},
 }
+
+TV_YOUTUBE_PLAY = {
+    "name": "tv_youtube_play",
+    "description": (
+        "Play a user-selected YouTube video on the configured Chromecast. Accepts an HTTPS "
+        "video link or exact video ID; no search API key is needed. For title requests use "
+        "library_youtube_search and show titles/channels for user selection. Report playback "
+        "only when verified=true with receiver_exact_video evidence. app_opened is not playing. "
+        "YouTube serves the video directly; no downloads or media relay. "
+        "Replaces the current TV app."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "video": {
+                "type": "string",
+                "description": "YouTube video link or 11-character video ID",
+            }
+        },
+        "required": ["video"],
+        "additionalProperties": False,
+    },
+}
+
+TV_YOUTUBE_PAUSE = {
+    "name": "tv_youtube_pause",
+    "description": (
+        "Pause the same YouTube video/media session verified by tv_youtube_play in this plugin "
+        "context. Never pauses a Jellyfin movie or unrelated video. Success requires fresh "
+        "PAUSED evidence for that video and session. Use tv_youtube_play to resume the same video."
+    ),
+    "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+}
+
+LIBRARY_YOUTUBE_SEARCH = {
+    "name": "library_youtube_search",
+    "description": (
+        "Find up to five YouTube videos by title using the official YouTube Data API. Optional: "
+        "requires YOUTUBE_API_KEY in Hermes secrets; direct-link playback needs no key. Return "
+        "titles, channels and video IDs. Show plausible matches and ask which one the user means; "
+        "never automatically play an ambiguous result. "
+        "Then use tv_youtube_play with the chosen ID. "
+        "Search does not prove a video is available on the TV."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 200}},
+        "required": ["query"],
+        "additionalProperties": False,
+    },
+}

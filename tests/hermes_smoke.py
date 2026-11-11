@@ -96,6 +96,9 @@ def main() -> None:
         "library_scene_save",
         "tv_scene_play",
         "tv_game_start",
+        "tv_youtube_play",
+        "tv_youtube_pause",
+        "library_youtube_search",
     ]
     assert [t["name"] for t in second.tools] == manifest_data["provides_tools"]
     status_tool, pick_tool, play_tool, pause_tool = 0, 1, 2, 3
@@ -285,6 +288,49 @@ def main() -> None:
         assert started["ok"] and not started["tv_verified"], started
         assert route.calls[0].request.headers["Authorization"] == "Bearer game-smoke-secret"
         assert "game-smoke-secret" not in json.dumps(started)
+    youtube = sys.modules[module.__name__ + ".hermes_screen.youtube"]
+    with patch.object(
+        youtube.YouTubePlayback,
+        "call",
+        return_value={
+            "ok": True,
+            "verified": True,
+            "evidence": "receiver_exact_video",
+            "video_id": "aqz-KE-bpKQ",
+            "state": "PLAYING",
+        },
+    ) as action:
+        played = json.loads(
+            dispatcher.dispatch(
+                "tv_youtube_play",
+                {"video": "https://youtu.be/aqz-KE-bpKQ"},
+                session_id="youtube-smoke",
+            )
+        )
+        assert played["verified"]
+        action.assert_called_once_with("192.0.2.50", "aqz-KE-bpKQ", pause=False)
+    token = set_secret_scope({"YOUTUBE_API_KEY": "youtube-search-private-key"})
+    try:
+        with respx.mock(assert_all_called=True) as router:
+            route = router.get("https://www.googleapis.com/youtube/v3/search").respond(
+                json={
+                    "items": [
+                        {
+                            "id": {"videoId": "aqz-KE-bpKQ"},
+                            "snippet": {"title": "Bunny", "channelTitle": "Blender"},
+                        }
+                    ]
+                }
+            )
+            found = json.loads(
+                dispatcher.dispatch(
+                    "library_youtube_search", {"query": "Bunny"}, session_id="youtube-smoke"
+                )
+            )
+            assert found["candidates"][0]["channel"] == "Blender"
+            assert route.calls[0].request.headers["X-Goog-Api-Key"] == "youtube-search-private-key"
+    finally:
+        reset_secret_scope(token)
     assert len(first.unload) == 1 and len(second.unload) == 1
     for callback in first.unload + second.unload:
         callback()

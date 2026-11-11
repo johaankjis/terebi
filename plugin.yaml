@@ -10,6 +10,9 @@ provides_tools:
   - library_scene_save
   - tv_scene_play
   - tv_game_start
+  - tv_youtube_play
+  - tv_youtube_pause
+  - library_youtube_search
 provides_hooks: []
 manifest_version: 2
 api_version: 1
@@ -69,3 +72,9 @@ config_schema:
     default: ""
     label: "Terebi Games Custom Receiver app ID"
     description: "Eight-character Google Cast Developer Console app ID. Register the Chromecast for unpublished testing. Blank keeps manual mirroring."
+
+  youtube_api_key:
+    type: secret
+    env: YOUTUBE_API_KEY
+    label: "YouTube Data API key (optional)"
+    description: "Enable title search with YouTube Data API v3. Direct video links need no key."

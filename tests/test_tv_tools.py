@@ -137,7 +137,7 @@ def assert_clean(result, receiver=None):
         assert receiver.content_id not in text
 
 
-def test_registers_four_tools_and_unload_hook(plugin):
+def test_registers_declared_tools_and_unload_hook(plugin):
     c = Ctx(free_port())
     plugin.register(c)
     assert list(c.tools) == [
@@ -149,6 +149,9 @@ def test_registers_four_tools_and_unload_hook(plugin):
         "library_scene_save",
         "tv_scene_play",
         "tv_game_start",
+        "tv_youtube_play",
+        "tv_youtube_pause",
+        "library_youtube_search",
     ]
     assert len(c.unload) == 1
     assert c.tools["tv_play"]["schema"]["parameters"]["required"] == ["item_id"]

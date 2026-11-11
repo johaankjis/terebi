@@ -11,6 +11,9 @@ PROVIDES_TOOLS = [
     "library_scene_save",
     "tv_scene_play",
     "tv_game_start",
+    "tv_youtube_play",
+    "tv_youtube_pause",
+    "library_youtube_search",
 ]
 
 
@@ -122,3 +125,23 @@ def register(ctx: Any) -> None:
         schema=schemas.TV_GAME_START,
         handler=tv_game_start,
     )
+
+    from . import youtube_tools
+    from .hermes_screen.youtube import YouTubePlayback
+
+    youtube_manager = YouTubePlayback()  # no sockets or threads until a tool call
+
+    def youtube_handler(method: str) -> Any:
+        def handler(args: dict, **kwargs: Any) -> str:
+            return youtube_tools.call(method, args, ctx=ctx, manager=youtube_manager)
+
+        return handler
+
+    for name, method, schema in (
+        ("tv_youtube_play", "play", schemas.TV_YOUTUBE_PLAY),
+        ("tv_youtube_pause", "pause", schemas.TV_YOUTUBE_PAUSE),
+        ("library_youtube_search", "search", schemas.LIBRARY_YOUTUBE_SEARCH),
+    ):
+        ctx.register_tool(
+            name=name, toolset="hermes_screen", schema=schema, handler=youtube_handler(method)
+        )

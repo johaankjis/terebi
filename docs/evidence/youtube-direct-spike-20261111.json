@@ -1,0 +1,192 @@
+{
+  "at": "2026-11-11T04:33:12.587591+00:00",
+  "video_id": "aqz-KE-bpKQ",
+  "host": "192.168.0.134",
+  "pychromecast": "14.1.1",
+  "events": [
+    {
+      "stage": "connected",
+      "elapsed_s": 0.077,
+      "app_id": "B94F303E"
+    },
+    {
+      "stage": "play_video_returned",
+      "elapsed_s": 4.656,
+      "app_id": "233637DE"
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 4.656,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 5.656,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 6.657,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 7.657,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 8.657,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 9.658,
+      "app_id": "233637DE",
+      "content_id": null,
+      "player_state": "IDLE",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 10.658,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 11.658,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 12.659,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": null,
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 13.659,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 14.659,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 15.66,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 16.66,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "BUFFERING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 0
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 17.661,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "PLAYING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 1.114
+    },
+    {
+      "stage": "media_status",
+      "elapsed_s": 18.661,
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "player_state": "PLAYING",
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+      "current_time": 1.114
+    }
+  ],
+  "pause": {
+    "at": "2026-11-11T04:33:55.486727+00:00",
+    "before": {
+      "app_id": "233637DE",
+      "content_id": "aqz-KE-bpKQ",
+      "state": "PLAYING",
+      "position_s": 27.109,
+      "media_session_id": 1712781726
+    },
+    "after": {
+      "content_id": "aqz-KE-bpKQ",
+      "state": "PAUSED",
+      "position_s": 27.368,
+      "same_session": true
+    }
+  },
+  "screen_observation": "pending user confirmation; API evidence only",
+  "implementation_device_check": {
+    "play": {
+      "ok": true,
+      "verified": true,
+      "evidence": "receiver_exact_video",
+      "video_id": "aqz-KE-bpKQ",
+      "state": "PLAYING",
+      "media_session_id": 1712781726,
+      "position_s": 28.138,
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film"
+    },
+    "pause": {
+      "ok": true,
+      "verified": true,
+      "evidence": "receiver_exact_video",
+      "video_id": "aqz-KE-bpKQ",
+      "state": "PAUSED",
+      "media_session_id": 1712781726,
+      "position_s": 28.83,
+      "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film"
+    }
+  }
+}

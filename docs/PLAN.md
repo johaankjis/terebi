@@ -4,7 +4,30 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: direct Chromecast game launch
+## Current slice: YouTube on Den TV
+
+User-authorized branch `feat/youtube-playback`, from origin/main
+`8771b8853129aa8cbb0f52f9b263074c91a02211` (PR #7 merged).
+
+- [x] Probe installed PyChromecast 14.1.1 YouTube controller on Den TV only.
+  Requested `aqz-KE-bpKQ`; receiver reported exact ID + official title + PLAYING,
+  then PAUSED in the same media session. Physical screen confirmation pending.
+- [x] Direct-link/ID tool with exact fresh receiver evidence and bounded control.
+- [x] Separate ownership-checked YouTube pause; preserve Jellyfin/movie and game tools.
+- [x] Optional official YouTube Data API title/channel choices, Hermes-scoped key;
+  direct links work without that key. No scraping/downloading/media proxy.
+- [x] Full Python suite: 924 passed; Ruff; official Hermes v0.22.0 doctor
+  (11 tools / 0 hooks), validation and real loader/dispatcher smoke passed.
+- [ ] Telegram link request with Mac mirroring off; user confirms actual video.
+- [ ] Live title request if an optional search key is configured.
+- [ ] Switch to Jellyfin movie and launch rock-paper-scissors after YouTube.
+- [ ] One draft PR with exact tested SHA and honest live evidence; leave unmerged.
+
+Live gates: YouTube search key is unconfigured; the isolated game gateway has no
+Jellyfin settings/key for the post-YouTube movie check. Obtain any needed key only
+through the private secret card. Never extract secrets from a running process.
+
+## Previous slice: direct Chromecast game launch
 
 User-authorized branch `feat/chromecast-game-launch`, from verified clean
 origin/main `19e2344ca6dd5c671855036a0c1a93b3d0b71d77` (RPS PR #6 merged).

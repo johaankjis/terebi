@@ -439,3 +439,24 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   SDK CSP/hosting on Gen 2, matching render acknowledgement, persistence after
   sender disconnect/Mac closed, game round, TV wake/input and subsequent movie
   playback. User must complete registration and deploy the receiver build first.
+
+
+## YouTube Cast spike — 2026-11-11
+
+- VERIFIED installed source: PyChromecast **14.1.1**, `controllers/youtube.py`:
+  `YouTubeController.play_video` uses `TimeoutYouTubeSession`; media controller
+  provides playback state/pause. Upstream source checked at
+  https://github.com/home-assistant-libs/pychromecast/blob/14.1.1/pychromecast/controllers/youtube.py .
+- VERIFIED source: casttube's play path exchanges MDX/lounge control requests;
+  queue HTML parsing is a separate unused helper. No media URL extraction required.
+- VERIFIED hardware/API: Den TV Gen 2 `192.168.0.134`, public video `aqz-KE-bpKQ`.
+  YouTube app `233637DE`; exact content ID BUFFERING then PLAYING at 17.661 seconds
+  after connection, official Blender title, position 1.114 seconds. A subsequent
+  direct pause confirmed PAUSED at 27.368 seconds, same session `1712781726`.
+  Evidence in `docs/evidence/youtube-direct-spike-20261111.json`.
+- UNVERIFIED physical: user observation of this video, Mac-mirroring state, Telegram
+  link test, title search with a real key, post-YouTube Jellyfin/movie and game launch.
+- VERIFIED current official docs fetched: search.list supports `part=snippet`,
+  `type=video`, `maxResults`, `q`, `safeSearch` and returns video IDs/title/channel.
+  https://developers.google.com/youtube/v3/docs/search/list . Search is optional;
+  video availability/age/region restrictions remain a receiver/live observation.

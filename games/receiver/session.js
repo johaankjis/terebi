@@ -3,20 +3,54 @@ export const NAMESPACE = 'urn:x-cast:com.terebi.games';
 const PHASES = new Set(['waiting_for_player','ready','countdown','reveal','score','next_round']);
 const opaque = value => typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value);
 
-export function installSessions(context, startDisplay, {afterPaint = fn => requestAnimationFrame(() => requestAnimationFrame(fn)), ended = () => {}} = {}) {
-  let generation = 0, stopDisplay = null, expiryTimer = null;
+export async function confirmEnded(credentials) {
+  const request = new AbortController();
+  const timeout = setTimeout(() => request.abort(), 4000);
+  try {
+    const response = await fetch(`/v1/sessions/${encodeURIComponent(credentials.id)}`, {
+      headers: {Authorization: `Bearer ${credentials.token}`},
+      cache: 'no-store', signal: request.signal,
+    });
+    const data = await response.json();
+    return data.ok === false && ((response.status === 410 &&
+      ['session_ended','session_expired'].includes(data.reason)) ||
+      (response.status === 404 && data.reason === 'session_missing'));
+  } catch { return false; }
+  finally { clearTimeout(timeout); }
+}
+
+export function installSessions(context, startDisplay, {verifyEnded = confirmEnded, afterPaint = fn => requestAnimationFrame(() => requestAnimationFrame(fn)), ended = () => {}} = {}) {
+  let generation = 0, stopDisplay = null, expiryTimer = null, active = null;
   function clear() {
-    generation++;
+    generation++; active = null;
     stopDisplay?.(); stopDisplay = null;
     clearTimeout(expiryTimer); expiryTimer = null;
   }
-  function receive(event) {
+  async function receive(event) {
     const data = event.data;
     if (!data || typeof data !== 'object' || Array.isArray(data) ||
         Object.keys(data).sort().join(',') !== 'display_token,request_id,session_id,type' ||
-        data.type !== 'SHOW_SESSION' || !opaque(data.session_id) || !opaque(data.display_token) || !opaque(data.request_id) ||
+        !['SHOW_SESSION','END_SESSION'].includes(data.type) || !opaque(data.session_id) || !opaque(data.display_token) || !opaque(data.request_id) ||
         typeof event.senderId !== 'string' || !event.senderId) return;
+    if (data.type === 'END_SESSION') {
+      const current = generation;
+      if (!active || active.id !== data.session_id || active.token !== data.display_token) {
+        try { context.sendCustomMessage(NAMESPACE, event.senderId, {
+          type: active ? 'SESSION_NOT_CURRENT' : 'SESSION_UNKNOWN',
+          session_id: data.session_id, request_id: data.request_id,
+        }); } catch { /* disconnected */ }
+        return;
+      }
+      // A viewer credential cannot end a live game. The service must already revoke it.
+      const revoked = await verifyEnded(active);
+      if (!revoked || current !== generation || !active || active.id !== data.session_id) return;
+      try { context.sendCustomMessage(NAMESPACE, event.senderId, {
+        type: 'SESSION_ENDING', session_id: data.session_id, request_id: data.request_id,
+      }); } catch { /* closure is confirmed by the sender's receiver status */ }
+      clear(); ended(); return;
+    }
     clear();
+    active = {id: data.session_id, token: data.display_token};
     const current = generation;
     let lastRevision = -1, latestRevision = -1;
     stopDisplay = startDisplay({id: data.session_id, token: data.display_token}, {

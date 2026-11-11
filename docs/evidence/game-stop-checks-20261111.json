@@ -1,0 +1,79 @@
+{
+  "baseline_commit": "63b9e1500484da751d7bba54c540c3e427332f0b",
+  "automated": {
+    "python_tests": 943,
+    "camera_js_tests": 73,
+    "receiver_display_js_tests": 27,
+    "ruff": "passed",
+    "camera_asset_build": "passed",
+    "hermes_version": "v0.22.0",
+    "doctor": "12 tools / 0 hooks",
+    "validate": "passed",
+    "dispatcher_smoke": "mocked Cast start -> end -> repeated end"
+  },
+  "phone_browser_fixture": {
+    "browser": "Chromium 156 mobile touch viewport; synthetic local camera/predictions; not real iPhone",
+    "before": {
+      "disabled": false,
+      "practice": true,
+      "startDisabled": true,
+      "seen": [
+        "rock",
+        "paper",
+        "scissors"
+      ],
+      "stream": [
+        "live"
+      ]
+    },
+    "noHand": {
+      "x": 31,
+      "y": 760.5,
+      "width": 328,
+      "height": 68
+    },
+    "recognized": {
+      "x": 31,
+      "y": 760.5,
+      "width": 328,
+      "height": 68
+    },
+    "after": {
+      "handlerCalls": 1,
+      "practice": false,
+      "startDisabled": false,
+      "stream": [
+        "live"
+      ],
+      "frameLoopRunning": true
+    },
+    "nextCalls": 1,
+    "ended": {
+      "title": "Game ended",
+      "camera": "off",
+      "tracks": [
+        "ended"
+      ],
+      "loop": false,
+      "session": null
+    },
+    "freshPairing": true,
+    "errors": []
+  },
+  "user_report": {
+    "practice_completion": "works on real iPhone Safari"
+  },
+  "live_stop_acceptance": {
+    "status": "pending deployment and user test",
+    "tv_artwork": "unverified",
+    "music_stopped": "unverified",
+    "physical_iphone_camera_indicator_off": "unverified",
+    "new_game_pairing": "unverified",
+    "hardware_commands_sent_for_stop": false
+  },
+  "scanner_cautions": [
+    "existing LAN media bind_all_interfaces",
+    "generated MediaPipe proc_access",
+    "compose tunnel_service"
+  ]
+}

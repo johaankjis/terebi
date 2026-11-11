@@ -285,3 +285,23 @@ LIBRARY_YOUTUBE_SEARCH = {
         "additionalProperties": False,
     },
 }
+
+
+TV_GAME_STOP = {
+    "name": "tv_game_stop",
+    "description": (
+        "Use when the user says Stop the game or Exit rock-paper-scissors. End only the active "
+        "game recorded for this caller's Hermes conversation, revoke its pairing/player/display "
+        "links and ask its matching Terebi receiver to exit. Phone polling ends the game and "
+        "releases the camera; display cleanup stops music. Safe to repeat. Never stops YouTube, "
+        "Jellyfin or a newer game. game_ended and tv_verified are separate: only report the TV "
+        "returned home when tv_verified is true with receiver_backdrop evidence. If the service "
+        "ended but receiver closure is unverified, say so explicitly."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": False,
+    },
+}

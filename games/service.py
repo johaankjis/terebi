@@ -181,11 +181,24 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(
                         self.server.store.create(body["request_key"], self.server.public_url)
                     )
+                ending = re.fullmatch(r"/v1/sessions/([A-Za-z0-9_-]{16,64})/end", path)
+                if ending:
+                    if not self._token().isascii() or not hmac.compare_digest(
+                        self._token(), self.server.admin_token
+                    ):
+                        raise GameError(401, "unauthorized", "End games through Hermes.")
+                    body = self._body()
+                    if set(body) != {"request_key"}:
+                        raise GameError(400, "invalid_request", "Supply only request_key.")
+                    return self._json(self.server.store.end(ending[1], body["request_key"]))
                 body = self._body()
                 if path == "/v1/pair":
                     if set(body) != {"pair_token"}:
                         raise GameError(400, "invalid_request", "Supply only the pairing token.")
                     return self._json(self.server.store.pair(body["pair_token"]))
+                match = re.fullmatch(r"/v1/sessions/([A-Za-z0-9_-]{16,64})/profile", path)
+                if match:
+                    return self._json(self.server.store.profile(match[1], self._token(), body))
                 match = re.fullmatch(
                     r"/v1/sessions/([A-Za-z0-9_-]{16,64})/(next|retry|move|tap)", path
                 )

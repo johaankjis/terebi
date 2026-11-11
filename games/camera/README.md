@@ -84,3 +84,35 @@ loading stage, inference/model error and stale predictions have separate local
 status. Practice sends no moves. After practice, the existing Shoot window is
 shown as local sample counts; Retry remains mandatory for uncertain decisions.
 See `docs/GAMES_RPS.md` for real-iPhone acceptance and deployment steps.
+
+
+### Completing practice
+
+After the three checkmarks appear, tap “Practice complete — use camera in rounds”.
+Start round comes into view; the camera preview and recognition stay on. Changing
+diagnostic text is below both camera buttons so it cannot shift them during a tap.
+
+Optional browser regression (requires developer-installed Playwright Core and
+Chromium; no new application dependency):
+
+```sh
+TEREBI_PLAYWRIGHT_MODULE=/path/to/playwright-core/index.mjs \
+TEREBI_CHROMIUM=/path/to/chrome \
+node games/camera/browser/practice.mjs
+```
+
+Run from the repository root. It serves the actual source through intercepted
+browser routes, uses synthetic local video/predictions, and changes the diagnostic
+mid-touch. It checks initial disabled state, three checks, stable target, one
+completion handler call, practice exit, focused/enabled Start round, live camera,
+retained inference and one next request. It does not test real Safari or model
+accuracy. `TEREBI_BROWSER_EVIDENCE=/path/result.json` optionally saves the report.
+
+
+### Telegram exit
+
+On a server-ended session (410), the phone shows Game ended, stops every camera
+track and inference, and clears stored pairing. A new Telegram pairing link works
+in a reused tab: fragment navigation reloads through normal startup. The optional
+browser harness also checks this terminal path and fresh pairing with synthetic
+local media. Real camera-indicator confirmation remains a user/device check.

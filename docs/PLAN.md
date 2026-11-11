@@ -4,7 +4,106 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: TV background music for the RPS game
+## Current slice: Telegram game exit (PR #10)
+
+User confirmed the practice completion fix works on the real iPhone. Keep PR #10
+unmerged for the stop-game live check.
+
+- [x] Native `tv_game_stop` for “Stop the game” / “Exit rock-paper-scissors”.
+- [x] Store the exact game/caller association in profile state; authenticated
+  exact-SID service end, owner check, revoked links, bounded retry tombstones.
+- [x] Phone terminal polling shows Game ended and releases camera/inference.
+  Handle a fresh pairing fragment in a reused tab with clean startup.
+- [x] Matching receiver checks its own session/capability and server revocation
+  before exiting. No platform STOP; preserve other apps and newer games.
+- [x] Repeat stop safely; separate game_ended from verified artwork/home receiver.
+- [x] Tests: 943 Python, 73 camera JS, 27 display/receiver JS; browser fixture for
+  camera release + fresh pairing; asset build, Ruff, Hermes doctor (12 tools),
+  validation and real dispatcher start/stop/repeat smoke pass.
+- [ ] Deploy exact source commit to ZimaOS and load same source in isolated bot.
+- [ ] Live Den TV: start/pair/begin round -> Telegram stop -> artwork, music off,
+  phone camera indicator off -> new game pairs again. Physical results pending.
+
+Details and acceptance checklist: [GAMES_STOP.md](GAMES_STOP.md).
+
+## Previous slice: practice completion tap (PR #10)
+
+- [x] Verify clean PR #10 head `aba93c6` and live main.js matches source.
+- [x] Reproduce an enabled completion button moving ~25.6px during a touch when
+  diagnostic text rewraps. In a lower-edge mobile Chromium tap, completion handler
+  calls = 0 and the touch activates Stop camera. Synthetic stream/predictions only;
+  this does not establish the exact real Safari failure.
+- [x] Put changing diagnostics after camera controls; retain native click handling.
+  On completion render immediately, focus/scroll Start round, preserve camera and
+  inference loop. Avoid redundant disabled/hidden writes for completion control.
+- [x] Browser regression: disabled until checks complete, button stays in place,
+  one handler call, practice false, Start round enabled/focused, camera track live,
+  inference loop retained, and one next request.
+- [x] 72 camera tests, 22 receiver/display tests, 928 Python tests, camera asset build,
+  Ruff and official Hermes doctor (11 tools / 0 hooks) pass.
+- [x] User confirmed practice completion works on the real iPhone Safari.
+  No host shell/Docker access in T3; provide archive + ZimaOS commands. Keep PR draft.
+
+## Previous slice: RPS motion and rendering polish (PR #10)
+
+User tested `7cf12ac` on Den TV: works, but animations and 3D hands look rough.
+Polish in the existing draft PR #10; keep server-driven pairing, countdown, scoring,
+phone controls and music.
+
+- [x] Smooth baked hand meshes with soft shading; one draw call per hand.
+- [x] Waiting: faster cloud drift, seamless two-layer lake shimmer, sparkles, larger
+  staggered sphere float, drifting glass reflection, breathing phone icon with rings.
+- [x] Phone connected as one transition: ripple from the phone badge, phone → glass
+  check, spheres and panels ease in, “Phone connected” crossfades to “Ready”. Once
+  per pairing, still triggered only by the server's paired snapshot.
+- [x] Countdown: locally timed beats exactly 1 s apart, one clean pulse per beat.
+- [x] Reveal: moves hidden until resolved; both hands turn in together with a soft
+  bounce; banner, names, score and winner arrive after they land.
+- [x] Levels: full → lite → still by measured frame timing; compositor hand motion
+  when a WebGL turn is slow; static fallback kept.
+- [x] On-device profile: footer mode + fps, `display_profile` audit rows.
+- [x] Checks: **928 Python tests**, **71 camera JS tests**, **22 receiver/display JS
+  tests**, Ruff clean, Hermes doctor (11 tools, 0 hooks).
+- [x] Before/after clip of Waiting → Phone connected → Countdown → Reveal
+  ([evidence/rps-aero](evidence/rps-aero/)), frame-stepped in headless Chrome.
+- [ ] **Profile on Den TV: not done.** The Chromecast was off (no Cast ports open)
+  for the whole pass. Needs: redeploy this branch, start a game, read the footer
+  and the `display_profile` rows.
+- [ ] Verify the improvement on a real camera round on Den TV; record render mode.
+
+## Previous slice: Frutiger Aero redesign of the RPS game (TV + iPhone)
+
+User-authorized branch `feat/rps-frutiger-aero`, separate worktree, based on
+`feat/game-music` `721a328` (music PR #9 still open and absent from main), so the
+soundtrack is included. Draft PR, leave unmerged.
+
+- [x] One layered TV renderer for the Cast receiver and the manual display:
+  `view.js` (pure phase → view rules), `scene.js` (sky, clouds, hills, lake, bubbles,
+  glass spheres, score panels, banner), `hands.js` (procedural 3D glove hands),
+  `style.css`. No new dependency, no asset files, no new served file types.
+- [x] Ambient loops (clouds, lake shimmer, bubbles, sphere float, glass glint) with
+  staggered periods; calmed during Countdown/Shoot/Reveal; paused when the page is
+  hidden; still scene for reduced motion and slow devices.
+- [x] Waiting → Phone connected (once per pairing) → Ready → 3, 2, 1, Shoot →
+  Reveal/score → Try again / Next round. Server timing, scoring and pairing unchanged.
+- [x] Static fallback: same moves, labels, countdown and scores; Canvas 2D hands when
+  WebGL is missing. Footer shows `3D` or `Static` so the TV reports which one ran.
+- [x] iPhone controller restyled (CSS only; camera, recognition, tap fallback and
+  controller logic untouched).
+- [x] Checks: **926 Python tests**, **71 camera JS tests**, **15 receiver/display JS
+  tests**, Ruff clean, Hermes doctor (11 tools, 0 hooks). Headless Chrome 156 run
+  against the real local service for screenshots/recording in
+  [evidence/rps-aero](evidence/rps-aero/).
+- [ ] Deploy this branch's game container on ZimaOS (user-run; T3 has no host shell).
+- [ ] Early Den TV Chromecast Gen 2 check: does it hold the ambient loops, and does
+  the footer say `3D` or `Static`? **Not tested: nothing in this slice has run on
+  the real Chromecast yet.**
+- [ ] Live acceptance from Telegram with the Mac closed: animated Waiting before
+  pairing, connection animation exactly once, camera round with smooth countdown,
+  both hands together, one score update, music continuous. Record tested commit and
+  3D/static.
+
+## Previous slice: TV background music for the RPS game
 
 User-authorized branch `feat/game-music`, from origin/main
 `e80cea5075de9d1f0a6eed005ec95917943d8af7` (YouTube PR #8 merged).

@@ -15,6 +15,15 @@ PAIR_TTL = 180
 SESSION_TTL = 1800
 COUNTDOWN = 3
 ACCEPT_WINDOW = 10
+PROFILE_LIMIT = 32
+PROFILE_CHOICES = {
+    "mode": {"3d", "static"},
+    "tier": {"full", "lite", "still"},
+    "turn": {"gl", "css"},
+}
+# Frame-timing windows: [frames, mean ms, worst ms, slow frames]; hand: [frames, mean, worst];
+# screen: [width, height, device pixel ratio x100].
+PROFILE_NUMBERS = {"ambient": 4, "pairing": 4, "countdown": 4, "reveal": 4, "hand": 3, "screen": 3}
 
 
 class GameError(Exception):
@@ -50,7 +59,7 @@ class GameStore:
         self.sessions: dict[str, dict] = {}
         self.lock = threading.RLock()
 
-    def _event(self, s: dict, kind: str, now: float) -> None:
+    def _event(self, s: dict, kind: str, now: float, extra: dict | None = None) -> None:
         if self.audit is None:
             return
         row = {
@@ -64,6 +73,8 @@ class GameStore:
             "phase": s["phase"],
             "score": dict(s["score"]),
         }
+        if extra:
+            row.update(extra)
         if s["result"]:
             row["result"] = {
                 k: s["result"][k] for k in ("player_move", "hermes_move", "outcome", "input")
@@ -90,9 +101,20 @@ class GameStore:
             now = self.clock()
             self._purge(now)
             session = next(
-                (s for s in self.sessions.values() if s["request_key"] == request_key), None
+                (
+                    s
+                    for s in self.sessions.values()
+                    if s["request_key"] == request_key and not s.get("ended")
+                ),
+                None,
             )
             if session is None:
+                # Ended sessions are retry tombstones, not active capacity. Evict one
+                # only when needed; a missing old SID is still a safe idempotent end.
+                if len(self.sessions) >= self.capacity:
+                    old = next((sid for sid, v in self.sessions.items() if v.get("ended")), None)
+                    if old is not None:
+                        del self.sessions[old]
                 require(len(self.sessions) < self.capacity, "capacity", "Try again later.", 429)
                 session = {
                     "id": secrets.token_urlsafe(18),
@@ -112,6 +134,7 @@ class GameStore:
                     "move": None,
                     "nonce": None,
                     "commitment": None,
+                    "profiles": 0,
                     "score": {"player": 0, "hermes": 0, "ties": 0, "rounds": 0},
                 }
                 self.sessions[session["id"]] = session
@@ -131,6 +154,43 @@ class GameStore:
                 "display_url": f"{base}/display/#session={session['id']}&token={session['viewer']}",
                 "state": self._snapshot(session, now),
             }
+
+    def end(self, sid: str, request_key: str) -> dict:
+        """Admin-only exact-session end. Retain a bounded expiry tombstone for retries."""
+        require(
+            isinstance(request_key, str)
+            and request_key.isascii()
+            and 16 <= len(request_key) <= 128,
+            "invalid_request",
+            "Supply the caller's opaque request key.",
+            400,
+        )
+        with self.lock:
+            now = self.clock()
+            self._purge(now)
+            s = self.sessions.get(sid)
+            if s is None:
+                return {"ok": True, "session_id": sid, "ended": True, "already_ended": True}
+            require(
+                hmac.compare_digest(s["request_key"], request_key),
+                "session_owner_mismatch",
+                "This session belongs to another conversation.",
+                403,
+            )
+            already = bool(s.get("ended"))
+            if not already:
+                s.update(
+                    ended=True,
+                    phase="ended",
+                    pair=None,
+                    deadline=None,
+                    accept_until=None,
+                    move=None,
+                    nonce=None,
+                )
+                s["revision"] += 1
+                self._event(s, "session_ended", now)
+            return {"ok": True, "session_id": sid, "ended": True, "already_ended": already}
 
     def _round(self, s: dict) -> None:
         s["round_number"] += 1
@@ -196,6 +256,9 @@ class GameStore:
             "Open your session link again.",
             401,
         )
+        require(
+            not s.get("ended"), "session_ended", "Game ended. Start a new game in Telegram.", 410
+        )
         self._advance(s, now)
         return s, now
 
@@ -233,6 +296,34 @@ class GameStore:
         with self.lock:
             s, now = self._session(sid, token)
             return {"ok": True, "state": self._snapshot(s, now)}
+
+    def profile(self, sid: str, token: str, body: dict) -> dict:
+        """Record what a display measured about its own rendering. Numbers only; no game effect."""
+        with self.lock:
+            s, now = self._session(sid, token)
+            require(
+                isinstance(body, dict)
+                and set(PROFILE_CHOICES) | {"screen"}
+                <= set(body)
+                <= set(PROFILE_CHOICES) | set(PROFILE_NUMBERS),
+                "invalid_request",
+                "Send only the display's render mode and frame timings.",
+                400,
+            )
+            for key, value in body.items():
+                if key in PROFILE_CHOICES:
+                    valid = isinstance(value, str) and value in PROFILE_CHOICES[key]
+                else:
+                    valid = (
+                        isinstance(value, list)
+                        and len(value) == PROFILE_NUMBERS[key]
+                        and all(type(v) is int and 0 <= v <= 60000 for v in value)
+                    )
+                require(valid, "invalid_request", "Send bounded render timings only.", 400)
+            require(s["profiles"] < PROFILE_LIMIT, "profile_limit", "Enough timings recorded.", 429)
+            s["profiles"] += 1
+            self._event(s, "display_profile", now, {"profile": dict(body)})
+            return {"ok": True}
 
     def act(self, sid: str, token: str, action: str, body: dict) -> dict:
         with self.lock:

@@ -1,1 +1,355 @@
-:root{font-family:ui-rounded,"Trebuchet MS",system-ui,sans-serif;color:#073455;background:#42bce9;color-scheme:light}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% 20%,#fff9 0 8%,transparent 30%),radial-gradient(ellipse at 85% 40%,#efffffaa 0 10%,transparent 35%),linear-gradient(165deg,#007fe3 0%,#65dbef 56%,#bffad1 100%);overflow:hidden}body:before{content:"";position:fixed;bottom:-32vh;left:-10vw;width:130vw;height:48vh;border-radius:50%;background:linear-gradient(#b8ec87,#3eae62);box-shadow:0 -6px 20px #fff9;z-index:0}main{position:relative;z-index:1;max-width:1600px;margin:auto;padding:3vh 5vw;min-height:100vh;display:flex;flex-direction:column;gap:2.2vh}header,footer{display:flex;justify-content:space-between;align-items:center;gap:2rem}header{height:7vh}.brand{font-size:clamp(1.5rem,3vw,3.5rem);color:#fff;text-shadow:0 2px 4px #005277}.brand b{font-weight:400}.orb{display:inline-grid;place-items:center;width:1.5em;height:1.5em;border-radius:50%;background:linear-gradient(#ffffffb0,#85e8ff20 50%,#0077b6);box-shadow:inset 0 2px 2px #fff,0 5px 15px #00628b60}button{font:inherit;font-weight:700;color:#073455;border:1px solid #ffffffc0;border-radius:24px;padding:.7em 1.6em;cursor:pointer;background:linear-gradient(#fff,#d3f8ff 45%,#76d6ef 48%,#c9f6ff);box-shadow:inset 0 2px 0 #fff,0 4px 10px #00609045}button:focus-visible{outline:4px solid #124f9d;outline-offset:4px}.glass{border:1px solid #ffffffd0;border-radius:30px;background:linear-gradient(140deg,#ffffffd9,#efffffab);box-shadow:inset 0 2px 2px #fff,0 14px 36px #00629a33;backdrop-filter:blur(12px)}.stage{flex:1;min-height:48vh;text-align:center;padding:2vh 3vw}.eyebrow{font-size:clamp(1rem,1.7vw,2rem);letter-spacing:.15em;color:#205773;margin:.6vh}h1{font-size:clamp(3rem,7vw,8rem);line-height:1;margin:2vh 0 1vh;letter-spacing:-.03em}body[data-phase="countdown"] h1{font-size:clamp(4rem,13vw,12rem);color:#066d9f;text-shadow:0 4px #fff}#guidance{font-size:clamp(1.2rem,2.3vw,2.5rem);margin:1.2vh}#moves{display:flex;justify-content:center;align-items:center;gap:6vw;margin:1vh 0}#moves[hidden]{display:none}#moves div:not(.versus){min-width:24vw}#moves span{display:block;font-weight:700;letter-spacing:.2em;font-size:1.2rem}#moves strong{font-size:clamp(2rem,4vw,5rem);display:block}.versus{font-size:2rem;color:#517a84}#result{font-size:clamp(1.5rem,3vw,3rem);font-weight:700;margin:1vh}#input{margin:0;font-size:1rem}.scores{display:grid;grid-template-columns:1fr .7fr 1fr;gap:2vw;text-align:center}.scores>div{padding:1vh}.scores span{display:block;letter-spacing:.18em;font-size:1.3rem;font-weight:700}.scores strong{display:block;font-size:clamp(3rem,6vw,6rem);line-height:1.1}.scores .ties{background:#ffffff98}footer{font-size:clamp(.9rem,1.3vw,1.5rem);font-weight:700;padding:0 .5vw;color:#0c4834}@media(max-width:650px){main{padding:2vh 3vw}header{height:auto}.brand{font-size:1.5rem}button{padding:.4em .8em}.stage{min-height:45vh}.scores span{font-size:1rem}footer{flex-direction:column;gap:.3em}.glass{border-radius:20px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto;animation:none!important;transition:none!important}}
+/* Terebi Games on the TV: Frutiger Aero sky, hills and lake behind liquid glass.
+   Layers, back to front: sky + clouds, land + lake effects, bubbles, stage (glass, hands, text).
+   1rem is 1% of a 16:9 stage, so the layout is identical at 720p and 1080p.
+
+   Motion rules, chosen for a Chromecast Gen 2:
+   - only transform and opacity ever animate, each on its own layer; no width/height,
+     no backdrop-filter, no filters, nothing that repaints or lays out mid-round
+   - every loop starts and ends in the same state (or off screen), so none of them jumps
+   - loops use unrelated periods, so the screen never moves in step
+   - data-tier="lite" drops the lake and glass effects; data-motion="still" drops all motion */
+html { font-size: 1vw; font-size: min(1vw, 1.7778vh); }
+* { box-sizing: border-box; }
+body { margin: 0; overflow: hidden; background: #1e8ff0; }
+[hidden] { display: none !important; }
+
+.tv {
+  position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; overflow: hidden;
+  font-family: "Helvetica Neue", Helvetica, Arial, Roboto, "Noto Sans", "Liberation Sans", sans-serif;
+  color: #0a3a78;
+  background: linear-gradient(180deg, #1687ee 0%, #3fa9f6 30%, #8fd6fc 52%, #d8f4ff 66%);
+}
+
+/* ---- sky ---- */
+.sky, .bubbles { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+.sun {
+  position: absolute; left: -18vw; top: -30vh; width: 70vw; height: 70vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.75) 0%, rgba(255,255,255,.28) 28%, rgba(255,255,255,0) 62%);
+}
+/* A cloud enters and leaves off screen, so its loop has no visible seam. */
+.cloud { position: absolute; left: 0; opacity: .95; will-change: transform; animation: drift linear infinite; }
+.c1 { top: 3vh;  width: 30vw; height: 12.75vw; animation-duration: 97s;  animation-delay: -18s; }
+.c2 { top: 20vh; width: 20vw; height: 8.5vw; opacity: .8;  animation-duration: 139s; animation-delay: -92s; }
+.c3 { top: 9vh;  width: 24vw; height: 10.2vw; animation-duration: 113s; animation-delay: -68s; }
+.c4 { top: 31vh; width: 17vw; height: 7.2vw; opacity: .7;  animation-duration: 163s; animation-delay: -39s; }
+.c5 { top: 26vh; width: 22vw; height: 9.35vw; opacity: .85; animation-duration: 127s; animation-delay: -115s; }
+@keyframes drift { from { transform: translateX(-32vw); } to { transform: translateX(102vw); } }
+
+/* ---- land: the lower half of a 16:9 picture that always covers the screen ---- */
+.land {
+  position: absolute; left: 50%; bottom: 0; width: 100vw; min-width: 177.78vh; height: 28.125vw; min-height: 50vh;
+  transform: translateX(-50%); pointer-events: none;
+}
+.land-art { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.lake-fx { position: absolute; left: 0; top: 35%; width: 100%; height: 38.5%; overflow: hidden; transition: opacity 1.1s ease; }
+/* Shimmer: two bands of light sliding across the water at different speeds. Each layer is
+   twice as wide as the lake and repeats every half, so sliding it by half is seamless. */
+.shimmer { position: absolute; left: 0; top: 0; width: 200%; height: 100%; will-change: transform; background-repeat: repeat-x; }
+.s1 {
+  background-image: linear-gradient(105deg, rgba(255,255,255,0) 18%, rgba(255,255,255,.42) 34%, rgba(255,255,255,0) 46%, rgba(255,255,255,.26) 60%, rgba(255,255,255,0) 76%);
+  background-size: 50% 100%; animation: slide 23s linear infinite;
+}
+.s2 {
+  top: 8%; height: 84%; opacity: .75; animation: slide 37s linear infinite reverse;
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,0) 8%, rgba(255,255,255,.55) 22%, rgba(255,255,255,0) 36%),
+    linear-gradient(90deg, rgba(255,255,255,0) 40%, rgba(255,255,255,.45) 58%, rgba(255,255,255,0) 74%),
+    linear-gradient(90deg, rgba(255,255,255,0) 14%, rgba(255,255,255,.5) 30%, rgba(255,255,255,0) 48%),
+    linear-gradient(90deg, rgba(255,255,255,0) 52%, rgba(255,255,255,.4) 70%, rgba(255,255,255,0) 90%);
+  background-size: 25% .3rem; background-position: 0 8%, 0 36%, 0 63%, 0 92%;
+}
+@keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.spark {
+  position: absolute; width: 1.5rem; height: 1.5rem; opacity: 0; will-change: transform, opacity;
+  background: radial-gradient(circle, #fff 0, rgba(255,255,255,.85) 18%, rgba(255,255,255,0) 62%);
+  animation: twinkle ease-in-out infinite;
+}
+.k1 { left: 14%; top: 30%; animation-duration: 3.7s; } .k2 { left: 33%; top: 62%; animation-duration: 5.3s; animation-delay: -2s; }
+.k3 { left: 52%; top: 22%; animation-duration: 4.3s; animation-delay: -1s; } .k4 { left: 67%; top: 55%; animation-duration: 6.1s; animation-delay: -4s; }
+.k5 { left: 82%; top: 34%; animation-duration: 4.9s; animation-delay: -3s; } .k6 { left: 92%; top: 70%; animation-duration: 3.9s; animation-delay: -1.5s; }
+@keyframes twinkle { 0%, 62%, 100% { transform: scale(.3); opacity: 0; } 78% { transform: scale(1.25); opacity: .95; } }
+.sweep {
+  position: absolute; left: 33%; top: 0; width: 34%; height: 100%; opacity: 0;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.7) 50%, rgba(255,255,255,0));
+}
+.rippling .sweep { animation: sweep 1.7s cubic-bezier(.2,.6,.3,1) .25s 1 both; }
+@keyframes sweep { 0% { transform: scaleX(.2); opacity: 0; } 25% { opacity: .85; } 100% { transform: scaleX(3.2); opacity: 0; } }
+
+/* ---- bubbles: rise from below the screen to above it ---- */
+.bubbles { transition: opacity 1.1s ease; }
+.bub { position: absolute; bottom: -8vh; will-change: transform; animation: rise linear infinite; }
+.bub i {
+  display: block; width: 100%; height: 100%; border-radius: 50%;
+  border: .1rem solid rgba(255,255,255,.75);
+  background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.95) 0, rgba(255,255,255,.25) 22%, rgba(180,235,255,.12) 55%, rgba(255,255,255,.4) 100%);
+  animation: sway ease-in-out infinite alternate;
+}
+.b1 { left: 5%;  width: 2.6rem; height: 2.6rem; animation-duration: 31s; animation-delay: -4s; }
+.b2 { left: 10%; width: 1.3rem; height: 1.3rem; animation-duration: 23s; animation-delay: -15s; }
+.b3 { left: 47%; width: 1.5rem; height: 1.5rem; animation-duration: 37s; animation-delay: -21s; }
+.b4 { left: 54%; width: .9rem;  height: .9rem;  animation-duration: 19s; animation-delay: -9s; }
+.b5 { left: 92%; width: 2.9rem; height: 2.9rem; animation-duration: 41s; animation-delay: -30s; }
+.b6 { left: 95%; width: 1.4rem; height: 1.4rem; animation-duration: 27s; animation-delay: -2s; }
+.b7 { left: 2%;  width: 1.1rem; height: 1.1rem; animation-duration: 29s; animation-delay: -19s; }
+.b1 i, .b4 i { animation-duration: 5.3s; } .b2 i, .b6 i { animation-duration: 4.1s; } .b3 i, .b7 i { animation-duration: 6.7s; } .b5 i { animation-duration: 7.9s; }
+@keyframes rise { from { transform: translateY(0); } to { transform: translateY(-118vh); } }
+@keyframes sway { from { transform: translateX(-1.1rem); } to { transform: translateX(1.1rem); } }
+
+/* ---- stage ---- */
+.stage { position: absolute; left: 50%; top: 50%; width: 100rem; height: 56.25rem; margin: -28.125rem 0 0 -50rem; }
+.stage > * { position: absolute; margin: 0; }
+
+.title { left: 31rem; top: 1.3rem; width: 38rem; text-align: center; color: #fff; }
+.logo {
+  display: inline-block; position: relative; padding: 0 2.4rem; font-size: 4.6rem; line-height: 1.05; font-weight: 800; font-style: italic;
+  text-transform: uppercase; letter-spacing: .04em; text-shadow: 0 .22rem 0 #0b63c4, 0 .5rem 1.2rem rgba(0,60,140,.55);
+}
+.logo:before {
+  content: ""; position: absolute; left: 0; top: .1rem; width: 100%; height: 100%; border-radius: 50%;
+  border: .28rem solid rgba(255,255,255,.85); border-left-color: transparent; border-bottom-color: rgba(190,235,255,.5);
+  transform: rotate(-4deg);
+}
+.game { font-size: 2.25rem; font-weight: 700; font-style: italic; letter-spacing: .14em; text-transform: uppercase; text-shadow: 0 .14rem 0 #0b63c4, 0 .3rem .8rem rgba(0,60,140,.6); }
+
+/* liquid glass: a tinted body, a bright rim and a gloss cap — no blur required */
+.score, .banner, .badge, .pill, .tag, #fullscreen {
+  border: .16rem solid rgba(255,255,255,.88);
+  box-shadow: inset 0 .3rem .5rem rgba(255,255,255,.75), inset 0 -.7rem 1.4rem rgba(0,70,170,.35), 0 .8rem 1.8rem rgba(0,60,130,.3);
+}
+.score:before, .banner:before, .badge:before {
+  content: ""; position: absolute; left: 3%; top: 4%; width: 94%; height: 44%; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.08)); pointer-events: none;
+}
+
+.score {
+  top: 1.7rem; width: 17.5rem; height: 9.7rem; border-radius: 2.4rem; text-align: center; color: #fff; will-change: transform;
+  background: linear-gradient(180deg, rgba(150,220,255,.75) 0%, rgba(30,140,230,.82) 46%, rgba(0,96,200,.88) 100%);
+  transition: transform .95s cubic-bezier(.22,1.25,.36,1) .5s, opacity .5s ease .5s;
+}
+.score.you { left: 11.6rem; }
+.score.hermes { right: 11.6rem; transition-delay: .62s; }
+.score span { position: relative; display: block; margin-top: .55rem; font-size: 2.3rem; line-height: 1.2; font-weight: 800; font-style: italic; letter-spacing: .08em; text-transform: uppercase; color: #083f86; text-shadow: 0 .1rem 0 rgba(255,255,255,.7); }
+.score strong { position: relative; display: block; font-size: 5.7rem; line-height: 1; font-weight: 800; font-style: italic; text-shadow: 0 .22rem 0 #064a9c, 0 .4rem 1rem rgba(0,40,110,.55); }
+.score strong.bump { animation: bump .85s cubic-bezier(.3,1.5,.5,1) .3s 1 backwards; }
+@keyframes bump { 0% { transform: scale(1); } 32% { transform: scale(1.5) rotate(-5deg); } 100% { transform: scale(1); } }
+
+/* seats: the seat glides between scenes, the floaty bobs forever, the orb reacts to outcomes */
+.seat { top: 10.6rem; width: 30rem; height: 33.6rem; will-change: transform; transition: transform 1.15s cubic-bezier(.22,1.2,.36,1) .12s, opacity .6s ease; }
+.seat.player { left: 12.6rem; }
+.seat.hermes { right: 12.6rem; transition-delay: .2s, 0s; }
+.floaty { width: 30rem; height: 30rem; will-change: transform; animation: float 6.2s ease-in-out infinite; }
+.seat.hermes .floaty { animation-duration: 7.7s; animation-delay: -2.9s; }
+@keyframes float {
+  0%, 100% { transform: translateY(-1rem) rotate(-.9deg); }
+  50% { transform: translateY(1rem) rotate(.9deg); }
+}
+.orb {
+  position: relative; width: 100%; height: 100%; border-radius: 50%;
+  border: .14rem solid rgba(255,255,255,.85);
+  background:
+    radial-gradient(ellipse 44% 16% at 52% 91%, rgba(255,255,255,.5) 0, rgba(255,255,255,0) 100%),
+    radial-gradient(circle at 50% 50%, rgba(170,236,255,.06) 52%, rgba(110,215,255,.3) 78%, rgba(235,252,255,.72) 96%, rgba(255,255,255,.3) 100%),
+    linear-gradient(180deg, rgba(120,210,255,.2), rgba(40,170,230,.3));
+  box-shadow: inset 0 0 2.4rem rgba(255,255,255,.55), inset 0 -1.6rem 3rem rgba(0,140,215,.35), 0 1.4rem 3rem rgba(0,70,140,.22);
+}
+.orb > * { position: absolute; }
+/* the window reflection drifts a little inside the glass */
+.gloss {
+  left: 13%; top: 7%; width: 40%; height: 24%; border-radius: 50%; will-change: transform;
+  background: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.95) 0, rgba(255,255,255,.5) 45%, rgba(255,255,255,0) 72%);
+  animation: gloss 9.1s ease-in-out infinite;
+}
+.seat.hermes .gloss { animation-duration: 10.7s; animation-delay: -4s; }
+@keyframes gloss { 0%, 100% { transform: translate(-.5rem, .2rem) rotate(-18deg); } 50% { transform: translate(.7rem, -.2rem) rotate(-12deg); } }
+/* now and then a highlight runs along the rim */
+.glint {
+  left: -.2rem; top: -.2rem; width: 30.3rem; height: 30.3rem; border-radius: 50%;
+  border: .34rem solid transparent; border-top-color: rgba(255,255,255,.95); opacity: 0;
+  animation: glint 11s linear infinite; animation-delay: -2s;
+}
+.seat.hermes .glint { animation-duration: 13s; animation-delay: -8s; }
+@keyframes glint { 0% { transform: rotate(-70deg); opacity: 0; } 5% { opacity: .85; } 19% { opacity: .7; } 25%, 100% { transform: rotate(215deg); opacity: 0; } }
+.shade {
+  left: 22%; top: 74%; width: 56%; height: 13%; border-radius: 50%; opacity: 0; transition: opacity .5s ease .5s;
+  background: radial-gradient(ellipse, rgba(0,80,160,.34) 0, rgba(0,80,160,0) 70%);
+}
+/* The canvas is always composited at full opacity and simply empty between rounds, so the
+   first frame of a reveal asks the compositor for nothing it has not already done. */
+.orb canvas { left: -2%; top: -2%; width: 104%; height: 104%; will-change: transform; }
+/* When the device cannot redraw the turn in real time, the compositor swings the finished hand in. */
+.orb canvas.swing { animation: swing 1.05s cubic-bezier(.2,.8,.3,1) 1 both; }
+.seat.hermes .orb canvas.swing { animation-name: swing-mirrored; }
+@keyframes swing {
+  0% { transform: perspective(70rem) rotateY(-115deg) scale(.2); opacity: 0; }
+  20% { opacity: 1; }
+  58% { transform: perspective(70rem) rotateY(9deg) scale(1.06); }
+  80% { transform: perspective(70rem) rotateY(-3deg) scale(.985); }
+  100% { transform: perspective(70rem) rotateY(0) scale(1); opacity: 1; }
+}
+@keyframes swing-mirrored {
+  0% { transform: perspective(70rem) rotateY(115deg) scale(.2); opacity: 0; }
+  20% { opacity: 1; }
+  58% { transform: perspective(70rem) rotateY(-9deg) scale(1.06); }
+  80% { transform: perspective(70rem) rotateY(3deg) scale(.985); }
+  100% { transform: perspective(70rem) rotateY(0) scale(1); opacity: 1; }
+}
+
+.pill, .tag {
+  left: 50%; border-radius: 3rem; text-align: center; font-weight: 800; font-style: italic; text-transform: uppercase;
+  position: absolute; opacity: 0; transform: translateY(1rem) scale(.6); will-change: transform, opacity;
+  transition: transform .5s cubic-bezier(.3,1.5,.5,1), opacity .25s ease;
+}
+.pill {
+  top: 29.2rem; width: 20rem; margin-left: -10rem; height: 4.3rem; line-height: 3.9rem; font-size: 2.7rem; letter-spacing: .04em; color: #0a3f8c;
+  background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(205,240,255,.8));
+}
+.tag {
+  top: -1.5rem; width: 13rem; margin-left: -6.5rem; height: 3.3rem; line-height: 3rem; font-size: 1.9rem; letter-spacing: .1em; color: #fff;
+  background: linear-gradient(180deg, #ffd54a, #f29a00); text-shadow: 0 .1rem 0 #a25a00;
+}
+
+/* ---- center: one badge per state, fixed size, crossfading with a scale. Nothing resizes. ---- */
+.center { left: 50%; top: 26.6rem; width: 0; height: 0; }
+.center > * { position: absolute; }
+.badge {
+  opacity: 0; transform: scale(.55); will-change: transform, opacity;
+  background: linear-gradient(180deg, rgba(120,205,255,.85), rgba(0,110,215,.9));
+  transition: transform .5s cubic-bezier(.3,1.45,.5,1), opacity .22s ease;
+}
+.badge > * { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+.badge span { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-style: italic; text-shadow: 0 .22rem 0 #064a9c, 0 .4rem 1rem rgba(0,40,110,.5); }
+.link, .again { left: -6.8rem; top: -6.8rem; width: 13.6rem; height: 13.6rem; border-radius: 50%; }
+.versus { left: -5.6rem; top: -3.3rem; width: 11.2rem; height: 6.6rem; border-radius: 3.3rem; }
+.versus span { font-size: 4.3rem; letter-spacing: .03em; text-transform: uppercase; }
+.count { left: -9.8rem; top: -9.8rem; width: 19.6rem; height: 19.6rem; border-radius: 50%; }
+.shoot { left: -13rem; top: -6.5rem; width: 26rem; height: 13rem; border-radius: 6.5rem; }
+.shoot span { font-size: 5.8rem; }
+.icon { padding: 17%; }
+[data-center=phone] .link, [data-center=check] .link, [data-center=vs] .versus, [data-center=tie] .versus,
+[data-center=retry] .again, [data-center=count] .count, [data-center=shoot] .shoot { opacity: 1; transform: none; }
+
+/* Waiting: the phone breathes and sends out slow rings. */
+.phone { will-change: transform; transition: transform .45s cubic-bezier(.5,0,.8,.4), opacity .3s ease; }
+[data-center=phone] .phone { animation: breathe 2.8s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.ping, .wave { left: -6.8rem; top: -6.8rem; width: 13.6rem; height: 13.6rem; border-radius: 50%; opacity: 0; will-change: transform, opacity; }
+.ping { border: .3rem solid rgba(255,255,255,.9); }
+[data-center=phone] .ping { animation: ping 2.8s cubic-bezier(.2,.6,.4,1) infinite; }
+[data-center=phone] .p2 { animation-delay: -1.4s; }
+@keyframes ping { 0% { transform: scale(1); opacity: 0; } 12% { opacity: .7; } 100% { transform: scale(1.95); opacity: 0; } }
+/* Phone connected: the phone folds away, the badge turns green, the check draws itself,
+   and a ripple leaves the badge and crosses the screen. */
+.go { border-radius: 50%; opacity: 0; background: linear-gradient(180deg, rgba(130,235,150,.95), rgba(20,160,90,.95)); transition: opacity .4s ease; }
+.check { opacity: 0; transform: scale(.4) rotate(-25deg); transition: transform .55s cubic-bezier(.3,1.6,.5,1) .16s, opacity .2s ease .16s; }
+.check-stroke { stroke-dasharray: 90; stroke-dashoffset: 90; transition: stroke-dashoffset .5s ease .24s; }
+[data-center=check] .go, [data-center=check] .check { opacity: 1; }
+[data-center=check] .check { transform: none; }
+[data-center=check] .check-stroke { stroke-dashoffset: 0; }
+[data-center=check] .phone { opacity: 0; transform: scale(.3) rotate(25deg); }
+.wave { border: .5rem solid rgba(255,255,255,.95); }
+.rippling .wave { animation: wave 1.9s cubic-bezier(.15,.6,.3,1) 1 both; }
+.rippling .w2 { animation-delay: .22s; }
+.rippling .w3 { animation-delay: .44s; }
+@keyframes wave { 0% { transform: scale(.9); opacity: 0; } 12% { opacity: .9; } 100% { transform: scale(7.5); opacity: 0; } }
+
+/* Countdown: each number owns a layer and its own one-second animation, so a beat is just
+   an attribute change. The number lands, holds, and steps back before the next one. */
+.n { font-size: 13rem; line-height: 1; padding-right: .06em; opacity: 0; will-change: transform, opacity; }
+.ring { border-radius: inherit; border: .5rem solid rgba(255,255,255,.95); opacity: 0; will-change: transform, opacity; }
+[data-count="3"] .n3, [data-count="2"] .n2, [data-count="1"] .n1 { animation: number 1s cubic-bezier(.3,1.3,.5,1) 1 both; }
+[data-count="3"] .g3, [data-count="2"] .g2, [data-count="1"] .g1, [data-center=shoot] .g0 { animation: pulse .9s cubic-bezier(.15,.6,.3,1) 1 both; }
+@keyframes number { 0% { transform: scale(.45); opacity: 0; } 16% { transform: scale(1.12); opacity: 1; } 30% { transform: scale(1); } 84% { transform: scale(1); opacity: 1; } 100% { transform: scale(.9); opacity: 0; } }
+@keyframes pulse { 0% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.5); opacity: 0; } }
+[data-center=shoot] .shoot span { animation: land .5s cubic-bezier(.3,1.5,.5,1) 1 both; }
+@keyframes land { 0% { transform: scale(.5); } 55% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+/* ---- banner: text crossfades between two stacked lines; outcome colors fade in as tints ---- */
+.banner {
+  left: 21.5rem; top: 44.4rem; width: 57rem; height: 10.3rem; border-radius: 5.2rem; text-align: center; color: #fff; overflow: hidden;
+  will-change: transform, opacity; transition: transform .55s cubic-bezier(.3,1.45,.5,1), opacity .22s ease;
+  background: linear-gradient(180deg, rgba(110,200,255,.82) 0%, rgba(20,128,228,.88) 48%, rgba(0,92,198,.92) 100%);
+}
+.tint { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; transition: opacity .45s ease; }
+.tint.win { background: linear-gradient(180deg, #96f0aa 0%, #14aa64 48%, #007d50 100%); }
+.tint.lose { background: linear-gradient(180deg, #beaaff 0%, #5f4bd7 48%, #3c2daa 100%); }
+.tint.warn { background: linear-gradient(180deg, #ffd678 0%, #f09614 48%, #cd6900 100%); }
+.banner:before { z-index: 1; }
+.line {
+  position: absolute; left: 0; width: 100%; margin: 0; z-index: 2; white-space: nowrap; font-weight: 800; font-style: italic;
+  opacity: 0; transform: translateY(.9rem) scale(.94); will-change: transform, opacity;
+  transition: transform .42s cubic-bezier(.3,1.4,.5,1), opacity .24s ease;
+  text-shadow: 0 .22rem 0 rgba(0,45,110,.8), 0 .45rem 1.1rem rgba(0,30,90,.5);
+}
+.line.on { opacity: 1; transform: none; transition-delay: .1s; }
+h1.line { top: .75rem; font-size: 5.1rem; line-height: 1.08; text-transform: uppercase; letter-spacing: .02em; }
+p.line { top: 6.2rem; font-size: 2.55rem; line-height: 1.25; font-weight: 700; }
+p.line.on { transition-delay: .18s; }
+
+.foot { bottom: 1.3rem; max-width: 21rem; font-size: 1.45rem; line-height: 1.3; font-weight: 700; color: #fff; text-shadow: 0 .1rem .1rem #0b5a2c, 0 0 .6rem rgba(0,70,30,.8); }
+.foot.left { left: 1.6rem; }
+.foot.right { right: 1.6rem; text-align: right; }
+#meta { white-space: pre-line; }
+#mode { display: block; font-size: 1.15rem; opacity: .85; letter-spacing: .08em; text-transform: uppercase; }
+.dot { display: inline-block; width: 1.1rem; height: 1.1rem; margin-right: .6rem; border-radius: 50%; border: .14rem solid #fff; background: #cfd8dc; vertical-align: -.1rem; }
+[data-connection=live] .dot { background: #49e06a; animation: live 3.1s ease-in-out infinite; }
+[data-connection=connecting] .dot, [data-connection=retrying] .dot { background: #ffc233; border-radius: .2rem; animation: blink 1s steps(2, start) infinite; }
+@keyframes live { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+@keyframes blink { to { visibility: hidden; } }
+
+#fullscreen {
+  right: 1.4rem; top: 1.7rem; width: 8.6rem; height: 2.8rem; border-radius: 1.4rem; cursor: pointer; padding: 0;
+  font: inherit; font-size: 1.25rem; font-weight: 800; color: #0a3f8c;
+  background: linear-gradient(180deg, rgba(255,255,255,.95), rgba(190,235,255,.85));
+}
+#fullscreen:focus-visible { outline: .3rem solid #0a3a78; outline-offset: .3rem; }
+:fullscreen #fullscreen { display: none; }
+
+/* ---- scenes ---- */
+/* Waiting: empty spheres idle close together; the score panels wait above the screen. */
+[data-scene=boot] .score, [data-scene=waiting] .score, [data-scene=ended] .score { transform: translateY(-13rem); opacity: 0; }
+[data-scene=boot] .seat.player, [data-scene=waiting] .seat.player { transform: translate(3.4rem, 2.2rem) scale(.74); }
+[data-scene=boot] .seat.hermes, [data-scene=waiting] .seat.hermes { transform: translate(-3.4rem, 2.2rem) scale(.74); }
+[data-scene=ended] .seat { opacity: .5; }
+
+/* Countdown, Shoot and the hands' turn: the background steps back. The loops keep running
+   underneath at zero opacity, which costs the compositor nothing, and return in step. */
+[data-scene=countdown] .bubbles, [data-scene=shoot] .bubbles, [data-scene=reveal] .bubbles,
+[data-scene=countdown] .lake-fx, [data-scene=shoot] .lake-fx, [data-scene=reveal] .lake-fx { opacity: 0; }
+[data-scene=countdown] .seat, [data-scene=shoot] .seat, [data-scene=retry] .seat { transition-duration: .6s, .6s; transition-delay: 0s; }
+[data-scene=countdown] .seat.player, [data-scene=shoot] .seat.player, [data-scene=retry] .seat.player { transform: translateX(-2.6rem) scale(.9); }
+[data-scene=countdown] .seat.hermes, [data-scene=shoot] .seat.hermes, [data-scene=retry] .seat.hermes { transform: translateX(2.6rem) scale(.9); }
+[data-scene=reveal] .seat, [data-scene=score] .seat, [data-scene=next] .seat { transition-duration: .5s, .5s; transition-delay: 0s; }
+[data-scene=retry] .tint.warn { opacity: 1; }
+
+/* Reveal: hands turn first; names, banner, score and the winner arrive once they land. */
+[data-reveal] .shade { opacity: 1; }
+[data-reveal=turning] .banner { opacity: 0; transform: translateY(1.6rem) scale(.9); }
+[data-reveal=landed] .pill { opacity: 1; transform: none; }
+[data-reveal=landed][data-outcome=player] .seat.player .tag, [data-reveal=landed][data-outcome=hermes] .seat.hermes .tag { opacity: 1; transform: rotate(-5deg); transition-delay: .45s; }
+[data-outcome=player] .seat.player .orb, [data-outcome=hermes] .seat.hermes .orb { animation: win 1.2s cubic-bezier(.3,1.4,.5,1) .35s 1 both; }
+[data-outcome=player] .seat.hermes .orb, [data-outcome=hermes] .seat.player .orb { animation: lose .9s ease .35s 1 both; }
+[data-outcome=tie] .orb { animation: tie 1s ease-in-out .35s 1 both; }
+@keyframes win { 0% { transform: none; } 30% { transform: translateY(-2.4rem) scale(1.09); } 55% { transform: translateY(.4rem) scale(1.03); } 75% { transform: translateY(-.8rem) scale(1.06); } 100% { transform: scale(1.05); } }
+@keyframes lose { 0% { transform: none; opacity: 1; } 100% { transform: translateY(1.1rem) scale(.91); opacity: .88; } }
+@keyframes tie { 0%, 100% { transform: none; } 20% { transform: rotate(-4deg); } 45% { transform: rotate(4deg); } 70% { transform: rotate(-2deg); } 85% { transform: rotate(1deg); } }
+[data-outcome=player] .tint.win, [data-outcome=hermes] .tint.lose { opacity: 1; }
+
+/* ---- lite tier: lake and glass effects off; clouds, floating spheres, hands and text stay ---- */
+[data-tier=lite] .shimmer, [data-tier=lite] .spark, [data-tier=lite] .bubbles, [data-tier=lite] .glint, [data-tier=lite] .ping,
+[data-tier=lite] .c4, [data-tier=lite] .c5 { display: none; }
+[data-tier=lite] .gloss { animation: none; }
+
+/* ---- first paint, hidden page, still scene ---- */
+[data-instant] *, [data-instant] *:before { transition: none !important; }
+[data-paused] *, [data-paused] *:before { animation-play-state: paused !important; }
+[data-motion=still] *, [data-motion=still] *:before { animation: none !important; transition: none !important; }
+[data-motion=still] .bubbles { opacity: .35; }
+[data-motion=still] .shimmer, [data-motion=still] .spark, [data-motion=still] .ping { display: none; }
+[data-motion=still] .bub { bottom: auto; }
+[data-motion=still] .b1 { top: 62%; } [data-motion=still] .b2 { top: 30%; } [data-motion=still] .b3 { top: 12%; } [data-motion=still] .b4 { top: 70%; }
+[data-motion=still] .b5 { top: 48%; } [data-motion=still] .b6 { top: 82%; } [data-motion=still] .b7 { top: 16%; }
+[data-motion=still] .c1 { left: 6vw; } [data-motion=still] .c2 { left: 70vw; } [data-motion=still] .c3 { left: 56vw; } [data-motion=still] .c4 { left: 30vw; } [data-motion=still] .c5 { left: 84vw; }
+[data-motion=still][data-count="3"] .n3, [data-motion=still][data-count="2"] .n2, [data-motion=still][data-count="1"] .n1 { opacity: 1; }
+[data-motion=still][data-outcome=player] .seat.player .orb, [data-motion=still][data-outcome=hermes] .seat.hermes .orb { transform: scale(1.05); }
+[data-motion=still][data-outcome=player] .seat.hermes .orb, [data-motion=still][data-outcome=hermes] .seat.player .orb { transform: translateY(1.1rem) scale(.91); opacity: .88; }
+@media (prefers-reduced-motion: reduce) { .tv *, .tv *:before { animation: none !important; transition: none !important; } }

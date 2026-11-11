@@ -96,6 +96,7 @@ def main() -> None:
         "library_scene_save",
         "tv_scene_play",
         "tv_game_start",
+        "tv_game_stop",
         "tv_youtube_play",
         "tv_youtube_pause",
         "library_youtube_search",
@@ -283,6 +284,33 @@ def main() -> None:
                     "read-only-viewer-token-123456789",
                 )
                 assert direct["tv_verified"] and direct["display_path"] == "custom_cast_receiver"
+            ended_route = router.post(
+                "http://games.test:8766/v1/sessions/game-smoke-123456789/end"
+            ).respond(
+                json={
+                    "ok": True,
+                    "ended": True,
+                    "already_ended": False,
+                    "session_id": "game-smoke-123456789",
+                }
+            )
+            with patch.object(
+                game_module,
+                "stop_game_display",
+                return_value={
+                    "ok": True,
+                    "closed": True,
+                    "evidence": "receiver_backdrop",
+                    "session_id": "game-smoke-123456789",
+                },
+            ) as stop:
+                ended = json.loads(dispatcher.dispatch("tv_game_stop", {}, session_id="game-smoke"))
+                assert ended["game_ended"] and ended["tv_verified"]
+                repeated = json.loads(
+                    dispatcher.dispatch("tv_game_stop", {}, session_id="game-smoke")
+                )
+                assert repeated["already_ended"] and not repeated["tv_verified"]
+                assert stop.call_count == 1 and ended_route.call_count == 1
         finally:
             reset_secret_scope(token)
         assert started["ok"] and not started["tv_verified"], started

@@ -1,0 +1,90 @@
+{
+  "baseline_sha": "aba93c6cc19e0eecca61c6e56d826e0e244df9ac",
+  "before": {
+    "browser": "Chromium 156 mobile touch viewport; synthetic local camera/predictions; not real iPhone",
+    "before": {
+      "disabled": false,
+      "practice": true,
+      "startDisabled": true,
+      "seen": [
+        "rock",
+        "paper",
+        "scissors"
+      ],
+      "stream": [
+        "live"
+      ]
+    },
+    "noHand": {
+      "x": 31,
+      "y": 470.875,
+      "width": 328,
+      "height": 68
+    },
+    "recognized": {
+      "x": 31,
+      "y": 445.28125,
+      "width": 328,
+      "height": 68
+    },
+    "after": {
+      "handlerCalls": 0,
+      "practice": false,
+      "startDisabled": false,
+      "stream": [
+        "ended"
+      ],
+      "frameLoopRunning": false
+    },
+    "nextCalls": 1,
+    "errors": []
+  },
+  "after": {
+    "browser": "Chromium 156 mobile touch viewport; synthetic local camera/predictions; not real iPhone",
+    "before": {
+      "disabled": false,
+      "practice": true,
+      "startDisabled": true,
+      "seen": [
+        "rock",
+        "paper",
+        "scissors"
+      ],
+      "stream": [
+        "live"
+      ]
+    },
+    "noHand": {
+      "x": 31,
+      "y": 760.5,
+      "width": 328,
+      "height": 68
+    },
+    "recognized": {
+      "x": 31,
+      "y": 760.5,
+      "width": 328,
+      "height": 68
+    },
+    "after": {
+      "handlerCalls": 1,
+      "practice": false,
+      "startDisabled": false,
+      "stream": [
+        "live"
+      ],
+      "frameLoopRunning": true
+    },
+    "nextCalls": 1,
+    "errors": []
+  },
+  "automated": {
+    "python": 928,
+    "camera_js": 72,
+    "receiver_js": 22,
+    "camera_asset_build": "passed",
+    "ruff": "passed",
+    "hermes_doctor": "11 tools / 0 hooks"
+  },
+  "real_iphone_safari": "pending deployment and user retest"
+}

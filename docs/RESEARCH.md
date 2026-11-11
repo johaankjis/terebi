@@ -460,3 +460,81 @@ Full method, artifact hash, timestamps and limits are in [HARDWARE.md](HARDWARE.
   `type=video`, `maxResults`, `q`, `safeSearch` and returns video IDs/title/channel.
   https://developers.google.com/youtube/v3/docs/search/list . Search is optional;
   video availability/age/region restrictions remain a receiver/live observation.
+
+## RPS Frutiger Aero renderer — 2026-11-11
+
+- VERIFIED (headless Chrome 156, SwiftShader, 1280×720, real local game service):
+  Waiting, Phone connected, Ready, 3-2-1, Shoot, Try again, Reveal and Next round
+  render from live API state; no CSP violations under the receiver's
+  `style-src 'self'` policy model (no inline styles); WebGL hands report `3D`;
+  `#motion=still` reports `Static` with the same text, moves and scores.
+  Screenshots and a recording: `docs/evidence/rps-aero/`.
+- VERIFIED (same harness): the restyled phone page pairs, starts the camera with a
+  fake device, loads the on-device recognizer and shows practice status.
+- **UNVERIFIED (Den TV Chromecast Gen 2):** frame rate of the ambient loops, WebGL 1
+  availability and antialiasing, whether the 20 fps probe trips to the still scene,
+  font rendering, and audio continuity alongside the animation. The receiver has
+  not been loaded on the device with this build.
+- **UNVERIFIED (real iPhone Safari):** the restyled controller's look and tap
+  targets on the device; camera behaviour is unchanged code but not re-observed.
+
+## RPS polish pass — 2026-11-11
+
+- VERIFIED (user, Den TV, commit `7cf12ac`): the redesign runs on the Chromecast
+  Gen 2 receiver; animations and 3D hands looked rough. Which render mode the TV
+  showed was not recorded for that run.
+- VERIFIED (deployed tunnel origin, 2026-11-11 ~16:10Z): every display, receiver
+  and phone file served matched `7cf12ac` byte for byte.
+- VERIFIED (T3 → LAN, 2026-11-11 16:10Z–16:55Z): `[LAN IP redacted]` ports 8008, 8009
+  and 9222 closed and no other host answered on 8009, while `[LAN IP redacted]` was
+  reachable. The Chromecast was off, so nothing in this pass was profiled on it.
+- VERIFIED (headless Chrome 156, software GL, traced): reveal-start stall is a GPU
+  task (`GLContextEGL::MakeCurrent`) of 0.6–3 s on the first WebGL frame after
+  idling; with a 400 ms keep-alive frame and pre-reveal priming the first real turn
+  measured 34 frames, mean 37 ms, worst 112 ms. Ambient, pairing and countdown
+  windows held 17 ms frames. Software GL timings do not predict the Chromecast.
+- VERIFIED (same, frame-stepped capture of the real page against the real service
+  with a controlled clock): Waiting → Phone connected → Ready → 3-2-1-Shoot →
+  Reveal renders in the intended order at every frame. Clips in
+  `docs/evidence/rps-aero/`.
+- **UNVERIFIED (Den TV Chromecast Gen 2):** everything about this pass on the
+  device: frame timing per phase, which level and turn style it settles on, whether
+  the cold-start stall exists there, hand antialiasing, and a real camera round.
+  Read it from the footer and from `display_profile` rows after a round.
+
+
+## Practice completion touch investigation (2026-11-11, PR #10)
+
+VERIFIED in Chromium 156 at a 390×844 mobile touch viewport, synthetic local video
+track and prediction fixture: the unmodified completion button was enabled after
+three checks. Recognition/no-hand diagnostics above it changed line wrapping,
+moving its top from 470.875px to 445.28125px mid-touch. A lower-edge touch failed to
+call finishPractice and activated Stop camera instead. A center tap succeeded.
+After moving diagnostics below both controls the same held touch calls the handler
+once, exits practice, enables/focuses Start round and keeps the track live and
+frame loop running. One Start round tap sends one next request. The controller
+unit test also verifies the original stream/loop identity and zero stopped tracks.
+
+The live main.js matched PR head aba93c6 during the check. T3 preview failed for
+missing browser libraries; a local Chromium with existing extracted libraries was
+used. Real iPhone Safari retest is UNVERIFIED. The reproduction identifies a real
+moving-target failure, not proof that every Safari symptom has the same cause.
+Evidence: `docs/evidence/practice-completion-touch-20261111.json`; repeatable
+optional browser harness: `games/camera/browser/practice.mjs`.
+
+
+## Telegram game end implementation (2026-11-11)
+
+VERIFIED source: installed PyChromecast 14.1.1 defines APP_BACKDROP=E8C28D3C;
+ReceiverController.update_status sends platform GET_STATUS. The existing direct
+connection/disconnect adapter is reused; stop never sends a generic STOP or CLOSE.
+Receiver uses its existing CAF context.stop path after checking exact current
+session, same viewer capability and server revocation; pending old checks cannot
+close a newer receiver session. Player/viewer revocation, duplicate end, owner
+isolation, new pairing and unchanged scores are tested over loopback HTTP/mocks.
+
+VERIFIED synthetic browser fixture: server 410 changes the actual phone UI to Game
+ended, ends its local synthetic video track, stops inference, clears pairing and
+allows a new link in the same tab. Real iPhone practice completion is user-confirmed;
+new Telegram stop -> Den TV rotating artwork, audio silence, physical phone camera
+indicator off and fresh live pairing remain UNVERIFIED pending deployment/test.

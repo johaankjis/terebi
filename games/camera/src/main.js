@@ -64,7 +64,7 @@ const SCREEN_TEXT = {
   loading: ['Connecting…', 'Getting your game ready.'],
   unpaired: ['Open your game link', 'Ask Hermes in Telegram to start Rock Paper Scissors, then open the play link it sends on this phone.'],
   pair_failed: ['That link has already been used or expired', 'Ask Hermes in Telegram for a fresh game link and open it on this phone.'],
-  expired: ['Game over', 'This game session ended. Ask Hermes in Telegram for a new game.'],
+  expired: ['Game ended', 'This game session ended. Ask Hermes in Telegram for a new game.'],
 };
 
 function setText(node, text) {
@@ -147,8 +147,10 @@ function render() {
   }
   setText(el.practice, diagnostic);
   el.practice.hidden = !diagnostic;
-  el.practiceDone.hidden = cam !== 'on' || !vm.camera.practice;
-  el.practiceDone.disabled = vm.camera.seen.length < 3;
+  const practiceHidden = cam !== 'on' || !vm.camera.practice;
+  const practiceDisabled = vm.camera.seen.length < 3;
+  if (el.practiceDone.hidden !== practiceHidden) el.practiceDone.hidden = practiceHidden;
+  if (el.practiceDone.disabled !== practiceDisabled) el.practiceDone.disabled = practiceDisabled;
 
   el.notice.hidden = !vm.notice;
   setText(el.notice, vm.notice ?? '');
@@ -173,12 +175,23 @@ setInterval(() => {
 el.next.addEventListener('click', () => controller.next());
 el.retry.addEventListener('click', () => controller.retry());
 el.camStart.addEventListener('click', () => controller.startCamera(el.video));
-el.practiceDone.addEventListener('click', () => controller.finishPractice());
+el.practiceDone.addEventListener('click', () => {
+  if (!controller.finishPractice()) return;
+  // Keep the same live camera/inference loop. Reveal the now-available round action.
+  render();
+  el.next.focus({ preventScroll: true });
+  el.next.scrollIntoView({ block: 'center', behavior: 'auto' });
+});
 el.camStop.addEventListener('click', () => controller.stopCamera('user'));
 for (const b of el.taps) b.addEventListener('click', () => controller.tap(b.dataset.move));
 
 document.addEventListener('visibilitychange', () => controller.onVisibilityChange(document.visibilityState === 'hidden'));
 window.addEventListener('pagehide', () => controller.onPageHide());
+// Safari may reuse this tab for a fresh pairing link, changing only the fragment.
+// Re-enter normal startup with a clean controller; pagehide releases any old camera.
+window.addEventListener('hashchange', () => {
+  if (new URLSearchParams(window.location.hash.slice(1)).has('pair')) window.location.reload();
+});
 window.addEventListener('pageshow', (e) => {
   if (e.persisted) controller.onPageShow();
 });

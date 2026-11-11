@@ -400,3 +400,16 @@ Completing practice immediately renders and brings the enabled round action into
 view while retaining the same camera stream and inference loop. The optional
 browser regression uses external developer Playwright tooling with local synthetic
 media; no runtime dependency or camera/model/scoring change is added.
+
+
+## Caller-scoped game exit (2026-11-11, PR #10)
+
+Add `tv_game_stop` using an authenticated exact-session end endpoint and bounded
+profile state. Keep ended-session tombstones within the existing store capacity;
+new starts create new IDs. Phone/display terminal polling revokes access, releases
+camera and pauses music. Receiver closure uses a session/capability comparison,
+server revocation read and generation check inside the existing custom namespace.
+No general Cast STOP is sent. Fresh artwork receiver status proves software closure;
+physical artwork/silence/camera-indicator observations remain separate. No new
+dependency or change to move recognition/scoring. Reload same-document fresh
+pairing links through normal startup so an ended controller is not reused.

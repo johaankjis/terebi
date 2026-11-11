@@ -230,3 +230,52 @@ def test_non_ascii_or_missing_bearer_is_rejected_cleanly(game, token):
     store, _, c, _ = game
     with pytest.raises(GameError, match="unauthorized"):
         store.state(c["session_id"], token)
+
+
+def test_end_active_round_revokes_every_capability_and_is_idempotent(game):
+    store, clock, created, paired = game
+    sid, player, rid, _ = begin(game)
+    viewer = urlsplit(created["display_url"]).fragment.split("token=")[1]
+    score = dict(store.sessions[sid]["score"])
+    first = store.end(sid, "request-key-123456")
+    revision = store.sessions[sid]["revision"]
+    assert first["ended"] and not first["already_ended"]
+    assert store.end(sid, "request-key-123456")["already_ended"]
+    assert store.sessions[sid]["revision"] == revision
+    for token in [player, viewer]:
+        with pytest.raises(GameError) as exc:
+            store.state(sid, token)
+        assert exc.value.status == 410 and exc.value.reason == "session_ended"
+    clock.now = 4
+    with pytest.raises(GameError, match="session_ended"):
+        store.act(sid, player, "move", {"round_id": rid, "move": "paper"})
+    assert store.sessions[sid]["score"] == score
+    fresh = store.create("request-key-123456", "https://games.test")
+    assert fresh["session_id"] != sid
+    store.end(sid, "request-key-123456")  # replay must not end the newer session
+    p = store.pair(urlsplit(fresh["pairing_url"]).fragment[5:])
+    assert p["state"]["phase"] == "ready"
+
+
+def test_end_checks_owner_and_revokes_unredeemed_pairing():
+    store = GameStore()
+    created = store.create("owner-request-key", "https://games.test")
+    pair = urlsplit(created["pairing_url"]).fragment[5:]
+    with pytest.raises(GameError) as exc:
+        store.end(created["session_id"], "different-owner-key")
+    assert exc.value.status == 403
+    assert not store.sessions[created["session_id"]].get("ended")
+    store.end(created["session_id"], "owner-request-key")
+    with pytest.raises(GameError) as exc:
+        store.pair(pair)
+    assert exc.value.status == 410
+
+
+def test_ended_tombstones_do_not_prevent_fresh_pairing_at_capacity():
+    store = GameStore(capacity=1)
+    for _ in range(3):
+        created = store.create("request-key-123456", "https://games.test")
+        store.end(created["session_id"], "request-key-123456")
+        assert len(store.sessions) <= 1
+    fresh = store.create("request-key-123456", "https://games.test")
+    assert store.pair(urlsplit(fresh["pairing_url"]).fragment[5:])["ok"]

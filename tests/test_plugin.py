@@ -66,6 +66,7 @@ def test_manifest_and_registration(plugin):
         "library_scene_save",
         "tv_scene_play",
         "tv_game_start",
+        "tv_game_stop",
         "tv_youtube_play",
         "tv_youtube_pause",
         "library_youtube_search",

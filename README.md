@@ -295,3 +295,13 @@ the key to that API and set an appropriate quota. `library_youtube_search` retur
 up to five titles/channels; choose a result before playing. Without the key, Hermes
 asks for a direct link. No YouTube page scraping is used. Search availability is
 independent of playback availability on the TV.
+
+
+### Stop rock-paper-scissors
+
+Tell Hermes **“Stop the game”** or **“Exit rock-paper-scissors”** in the conversation
+that started it. The game ends, old links are revoked, the phone shows **Game ended**
+and releases its camera, and the matching TV receiver exits to Chromecast artwork.
+Other apps and newer games are left alone. A repeated stop is safe. Hermes reports
+session end separately if TV closure cannot be confirmed. Start again for a fresh
+pairing link. See [the stop protocol and live checklist](docs/GAMES_STOP.md).

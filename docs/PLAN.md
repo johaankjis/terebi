@@ -4,7 +4,29 @@ Living document. Agents and humans check items off here and add notes. Keep it h
 
 **Deadline:** Wed Nov 11, 2026, 5PM EST. **Target finish:** noon Nov 11.
 
-## Current slice: practice completion tap (PR #10)
+## Current slice: Telegram game exit (PR #10)
+
+User confirmed the practice completion fix works on the real iPhone. Keep PR #10
+unmerged for the stop-game live check.
+
+- [x] Native `tv_game_stop` for “Stop the game” / “Exit rock-paper-scissors”.
+- [x] Store the exact game/caller association in profile state; authenticated
+  exact-SID service end, owner check, revoked links, bounded retry tombstones.
+- [x] Phone terminal polling shows Game ended and releases camera/inference.
+  Handle a fresh pairing fragment in a reused tab with clean startup.
+- [x] Matching receiver checks its own session/capability and server revocation
+  before exiting. No platform STOP; preserve other apps and newer games.
+- [x] Repeat stop safely; separate game_ended from verified artwork/home receiver.
+- [x] Tests: 943 Python, 73 camera JS, 27 display/receiver JS; browser fixture for
+  camera release + fresh pairing; asset build, Ruff, Hermes doctor (12 tools),
+  validation and real dispatcher start/stop/repeat smoke pass.
+- [ ] Deploy exact source commit to ZimaOS and load same source in isolated bot.
+- [ ] Live Den TV: start/pair/begin round -> Telegram stop -> artwork, music off,
+  phone camera indicator off -> new game pairs again. Physical results pending.
+
+Details and acceptance checklist: [GAMES_STOP.md](GAMES_STOP.md).
+
+## Previous slice: practice completion tap (PR #10)
 
 - [x] Verify clean PR #10 head `aba93c6` and live main.js matches source.
 - [x] Reproduce an enabled completion button moving ~25.6px during a touch when
@@ -19,7 +41,7 @@ Living document. Agents and humans check items off here and add notes. Keep it h
   inference loop retained, and one next request.
 - [x] 72 camera tests, 22 receiver/display tests, 928 Python tests, camera asset build,
   Ruff and official Hermes doctor (11 tools / 0 hooks) pass.
-- [ ] Deploy updated source and confirm completion on the user's real iPhone Safari.
+- [x] User confirmed practice completion works on the real iPhone Safari.
   No host shell/Docker access in T3; provide archive + ZimaOS commands. Keep PR draft.
 
 ## Previous slice: RPS motion and rendering polish (PR #10)

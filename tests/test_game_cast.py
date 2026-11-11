@@ -172,3 +172,79 @@ def test_real_controller_adapter_sends_only_custom_namespace_and_leaves_app_runn
     assert args == (game_cast.NAMESPACE, {"display_token": TOKEN})
     assert kwargs["no_add_request_id"] is True
     assert sent[-1] == "disconnected"
+
+
+class StopTransport:
+    def __init__(self, *, active=APP, event_type="SESSION_ENDING", go_home=True):
+        self.active, self.event_type, self.go_home = active, event_type, go_home
+        self.now = 0
+        self.sent = []
+        self.closed = False
+
+    def refresh_status(self):
+        pass
+
+    def current_app(self):
+        return self.active
+
+    def matches_app(self):
+        return self.active == APP
+
+    def send(self, data):
+        self.sent.append(data)
+
+    def receive(self, timeout):
+        self.now += timeout
+        if not self.sent:
+            return None
+        data = self.sent[-1]
+        if self.go_home:
+            self.active = game_cast.APP_BACKDROP
+        return {
+            "type": self.event_type,
+            "session_id": data["session_id"],
+            "request_id": data["request_id"],
+        }
+
+    def close(self):
+        self.closed = True
+
+
+def stop_cast(fake):
+    return game_cast.stop_game_display(
+        "192.0.2.5",
+        APP,
+        SID,
+        TOKEN,
+        transport_factory=lambda *args: fake,
+        clock=lambda: fake.now,
+        timeout_s=0.5,
+    )
+
+
+def test_stop_sends_only_session_end_and_requires_backdrop():
+    fake = StopTransport()
+    result = stop_cast(fake)
+    assert result["closed"] and result["evidence"] == "receiver_backdrop"
+    assert fake.sent[0]["type"] == "END_SESSION"
+    assert set(fake.sent[0]) == {"type", "session_id", "request_id", "display_token"}
+    assert TOKEN not in str(result) and fake.closed
+    # Already home is safe, with no launch or stop message.
+    repeated = StopTransport(active=game_cast.APP_BACKDROP)
+    assert stop_cast(repeated)["closed"] and not repeated.sent
+
+
+@pytest.mark.parametrize("other", ["233637DE", "CC1AD845", "OTHERAPP"])
+def test_stop_leaves_other_apps_alone(other):
+    fake = StopTransport(active=other)
+    assert stop_cast(fake)["reason"] == "other_playback_untouched"
+    assert not fake.sent and fake.closed
+
+
+def test_stop_newer_game_or_missing_close_ack_is_honest():
+    newer = StopTransport(event_type="SESSION_NOT_CURRENT", go_home=False)
+    assert stop_cast(newer)["reason"] == "newer_game_untouched"
+    # A matching ending acknowledgement alone does not prove the receiver closed.
+    pending = StopTransport(go_home=False)
+    assert stop_cast(pending)["reason"] == "receiver_close_unverified"
+    assert len(pending.sent) == 1

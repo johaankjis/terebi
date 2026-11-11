@@ -4,16 +4,16 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 
 const receiverSource = await readFile(new URL('../games/receiver/session.js', import.meta.url), 'utf8');
-const {installSessions,NAMESPACE} = await import('data:text/javascript;base64,'+Buffer.from(receiverSource).toString('base64'));
+const {installSessions,NAMESPACE,confirmEnded} = await import('data:text/javascript;base64,'+Buffer.from(receiverSource).toString('base64'));
 const ID='session-id-123456789', TOKEN='viewer-token-123456789', REQUEST='challenge-id-123456789';
 const message=(over={})=>({senderId:'sender-1',data:{type:'SHOW_SESSION',session_id:ID,display_token:TOKEN,request_id:REQUEST,...over}});
 const state=(over={})=>({session_id:ID,revision:1,phase:'waiting_for_player',score:{player:0,hermes:0,ties:0,rounds:0},round_number:0,server_time_ms:1000,expires_at_ms:61000,...over});
 
-function setup() {
-  const sent=[], renders=[], paint=[]; let receive, stopped=0;
+function setup({verifyEnded=async()=>false}={}) {
+  const sent=[], renders=[], paint=[]; let receive, stopped=0, ended=0;
   const context={addCustomMessageListener(namespace,fn){assert.equal(namespace,NAMESPACE);receive=fn;},sendCustomMessage(...args){sent.push(args);}};
-  const clear=installSessions(context,(credential,opts)=>{renders.push({credential,opts});return ()=>stopped++;},{afterPaint:fn=>paint.push(fn)});
-  return {sent,renders,paint,clear,receive:ev=>receive(ev),get stopped(){return stopped;}};
+  const clear=installSessions(context,(credential,opts)=>{renders.push({credential,opts});return ()=>stopped++;},{afterPaint:fn=>paint.push(fn),verifyEnded,ended:()=>ended++});
+  return {sent,renders,paint,clear,receive:ev=>receive(ev),get stopped(){return stopped;},get ended(){return ended;}};
 }
 
 test('receiver waits for session render and paint, then acknowledges only public identity',()=>{
@@ -73,6 +73,7 @@ function tv({snapshots,Audio}={}) {
     setTimeout(fn,delay){(fn.name==='poll'?h.polls:h.timers).push({fn,delay});return 1;},
     fetch:async(path,opts)=>{
       if(h.offline)throw Error('offline');
+      if(h.ended)return {ok:false,status:410,json:async()=>({ok:false,reason:'session_ended'})};
       assert.equal(opts.headers.Authorization,'Bearer '+TOKEN);
       if(opts.method==='POST'){h.posts.push({path,body:JSON.parse(opts.body)});return {ok:true,json:async()=>({ok:true})};}
       assert.equal(path,'/v1/sessions/'+ID);
@@ -355,4 +356,60 @@ test('without WebGL the same moves are painted flat, both at once, with composit
   h.log.length=0;h.hands.show(['paper','paper'],false,()=>h.landed++); // still mode: one paint, landed at once
   assert.deepEqual(h.log,['player','hermes']);assert.equal(h.landed,2);
   delete globalThis.window;
+});
+
+
+test('only a matching server-ended session exits the receiver, once',async()=>{
+  const h=setup({verifyEnded:async credentials=>{assert.deepEqual(credentials,{id:ID,token:TOKEN});return true;}});
+  h.receive(message());
+  await h.receive(message({type:'END_SESSION'}));
+  assert.equal(h.stopped,1);assert.equal(h.ended,1);
+  assert.equal(h.sent.at(-1)[2].type,'SESSION_ENDING');
+  assert.ok(!JSON.stringify(h.sent).includes(TOKEN));
+  await h.receive(message({type:'END_SESSION'}));
+  assert.equal(h.ended,1);assert.equal(h.sent.at(-1)[2].type,'SESSION_UNKNOWN');h.clear();
+});
+
+test('read-only viewer cannot stop a live game or a newer receiver session',async()=>{
+  const h=setup({verifyEnded:async()=>false});h.receive(message());
+  await h.receive(message({type:'END_SESSION'}));
+  assert.equal(h.stopped,0);assert.equal(h.ended,0);
+  h.receive(message({session_id:'second-session-123456'}));
+  await h.receive(message({type:'END_SESSION'}));
+  assert.equal(h.stopped,1);assert.equal(h.ended,0);
+  assert.equal(h.sent.at(-1)[2].type,'SESSION_NOT_CURRENT');h.clear();
+});
+
+test('new game arriving while end verification is pending survives the old stop',async()=>{
+  let resolve;const pending=new Promise(r=>resolve=r);
+  const h=setup({verifyEnded:()=>pending});h.receive(message());
+  const stopping=h.receive(message({type:'END_SESSION'}));
+  h.receive(message({session_id:'second-session-123456'}));
+  resolve(true);await stopping;
+  assert.equal(h.ended,0);assert.equal(h.stopped,1);h.clear();
+});
+
+test('receiver verifies revocation against its own origin and never sends a write token',async()=>{
+  const original=globalThis.fetch;
+  try{
+    for(const [status,reason,expected] of [[200,'live',false],[401,'unauthorized',false],
+      [410,'session_ended',true],[410,'session_expired',true],[404,'session_missing',true],[503,'failed',false]]){
+      globalThis.fetch=async(path,opts)=>{
+        assert.equal(path,'/v1/sessions/'+ID);
+        assert.equal(opts.headers.Authorization,'Bearer '+TOKEN);
+        assert.equal(opts.body,undefined);
+        return {status,json:async()=>({ok:status===200,reason})};
+      };
+      assert.equal(await confirmEnded({id:ID,token:TOKEN}),expected);
+    }
+  }finally{globalThis.fetch=original;}
+});
+
+test('revoked display polling pauses the soundtrack and reports session ended',async()=>{
+  let pauses=0;
+  class Audio {play(){return Promise.resolve();}pause(){pauses++;}}
+  const h=tv({snapshots:[state()],Audio});h.start();await h.settle();
+  h.ended=true;await h.poll();
+  assert.ok(pauses>=1);assert.equal(h.failures.at(-1),'session_ended');
+  assert.equal(h.last().scene,'ended');
 });

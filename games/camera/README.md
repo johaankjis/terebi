@@ -107,3 +107,12 @@ mid-touch. It checks initial disabled state, three checks, stable target, one
 completion handler call, practice exit, focused/enabled Start round, live camera,
 retained inference and one next request. It does not test real Safari or model
 accuracy. `TEREBI_BROWSER_EVIDENCE=/path/result.json` optionally saves the report.
+
+
+### Telegram exit
+
+On a server-ended session (410), the phone shows Game ended, stops every camera
+track and inference, and clears stored pairing. A new Telegram pairing link works
+in a reused tab: fragment navigation reloads through normal startup. The optional
+browser harness also checks this terminal path and fresh pairing with synthetic
+local media. Real camera-indicator confirmation remains a user/device check.

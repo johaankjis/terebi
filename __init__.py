@@ -11,6 +11,7 @@ PROVIDES_TOOLS = [
     "library_scene_save",
     "tv_scene_play",
     "tv_game_start",
+    "tv_game_stop",
     "tv_youtube_play",
     "tv_youtube_pause",
     "library_youtube_search",
@@ -113,7 +114,7 @@ def register(ctx: Any) -> None:
             name=name, toolset="hermes_screen", schema=schema, handler=scene_handler(method)
         )
 
-    from .game_tools import start_rps
+    from .game_tools import start_rps, stop_rps
 
     def tv_game_start(args: dict, **kwargs: Any) -> str:
         identity = kwargs.get("conversation_id") or kwargs.get("session_id")
@@ -124,6 +125,17 @@ def register(ctx: Any) -> None:
         toolset="hermes_screen",
         schema=schemas.TV_GAME_START,
         handler=tv_game_start,
+    )
+
+    def tv_game_stop(args: dict, **kwargs: Any) -> str:
+        identity = kwargs.get("conversation_id") or kwargs.get("session_id")
+        return stop_rps(args, ctx=ctx, identity=identity)
+
+    ctx.register_tool(
+        name="tv_game_stop",
+        toolset="hermes_screen",
+        schema=schemas.TV_GAME_STOP,
+        handler=tv_game_stop,
     )
 
     from . import youtube_tools

@@ -101,9 +101,20 @@ class GameStore:
             now = self.clock()
             self._purge(now)
             session = next(
-                (s for s in self.sessions.values() if s["request_key"] == request_key), None
+                (
+                    s
+                    for s in self.sessions.values()
+                    if s["request_key"] == request_key and not s.get("ended")
+                ),
+                None,
             )
             if session is None:
+                # Ended sessions are retry tombstones, not active capacity. Evict one
+                # only when needed; a missing old SID is still a safe idempotent end.
+                if len(self.sessions) >= self.capacity:
+                    old = next((sid for sid, v in self.sessions.items() if v.get("ended")), None)
+                    if old is not None:
+                        del self.sessions[old]
                 require(len(self.sessions) < self.capacity, "capacity", "Try again later.", 429)
                 session = {
                     "id": secrets.token_urlsafe(18),
@@ -143,6 +154,43 @@ class GameStore:
                 "display_url": f"{base}/display/#session={session['id']}&token={session['viewer']}",
                 "state": self._snapshot(session, now),
             }
+
+    def end(self, sid: str, request_key: str) -> dict:
+        """Admin-only exact-session end. Retain a bounded expiry tombstone for retries."""
+        require(
+            isinstance(request_key, str)
+            and request_key.isascii()
+            and 16 <= len(request_key) <= 128,
+            "invalid_request",
+            "Supply the caller's opaque request key.",
+            400,
+        )
+        with self.lock:
+            now = self.clock()
+            self._purge(now)
+            s = self.sessions.get(sid)
+            if s is None:
+                return {"ok": True, "session_id": sid, "ended": True, "already_ended": True}
+            require(
+                hmac.compare_digest(s["request_key"], request_key),
+                "session_owner_mismatch",
+                "This session belongs to another conversation.",
+                403,
+            )
+            already = bool(s.get("ended"))
+            if not already:
+                s.update(
+                    ended=True,
+                    phase="ended",
+                    pair=None,
+                    deadline=None,
+                    accept_until=None,
+                    move=None,
+                    nonce=None,
+                )
+                s["revision"] += 1
+                self._event(s, "session_ended", now)
+            return {"ok": True, "session_id": sid, "ended": True, "already_ended": already}
 
     def _round(self, s: dict) -> None:
         s["round_number"] += 1
@@ -207,6 +255,9 @@ class GameStore:
             "unauthorized",
             "Open your session link again.",
             401,
+        )
+        require(
+            not s.get("ended"), "session_ended", "Game ended. Start a new game in Telegram.", 410
         )
         self._advance(s, now)
         return s, now

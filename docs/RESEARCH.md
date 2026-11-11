@@ -521,3 +521,20 @@ used. Real iPhone Safari retest is UNVERIFIED. The reproduction identifies a rea
 moving-target failure, not proof that every Safari symptom has the same cause.
 Evidence: `docs/evidence/practice-completion-touch-20261111.json`; repeatable
 optional browser harness: `games/camera/browser/practice.mjs`.
+
+
+## Telegram game end implementation (2026-11-11)
+
+VERIFIED source: installed PyChromecast 14.1.1 defines APP_BACKDROP=E8C28D3C;
+ReceiverController.update_status sends platform GET_STATUS. The existing direct
+connection/disconnect adapter is reused; stop never sends a generic STOP or CLOSE.
+Receiver uses its existing CAF context.stop path after checking exact current
+session, same viewer capability and server revocation; pending old checks cannot
+close a newer receiver session. Player/viewer revocation, duplicate end, owner
+isolation, new pairing and unchanged scores are tested over loopback HTTP/mocks.
+
+VERIFIED synthetic browser fixture: server 410 changes the actual phone UI to Game
+ended, ends its local synthetic video track, stops inference, clears pairing and
+allows a new link in the same tab. Real iPhone practice completion is user-confirmed;
+new Telegram stop -> Den TV rotating artwork, audio silence, physical phone camera
+indicator off and fresh live pairing remain UNVERIFIED pending deployment/test.

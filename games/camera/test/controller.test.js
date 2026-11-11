@@ -32,7 +32,7 @@ function state(over = {}) {
 const countdown = (over = {}) =>
   state({ phase: 'countdown', revision: 2, countdown_ends_at_ms: SERVER_T0 + 3000, accept_until_ms: SERVER_T0 + 13_000, ...over });
 
-function setup({ storedSession = true } = {}) {
+function setup({ storedSession = true, timers = noTimers } = {}) {
   let mono = MONO_T0;
   const clock = new ServerClock({ now: () => mono });
   clock.sample(SERVER_T0, MONO_T0 - 10, MONO_T0 + 10); // offset = SERVER_T0 - MONO_T0
@@ -65,7 +65,7 @@ function setup({ storedSession = true } = {}) {
     clock,
     camera,
     storage: store,
-    timers: noTimers,
+    timers,
     loadRecognizer: () => loadRecognizer(),
     createFrameLoop: (opts) => {
       const loop = { opts, running: false, start() { this.running = true; }, stop() { this.running = false; } };
@@ -572,4 +572,19 @@ test('finish practice enables a ready round without releasing camera or restarti
   assert.equal(stream.getTracks().every(track => track.stopCalls === 0), true);
   await h.c.next();
   assert.equal(h.calls.filter(c => c.name === 'next').length, 1);
+});
+
+
+test('ended-session poll releases the camera, inference and stored pairing',async()=>{
+  const callbacks=[];
+  const timers={setTimeout(fn){callbacks.push(fn);return callbacks.length;},clearTimeout(){}};
+  const h=setup({timers});h.c.applyState(state());
+  const {stream,loop,video}=await cameraOn(h);
+  h.api.getState=async()=>{throw new ApiError(410,'session_ended','Game ended','expired');};
+  h.c.poller.start();callbacks.shift()();await flush();
+  assert.equal(h.c.screen,'expired');
+  assert.equal(h.c.cameraStatus,'off');
+  assert.equal(stream.allStopped,true);assert.equal(loop.running,false);
+  assert.equal(video.srcObject,null);assert.equal(h.c.session,null);
+  assert.equal(h.store.getItem('terebi.rps.player.v1'),null);
 });

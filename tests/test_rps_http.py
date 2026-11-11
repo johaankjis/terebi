@@ -169,3 +169,49 @@ def test_baked_hands_are_served_to_both_tv_pages(server):
     hands = server.get("/display/hands.json")
     assert hands.status_code == 200 and set(hands.json()["moves"]) == {"rock", "paper", "scissors"}
     assert "/display/hands.json" in server.get("/display/scene.js").text
+
+
+def test_end_is_admin_only_owner_scoped_and_invalidates_links(server):
+    created = create(server)
+    sid = created["session_id"]
+    viewer = urlsplit(created["display_url"]).fragment.split("token=")[1]
+    pair = urlsplit(created["pairing_url"]).fragment[5:]
+    path = "/v1/sessions/" + sid
+    for token in (viewer, "wrong-token"):
+        assert (
+            server.post(
+                path + "/end",
+                headers={"Authorization": "Bearer " + token},
+                json={"request_key": "request-key-123456"},
+            ).status_code
+            == 401
+        )
+    headers = {"Authorization": "Bearer " + KEY}
+    assert (
+        server.post(
+            path + "/end", headers=headers, json={"request_key": "different-owner-key"}
+        ).status_code
+        == 403
+    )
+    assert (
+        server.post(
+            path + "/end",
+            headers=headers,
+            json={"request_key": "request-key-123456", "extra": True},
+        ).status_code
+        == 400
+    )
+    body = {"request_key": "request-key-123456"}
+    assert server.post(path + "/end", headers=headers, json=body).json()["ended"]
+    assert server.post(path + "/end", headers=headers, json=body).json()["already_ended"]
+    assert server.get(path, headers={"Authorization": "Bearer " + viewer}).status_code == 410
+    assert server.post("/v1/pair", json={"pair_token": pair}).status_code == 410
+    fresh = create(server)
+    assert fresh["session_id"] != sid
+    assert server.post(path + "/end", headers=headers, json=body).json()["already_ended"]
+    assert (
+        server.post(
+            "/v1/pair", json={"pair_token": urlsplit(fresh["pairing_url"]).fragment[5:]}
+        ).json()["state"]["phase"]
+        == "ready"
+    )

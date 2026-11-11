@@ -48,7 +48,14 @@ class GameCastTransport:
                         "game_cast event=ack_received kind=%s "
                         "request_matches=%s session_matches=%s",
                         data.get("type")
-                        if data.get("type") in {"DISPLAY_RENDERED", "DISPLAY_FAILED"}
+                        if data.get("type")
+                        in {
+                            "DISPLAY_RENDERED",
+                            "DISPLAY_FAILED",
+                            "SESSION_ENDING",
+                            "SESSION_NOT_CURRENT",
+                            "SESSION_UNKNOWN",
+                        }
                         else "other",
                         data.get("request_id") == owner.expected_request,
                         data.get("session_id") == owner.expected_session,
@@ -76,6 +83,13 @@ class GameCastTransport:
                 return
             time.sleep(0.05)
         raise CastError("receiver_unavailable", "Check the receiver URL and device registration.")
+
+    def refresh_status(self) -> None:
+        # Platform GET_STATUS never launches/closes an app; ask for fresh closure evidence.
+        self.cast.socket_client.receiver_controller.update_status()
+
+    def current_app(self) -> str | None:
+        return self.connection.app_id()
 
     def matches_app(self) -> bool:
         return self.connection.app_id() == self.app_id
@@ -225,4 +239,97 @@ def launch_game_display(
             except Exception:
                 pass
         _LOG.info("game_cast event=attempt_closed elapsed_s=%.3f", time.monotonic() - started)
+        _LAUNCH_LOCK.release()
+
+
+APP_BACKDROP = "E8C28D3C"
+
+
+def stop_game_display(
+    host: str,
+    app_id: str,
+    session_id: str,
+    display_token: str,
+    *,
+    transport_factory=GameCastTransport,
+    clock=time.monotonic,
+    timeout_s: float = ACK_TIMEOUT_S,
+) -> dict[str, Any]:
+    """Ask only the matching ended receiver session to exit; never send platform STOP."""
+    try:
+        ipaddress.ip_address(host)
+        if (
+            not isinstance(app_id, str)
+            or not re.fullmatch(r"[A-Fa-f0-9]{8}", app_id)
+            or app_id.upper() in {APP_DEFAULT_MEDIA_RECEIVER, APP_BACKDROP}
+            or not all(
+                isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]{16,128}", v)
+                for v in (session_id, display_token)
+            )
+        ):
+            raise ValueError
+    except (ValueError, TypeError):
+        return {"ok": False, "reason": "games_cast_config", "hint": "Check game Cast settings."}
+    if not _LAUNCH_LOCK.acquire(timeout=1):
+        return {"ok": False, "reason": "games_cast_busy", "hint": "Retry the game stop shortly."}
+    transport = None
+    try:
+        transport = transport_factory(host, app_id.upper())
+        challenge = secrets.token_urlsafe(24)
+        active = transport.current_app()
+        sent = False
+        deadline = clock() + timeout_s
+        next_refresh = clock()
+        while clock() < deadline:
+            if clock() >= next_refresh:
+                transport.refresh_status()
+                next_refresh = clock() + 0.5
+            active = transport.current_app()
+            if active == APP_BACKDROP:
+                return {
+                    "ok": True,
+                    "closed": True,
+                    "evidence": "receiver_backdrop",
+                    "session_id": session_id,
+                }
+            if active and active != app_id.upper():
+                return {"ok": True, "closed": False, "reason": "other_playback_untouched"}
+            if active == app_id.upper() and not sent:
+                transport.send(
+                    {
+                        "type": "END_SESSION",
+                        "request_id": challenge,
+                        "session_id": session_id,
+                        "display_token": display_token,
+                    }
+                )
+                sent = True
+            event = transport.receive(min(0.25, max(0, deadline - clock())))
+            if (
+                isinstance(event, dict)
+                and event.get("request_id") == challenge
+                and event.get("session_id") == session_id
+                and event.get("type") == "SESSION_NOT_CURRENT"
+                and transport.matches_app()
+            ):
+                return {"ok": True, "closed": False, "reason": "newer_game_untouched"}
+        return {
+            "ok": False,
+            "reason": "receiver_close_unverified",
+            "hint": "The game ended, but Chromecast home/artwork was not confirmed.",
+        }
+    except CastError as exc:
+        return exc.to_dict()
+    except Exception:
+        return {
+            "ok": False,
+            "reason": "receiver_close_unverified",
+            "hint": "The game ended; receiver closure could not be confirmed.",
+        }
+    finally:
+        if transport is not None:
+            try:
+                transport.close()
+            except Exception:
+                pass
         _LAUNCH_LOCK.release()

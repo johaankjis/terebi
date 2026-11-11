@@ -21,7 +21,8 @@ try {
   });
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  let nextCalls = 0;
+  let nextCalls = 0,
+    serviceEnded = false;
   await page.addInitScript(() => {
     window.cameraFixture = { move: "rock", noHand: false };
     window.practiceClicks = 0;
@@ -55,6 +56,11 @@ try {
   await page.route("https://terebi.test/**", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname.startsWith("/v1/")) {
+      if (serviceEnded)
+        return route.fulfill({
+          status: 410,
+          json: { ok: false, reason: "session_ended", hint: "Game ended" },
+        });
       if (url.pathname.endsWith("/next")) nextCalls++;
       return route.fulfill({
         json: {
@@ -167,6 +173,28 @@ try {
   await page.waitForTimeout(100);
   assert.equal(nextCalls, 1);
   assert.deepEqual(errors, []);
+  serviceEnded = true;
+  await page.waitForFunction(
+    () => window.fixtureController.screen === "expired",
+  );
+  const ended = await page.evaluate(() => ({
+    title: document.querySelector("#message-title").textContent,
+    camera: window.fixtureController.cameraStatus,
+    tracks: window.fixtureStream.getTracks().map((t) => t.readyState),
+    loop: !!window.fixtureController.frameLoop,
+    session: window.sessionStorage.getItem("terebi.rps.player.v1"),
+  }));
+  assert.equal(ended.title, "Game ended");
+  assert.equal(ended.camera, "off");
+  assert.deepEqual(ended.tracks, ["ended"]);
+  assert.equal(ended.loop, false);
+  assert.equal(ended.session, null);
+  serviceEnded = false;
+  await page.goto(
+    "https://terebi.test/play/#pair=new-fixture-pair-token-12345",
+  );
+  await page.waitForFunction(() => window.fixtureController?.screen === "game");
+  assert.equal(await page.locator("#btn-camera-start").isVisible(), true);
   const result = {
     browser:
       "Chromium 156 mobile touch viewport; synthetic local camera/predictions; not real iPhone",
@@ -175,6 +203,8 @@ try {
     recognized,
     after,
     nextCalls,
+    ended,
+    freshPairing: true,
     errors,
   };
   console.log(JSON.stringify(result, null, 2));

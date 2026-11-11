@@ -225,7 +225,6 @@ def main() -> None:
             scene = json.loads(
                 dispatcher.dispatch(
                     "tv_scene_play",
-                    "tv_game_start",
                     {
                         "candidate_id": found["candidates"][0]["candidate_id"],
                     },

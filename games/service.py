@@ -186,6 +186,9 @@ class Handler(BaseHTTPRequestHandler):
                     if set(body) != {"pair_token"}:
                         raise GameError(400, "invalid_request", "Supply only the pairing token.")
                     return self._json(self.server.store.pair(body["pair_token"]))
+                match = re.fullmatch(r"/v1/sessions/([A-Za-z0-9_-]{16,64})/profile", path)
+                if match:
+                    return self._json(self.server.store.profile(match[1], self._token(), body))
                 match = re.fullmatch(
                     r"/v1/sessions/([A-Za-z0-9_-]{16,64})/(next|retry|move|tap)", path
                 )

@@ -216,8 +216,13 @@ def test_three_round_protocol_and_audit_have_exactly_three_scores():
     assert len(scores) == 3 and all(e["result"]["input"] == "camera" for e in scores)
     import json
 
+    viewer = urlsplit(c["display_url"]).fragment.split("token=")[1]
+    measured = {"mode": "3d", "tier": "full", "turn": "gl", "screen": [1280, 720, 100]}
+    assert store.profile(sid, viewer, dict(measured)) == {"ok": True}
+    assert events[-1]["event"] == "display_profile" and events[-1]["profile"] == measured
+    assert events[-1]["score"]["rounds"] == 3  # recording a profile never touches the game
     audit = json.dumps(events)
-    assert token not in audit and c["display_url"] not in audit
+    assert token not in audit and viewer not in audit and c["display_url"] not in audit
 
 
 @pytest.mark.parametrize("token", ["£bad", "❌", None])

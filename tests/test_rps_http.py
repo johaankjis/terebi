@@ -131,3 +131,41 @@ def test_tv_background_music_serves_from_display_origin(server):
         assert "no-store" in r.headers["cache-control"]
     assert server.get("/display/hydrate.mp4").status_code == 404
     assert server.get("/display/%2e%2e/hydrate.mp3").status_code == 404
+
+
+def test_display_can_report_render_timings_but_nothing_else(server):
+    c = create(server)
+    path = "/v1/sessions/" + c["session_id"]
+    viewer = {"Authorization": "Bearer " + urlsplit(c["display_url"]).fragment.split("token=")[1]}
+    before = server.get(path, headers=viewer).json()["state"]
+    good = {
+        "mode": "3d",
+        "tier": "lite",
+        "turn": "css",
+        "ambient": [90, 33, 120, 4],
+        "reveal": [60, 40, 180, 9],
+        "hand": [24, 41, 96],
+        "screen": [1280, 720, 100],
+    }
+    assert server.post(path + "/profile", headers=viewer, json=good).json() == {"ok": True}
+    after = server.get(path, headers=viewer).json()["state"]
+    assert after["revision"] == before["revision"] and after["phase"] == before["phase"]
+    assert server.post(path + "/profile", json=good).status_code == 401
+    for bad in (
+        {**good, "note": "free text"},
+        {**good, "mode": "<script>"},
+        {**good, "ambient": [1, 2, 3]},
+        {**good, "hand": [1, 2, 99999]},
+        {**good, "screen": [1280, 720, True]},
+        {k: v for k, v in good.items() if k != "tier"},
+    ):
+        assert server.post(path + "/profile", headers=viewer, json=bad).status_code == 400
+    for _ in range(31):
+        assert server.post(path + "/profile", headers=viewer, json=good).status_code == 200
+    assert server.post(path + "/profile", headers=viewer, json=good).status_code == 429
+
+
+def test_baked_hands_are_served_to_both_tv_pages(server):
+    hands = server.get("/display/hands.json")
+    assert hands.status_code == 200 and set(hands.json()["moves"]) == {"rock", "paper", "scissors"}
+    assert "/display/hands.json" in server.get("/display/scene.js").text
